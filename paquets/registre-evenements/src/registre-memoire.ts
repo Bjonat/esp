@@ -1,54 +1,23 @@
-/**
- * Événement append-only du registre ESP.
- * Une fois enregistré, un événement est immuable.
- */
-export interface Evenement {
-  readonly identifiant: string;
-  readonly identifiantAgent: string;
-  readonly type: string;
-  /** Horodatage ISO 8601. */
-  readonly horodatage: string;
-  readonly chargeUtile: Readonly<Record<string, unknown>>;
-}
-
-export type EntreeEvenement = {
-  identifiant: string;
-  identifiantAgent: string;
-  type: string;
-  horodatage: string;
-  chargeUtile?: Readonly<Record<string, unknown>>;
-};
-
-export interface RegistreEvenements {
-  ajouter(entree: EntreeEvenement): Evenement;
-  lister(): readonly Evenement[];
-  listerParAgent(identifiantAgent: string): readonly Evenement[];
-  taille(): number;
-}
-
-function figerChargeUtile(
-  chargeUtile: Readonly<Record<string, unknown>>,
-): Readonly<Record<string, unknown>> {
-  return Object.freeze({ ...chargeUtile });
-}
-
-function figerEvenement(evenement: Evenement): Evenement {
-  return Object.freeze({
-    identifiant: evenement.identifiant,
-    identifiantAgent: evenement.identifiantAgent,
-    type: evenement.type,
-    horodatage: evenement.horodatage,
-    chargeUtile: figerChargeUtile(evenement.chargeUtile),
-  });
-}
+import type {
+  EntreeEvenement,
+  Evenement,
+  RegistreEvenements,
+} from "./types.js";
+import { normaliserEntreeEvenement } from "./types.js";
 
 /**
  * Registre d'événements en mémoire, append-only et ordonné.
- * Les événements historiques ne peuvent pas être modifiés ni retirés.
+ * Attribue une séquence monotone par expérience.
  */
 export class RegistreEvenementsMemoire implements RegistreEvenements {
   private readonly evenements: Evenement[] = [];
   private readonly identifiantsConnus = new Set<string>();
+  /** Prochaine séquence à attribuer, indexée par expérience. */
+  private readonly prochainesSequences = new Map<string, number>();
+
+  consulterProchaineSequence(identifiantExperience: string): number {
+    return this.prochainesSequences.get(identifiantExperience) ?? 1;
+  }
 
   ajouter(entree: EntreeEvenement): Evenement {
     if (this.identifiantsConnus.has(entree.identifiant)) {
@@ -57,16 +26,14 @@ export class RegistreEvenementsMemoire implements RegistreEvenements {
       );
     }
 
-    const evenement = figerEvenement({
-      identifiant: entree.identifiant,
-      identifiantAgent: entree.identifiantAgent,
-      type: entree.type,
-      horodatage: entree.horodatage,
-      chargeUtile: entree.chargeUtile ?? {},
-    });
+    const sequence = this.consulterProchaineSequence(
+      entree.identifiantExperience,
+    );
+    const evenement = normaliserEntreeEvenement(entree, sequence);
 
     this.evenements.push(evenement);
     this.identifiantsConnus.add(evenement.identifiant);
+    this.prochainesSequences.set(entree.identifiantExperience, sequence + 1);
     return evenement;
   }
 
@@ -77,6 +44,23 @@ export class RegistreEvenementsMemoire implements RegistreEvenements {
   listerParAgent(identifiantAgent: string): readonly Evenement[] {
     return this.evenements.filter(
       (evenement) => evenement.identifiantAgent === identifiantAgent,
+    );
+  }
+
+  listerParExperience(identifiantExperience: string): readonly Evenement[] {
+    return this.evenements.filter(
+      (evenement) => evenement.identifiantExperience === identifiantExperience,
+    );
+  }
+
+  listerParCycle(
+    identifiantExperience: string,
+    numeroCycle: number,
+  ): readonly Evenement[] {
+    return this.evenements.filter(
+      (evenement) =>
+        evenement.identifiantExperience === identifiantExperience &&
+        evenement.numeroCycle === numeroCycle,
     );
   }
 

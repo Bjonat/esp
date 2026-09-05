@@ -2,8 +2,15 @@ export type {
   EntreeEvenement,
   Evenement,
   RegistreEvenements,
-} from "./registre-memoire.js";
+} from "./types.js";
+export { figerProfondement, normaliserEntreeEvenement } from "./types.js";
+
 export {
   RegistreEvenementsMemoire,
   creerRegistreEvenementsMemoire,
 } from "./registre-memoire.js";
+
+export {
+  RegistreEvenementsSqlite,
+  creerRegistreEvenementsSqlite,
+} from "./registre-sqlite.js";

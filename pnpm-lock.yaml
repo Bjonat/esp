@@ -187,7 +187,11 @@ importers:
 
   paquets/protocole: {}
 
-  paquets/registre-evenements: {}
+  paquets/registre-evenements:
+    dependencies:
+      '@esp/protocole':
+        specifier: workspace:*
+        version: link:../protocole
 
   paquets/xway: {}
 
