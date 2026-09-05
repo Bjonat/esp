@@ -1,0 +1,13 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./paquets/protocole" },
+    { "path": "./paquets/registre-evenements" },
+    { "path": "./paquets/moteur-agent" },
+    { "path": "./paquets/xway" },
+    { "path": "./paquets/environnement" },
+    { "path": "./adaptateurs/replay" },
+    { "path": "./adaptateurs/solana" },
+    { "path": "./applications/controleur" }
+  ]
+}

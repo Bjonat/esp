@@ -1,0 +1,131 @@
+:root {
+  color-scheme: dark;
+  --fond: #0d1114;
+  --fond-elevated: #141a1f;
+  --texte: #e6ecef;
+  --texte-muted: #8a9aa3;
+  --accent: #3d9a8b;
+  --bordure: #243038;
+  --police-sans: "IBM Plex Sans", "Segoe UI", sans-serif;
+  --police-mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#racine {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: var(--police-sans);
+  background:
+    radial-gradient(ellipse 80% 50% at 20% -10%, #1a2830 0%, transparent 55%),
+    radial-gradient(ellipse 60% 40% at 100% 0%, #152028 0%, transparent 45%),
+    var(--fond);
+  color: var(--texte);
+}
+
+.page {
+  min-height: 100vh;
+  padding: 3rem clamp(1.5rem, 4vw, 4rem);
+  display: flex;
+  flex-direction: column;
+  gap: 3rem;
+}
+
+.en-tete {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.marque {
+  margin: 0;
+  font-family: var(--police-mono);
+  font-size: clamp(2.5rem, 6vw, 3.75rem);
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  line-height: 1;
+}
+
+.sous-titre {
+  margin: 0;
+  color: var(--texte-muted);
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+}
+
+.contenu {
+  display: flex;
+  flex-direction: column;
+  gap: 2.5rem;
+  max-width: 42rem;
+}
+
+.statut {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  width: fit-content;
+  padding: 0.55rem 0.9rem;
+  background: var(--fond-elevated);
+  border: 1px solid var(--bordure);
+}
+
+.indicateur {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+.libelle-statut {
+  font-family: var(--police-mono);
+  font-size: 0.85rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.metriques {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem 2rem;
+}
+
+.metrique {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid var(--bordure);
+}
+
+.metrique dt {
+  margin: 0;
+  color: var(--texte-muted);
+  font-size: 0.8rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.metrique dd {
+  margin: 0;
+  font-family: var(--police-mono);
+  font-size: 1.35rem;
+  font-weight: 500;
+}
+
+@media (max-width: 560px) {
+  .metriques {
+    grid-template-columns: 1fr;
+  }
+}
