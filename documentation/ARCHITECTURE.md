@@ -1,11 +1,14 @@
-# Architecture ESP — fondations
+# Architecture ESP — fondations + noyau économique v0.1
 
 ## Objectif
 
 ESP est un système expérimental greenfield pour étudier l'évolution économique
 d'agents autonomes sous contraintes réelles de ressources.
 
-Ce document décrit les **frontières actuelles** du monorepo à l'étape fondations.
+Ce document décrit les **frontières actuelles** du monorepo.
+Le noyau économique v0.1 est déterministe, auditable et indépendant de toute
+blockchain ou IA réelle.
+
 Aucune transaction réelle, aucun wallet financier, aucune inférence payante et
 aucune connexion Solana ne sont implémentés.
 
@@ -17,16 +20,18 @@ esp/
 │   ├── controleur/          # Orchestration d'expérience
 │   └── tableau-de-bord/     # Interface d'observation
 ├── paquets/
-│   ├── protocole/           # Invariants et types métier du cœur
+│   ├── protocole/           # Invariants, types métier, noyau économique
 │   ├── moteur-agent/        # Identité / boucle agent (stub)
-│   ├── registre-evenements/ # Journal append-only
+│   ├── registre-evenements/ # Journal append-only (mémoire + SQLite)
 │   ├── xway/                # Plateforme ressources / metering (stub)
 │   └── environnement/       # Abstraction économique remplaçable
 ├── adaptateurs/
 │   ├── replay/              # Environnement de rejeu
 │   └── solana/              # Frontière future SOL/USDC (sans réseau)
 ├── documentation/
-├── experiences/             # Configurations d'expériences (vide pour l'instant)
+│   ├── ARCHITECTURE.md
+│   └── NOYAU_ECONOMIQUE.md
+├── experiences/             # Configurations d'expériences
 └── .github/workflows/       # CI
 ```
 
@@ -38,9 +43,23 @@ Contient les invariants et types stables du protocole ESP :
 
 - `Agent` minimal (identifiant, génération, parent, survie, naissance) ;
 - états de survie : `sain`, `contraint`, `critique`, `dormant`, `mort` ;
-- transition de survie avec invariant : **un agent mort ne revient pas à un état vivant**.
+- transition de survie avec invariant : **un agent mort ne revient pas à un état vivant** ;
+- **noyau économique v0.1** :
+  - unité `MicroUsdc` (`bigint`) ;
+  - taxonomie d'événements versionnée ;
+  - `ParametresEconomiquesExperience` / contrat économique ;
+  - état économique agent + valeur économique nette ;
+  - runway / survie ;
+  - loyer d'infrastructure ;
+  - redevance propriétaire à high-water mark ;
+  - trésorerie propriétaire ;
+  - cycle économique déterministe ;
+  - reconstruction événementielle ;
+  - transfert interne sans création de valeur.
 
 Le protocole ne dépend d'aucune blockchain, d'aucun fournisseur d'IA, ni de Xway.
+
+Détail : [`NOYAU_ECONOMIQUE.md`](./NOYAU_ECONOMIQUE.md).
 
 ### 2. `@esp/moteur-agent` — runtime agent
 
@@ -51,14 +70,21 @@ comportements, les décisions et les outils.
 
 ### 3. `@esp/registre-evenements` — vérité auditable
 
-Journal append-only en mémoire :
+Journal append-only :
+
+- `RegistreEvenementsMemoire` — tests rapides ;
+- `RegistreEvenementsSqlite` — persistance locale (`node:sqlite`) ;
+
+Propriétés :
 
 - ajout ordonné d'événements ;
-- consultation globale ou par agent ;
-- immutabilité des événements historiques (`Object.freeze`) ;
-- refus des identifiants en double.
+- consultation globale, par agent, par expérience, par cycle ;
+- immutabilité profonde des événements historiques ;
+- refus des identifiants en double ;
+- aucune méthode UPDATE d'événement historique ;
+- reconstruction après redémarrage du processus.
 
-Toute reconstruction d'état expérimental devra s'appuyer sur ce registre.
+Le schéma d'événement est celui du protocole (`EvenementEconomique`).
 
 ### 4. `@esp/xway` — plateforme
 
@@ -93,33 +119,34 @@ Population et génération valent `0` ; statut affiché : `Fondations`.
 
 ### 8. `@esp/tableau-de-bord`
 
-Interface d'observation (Vite + React), données statiques pour l'instant :
-
-- ESP ;
-- statut Fondations ;
-- population 0 ;
-- génération 0 ;
-- environnement Non démarré ;
-- mode Développement.
+Interface d'observation (Vite + React), données statiques pour l'instant.
 
 Ne déploie jamais vers `/opt/esp-dashboard` depuis le code de développement.
 
-## Invariants déjà exprimés dans le code
+## Invariants exprimés dans le code
 
 1. Mortalité irréversible (`transitionnerEtatSurvie`).
-2. Registre append-only et non mutable après écriture.
+2. Registre append-only et non mutable après écriture (y compris charge utile imbriquée).
 3. Indépendance du cœur vis-à-vis de Solana et des fournisseurs d'IA.
 4. Aucune transaction réelle autorisée par défaut.
+5. Montants en micro-USDC entiers (`bigint`) — pas de flottants.
+6. Temps expérimental fondé sur les cycles — pas sur l'horloge système.
+7. Naissance / capital initial sans création de revenu.
+8. Transfert interne sans création de valeur globale.
+9. Redevance high-water mark (pas de double taxation d'un même profit).
+10. Distinction capital / obligations / totaux d'activité / trésorerie propriétaire.
+11. Paramètres économiques d'expérience versionnés.
 
 ## Ce qui n'existe pas encore (volontairement)
 
 - Boucle agent complète ;
-- portefeuille / capital / coûts ;
-- reproduction, héritage, mutation, fitness ;
+- wallet Ed25519 / Solana ;
+- Jupiter, données de marché, trading, positions SOL ;
+- OpenAI / Anthropic / inference gateway réel ;
 - metering et accounting Xway réels ;
 - Shadow/Live opérationnels ;
-- API Solana ;
-- secrets, wallets, clés privées ;
+- reproduction, héritage, mutation, fitness ;
+- secrets, clés privées ;
 - Docker / déploiement production.
 
 ## Chaîne qualité
