@@ -19,7 +19,8 @@
   },
   "dependencies": {
     "@esp/protocole": "workspace:*",
-    "@esp/registre-evenements": "workspace:*"
+    "@esp/registre-evenements": "workspace:*",
+    "@esp/xway": "workspace:*"
   },
   "devDependencies": {
     "tsx": "^4.20.5"

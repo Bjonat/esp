@@ -96,10 +96,15 @@ Identifié clairement comme **SIMULATEUR DE DÉVELOPPEMENT**.
 
 Pour chaque agent non mort :
 
-1. `simulerActiviteCycle`
-2. `executerCycleEconomique` (noyau)
-3. enregistrement append-only des événements
-4. mise à jour trésorerie propriétaire
+1. (si Xway actif) politique cognitive de développement → demandes Xway ;
+2. enregistrement des événements d'observation Xway ;
+3. `simulerActiviteCycle` (activité économique simulée) ;
+4. agrégation `depenseCompute` = coûts Xway du cycle (si Xway actif) ;
+5. `executerCycleEconomique` (noyau) ;
+6. enregistrement append-only ;
+7. mise à jour trésorerie propriétaire.
+
+Voir aussi [`XWAY.md`](./XWAY.md).
 
 Un agent mort :
 
@@ -135,6 +140,8 @@ Scénario validé par tests :
 | GET | `/api/agents/:id/evenements` | Événements agent |
 | GET | `/api/arbre-genealogique` | Arbre (racines Genesis) |
 | GET | `/api/tresorerie` | Trésorerie propriétaire |
+| GET | `/api/xway` | Agrégats Xway |
+| GET | `/api/agents/:id/xway` | Cognition agent |
 | GET | `/api/activite-recente` | Timeline |
 | GET | `/api/historique` | VEN / états / trésorerie par cycle |
 | POST | `/api/experience/avancer` | +1 cycle |

@@ -151,6 +151,9 @@ importers:
       '@esp/registre-evenements':
         specifier: workspace:*
         version: link:../../paquets/registre-evenements
+      '@esp/xway':
+        specifier: workspace:*
+        version: link:../../paquets/xway
     devDependencies:
       tsx:
         specifier: ^4.20.5
@@ -194,7 +197,11 @@ importers:
         specifier: workspace:*
         version: link:../protocole
 
-  paquets/xway: {}
+  paquets/xway:
+    dependencies:
+      '@esp/protocole':
+        specifier: workspace:*
+        version: link:../protocole
 
 packages:
 

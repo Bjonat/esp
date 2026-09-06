@@ -108,6 +108,45 @@ export interface PointHistorique {
   readonly tresorerieSoldeNet: MontantApi;
 }
 
+export interface ProjectionXwayGlobale {
+  readonly active: boolean;
+  readonly fournisseurSimule: true;
+  readonly libelleFournisseur: string;
+  readonly demandesRecues: number;
+  readonly demandesAutorisees: number;
+  readonly demandesRefusees: number;
+  readonly inferencesExecutees: number;
+  readonly inferencesEchouees: number;
+  readonly coutComputeCumule: MontantApi;
+  readonly coutComputeCycleCourant: MontantApi;
+  readonly repartitionParModele: readonly {
+    readonly modele: string;
+    readonly executees: number;
+    readonly refusees: number;
+    readonly coutCumule: MontantApi;
+  }[];
+}
+
+export interface ProjectionXwayAgent {
+  readonly identifiantAgent: string;
+  readonly fournisseurSimule: true;
+  readonly libelleFournisseur: string;
+  readonly nombreDemandes: number;
+  readonly modelesUtilises: readonly string[];
+  readonly inferencesRefusees: number;
+  readonly inferencesExecutees: number;
+  readonly jetonsEntreeCumules: number;
+  readonly jetonsSortieCumules: number;
+  readonly coutCumule: MontantApi;
+  readonly dernierAppel: {
+    readonly numeroCycle: number;
+    readonly type: string;
+    readonly modele: string | null;
+    readonly resume: string;
+  } | null;
+  readonly budgetCognitifDernierCycle: MontantApi | null;
+}
+
 export interface InstantaneEsp {
   readonly experience: ProjectionExperience;
   readonly population: ProjectionPopulation;
@@ -116,6 +155,7 @@ export interface InstantaneEsp {
   readonly tresorerie: ProjectionTresorerie;
   readonly activite: readonly ProjectionEvenement[];
   readonly historique: readonly PointHistorique[];
+  readonly xway: ProjectionXwayGlobale;
 }
 
 async function lireJson<T>(chemin: string, init?: RequestInit): Promise<T> {
@@ -159,6 +199,7 @@ export async function chargerInstantane(): Promise<InstantaneEsp> {
     tresorerie,
     activiteCorps,
     historiqueCorps,
+    xway,
   ] = await Promise.all([
     lireJson<ProjectionExperience>("/api/experience"),
     lireJson<ProjectionPopulation>("/api/population"),
@@ -167,6 +208,7 @@ export async function chargerInstantane(): Promise<InstantaneEsp> {
     lireJson<ProjectionTresorerie>("/api/tresorerie"),
     lireJson<{ evenements: ProjectionEvenement[] }>("/api/activite-recente"),
     lireJson<{ points: PointHistorique[] }>("/api/historique"),
+    lireJson<ProjectionXwayGlobale>("/api/xway"),
   ]);
 
   return {
@@ -177,6 +219,7 @@ export async function chargerInstantane(): Promise<InstantaneEsp> {
     tresorerie,
     activite: activiteCorps.evenements,
     historique: historiqueCorps.points,
+    xway,
   };
 }
 
@@ -199,4 +242,12 @@ export async function chargerEvenementsAgent(
     `/api/agents/${encodeURIComponent(identifiant)}/evenements`,
   );
   return corps.evenements;
+}
+
+export async function chargerXwayAgent(
+  identifiant: string,
+): Promise<ProjectionXwayAgent> {
+  return lireJson<ProjectionXwayAgent>(
+    `/api/agents/${encodeURIComponent(identifiant)}/xway`,
+  );
 }

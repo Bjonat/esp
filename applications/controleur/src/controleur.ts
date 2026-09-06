@@ -58,6 +58,23 @@ import {
   VERSION_SIMULATEUR_DEVELOPPEMENT,
   simulerActiviteCycle,
 } from "./simulateur-developpement.js";
+import type { ConfigurationXway, EtatPersistantDemandeXway, PasserelleXway } from "@esp/xway";
+import {
+  creerPasserelleXway,
+  parserConfigurationXway,
+  serialiserConfigurationXway,
+  type ConfigurationXwayJson,
+} from "@esp/xway";
+import { executerCycleCognitifAgent } from "./cycle-xway.js";
+import type {
+  ProjectionXwayAgent,
+  ProjectionXwayGlobale,
+} from "./projections-xway.js";
+import {
+  projeterXwayAgent,
+  projeterXwayGlobal,
+  reconstruireEtatsDemandesDepuisRegistre,
+} from "./projections-xway.js";
 
 export type OptionsControleurExperience = {
   /**
@@ -98,6 +115,7 @@ export class ControleurExperience {
   private historique: PointHistoriqueVen[];
   private registreSqlite: RegistreEvenementsSqlite | undefined;
   private snapshotSimulateur: SnapshotCreationExperience["simulateur"];
+  private passerelleXway: PasserelleXway | undefined;
 
   private constructor(options: {
     configuration: ConfigurationExperience;
@@ -111,6 +129,7 @@ export class ControleurExperience {
     historique: PointHistoriqueVen[];
     snapshotSimulateur: SnapshotCreationExperience["simulateur"];
     registreSqlite?: RegistreEvenementsSqlite;
+    passerelleXway?: PasserelleXway;
   }) {
     this.configuration = options.configuration;
     this.registre = options.registre;
@@ -123,6 +142,7 @@ export class ControleurExperience {
     this.historique = options.historique;
     this.snapshotSimulateur = options.snapshotSimulateur;
     this.registreSqlite = options.registreSqlite;
+    this.passerelleXway = options.passerelleXway;
   }
 
   static ouvrir(options: OptionsControleurExperience): ControleurExperience {
@@ -220,6 +240,10 @@ export class ControleurExperience {
       identifiant: IDENTIFIANT_SIMULATEUR_DEVELOPPEMENT,
       version: VERSION_SIMULATEUR_DEVELOPPEMENT,
     };
+    const xwaySerialise =
+      configuration.xway !== undefined
+        ? serialiserConfigurationXway(configuration.xway)
+        : undefined;
     const snapshot: SnapshotCreationExperience = {
       identifiantExperience: configuration.identifiantExperience,
       versionProtocole: configuration.versionProtocole,
@@ -231,7 +255,12 @@ export class ControleurExperience {
       parametresEconomiques: configuration.parametresEconomiques,
       simulateur: snapshotSimulateur,
       dateCreation,
+      ...(xwaySerialise !== undefined
+        ? { xway: xwaySerialise as unknown as Readonly<Record<string, unknown>> }
+        : {}),
     };
+
+    const passerelleXway = fabriquerPasserelle(configuration.xway, new Map());
 
     const controleur = new ControleurExperience({
       configuration,
@@ -243,6 +272,7 @@ export class ControleurExperience {
       tresorerie: creerTresorerieProprietaire(),
       historique: [],
       snapshotSimulateur,
+      ...(passerelleXway !== undefined ? { passerelleXway } : {}),
       ...(options.datesEvenementsFixes !== undefined
         ? { datesEvenementsFixes: options.datesEvenementsFixes }
         : {}),
@@ -279,6 +309,10 @@ export class ControleurExperience {
       );
     }
     const snapshot = parserSnapshotCreationExperience(creation.chargeUtile);
+    const xway =
+      snapshot.xway !== undefined
+        ? parserConfigurationXway(snapshot.xway as unknown as ConfigurationXwayJson)
+        : undefined;
     const configuration: ConfigurationExperience = {
       identifiantExperience: snapshot.identifiantExperience,
       versionProtocole: snapshot.versionProtocole,
@@ -287,6 +321,7 @@ export class ControleurExperience {
       taillePopulationInitiale: snapshot.taillePopulationInitiale,
       capitalInitialParAgentMicroUsdc: snapshot.capitalInitialParAgentMicroUsdc,
       parametresEconomiques: snapshot.parametresEconomiques,
+      ...(xway !== undefined ? { xway } : {}),
     };
 
     const economiques = filtrerEvenementsEconomiques(evenements);
@@ -295,6 +330,8 @@ export class ControleurExperience {
     const numeroCycleCourant = determinerCycleCourant(evenements);
     const historique = reconstruireHistoriqueParCycle(economiques, agents);
     const statut = reconstruireStatutExperience(evenements);
+    const etatsDemandes = reconstruireEtatsDemandesDepuisRegistre(evenements);
+    const passerelleXway = fabriquerPasserelle(xway, etatsDemandes);
 
     return new ControleurExperience({
       configuration,
@@ -306,6 +343,7 @@ export class ControleurExperience {
       tresorerie,
       historique,
       snapshotSimulateur: snapshot.simulateur,
+      ...(passerelleXway !== undefined ? { passerelleXway } : {}),
       ...(options.datesEvenementsFixes !== undefined
         ? { datesEvenementsFixes: options.datesEvenementsFixes }
         : {}),
@@ -427,11 +465,46 @@ export class ControleurExperience {
         continue;
       }
 
-      const activite = simulerActiviteCycle({
+      const activiteEco = simulerActiviteCycle({
         graineSimulation: this.configuration.graineSimulation,
         identifiantAgent: agent.identite.identifiant,
         numeroCycle,
       });
+
+      let coutComputeXway = 0n;
+      if (
+        this.configuration.xway?.active === true &&
+        this.passerelleXway !== undefined
+      ) {
+        const resultatXway = executerCycleCognitifAgent({
+          configurationXway: this.configuration.xway,
+          passerelle: this.passerelleXway,
+          agent,
+          identifiantExperience: this.configuration.identifiantExperience,
+          numeroCycle,
+          graineSimulation: this.configuration.graineSimulation,
+          prochaineSequence: () =>
+            this.registre.consulterProchaineSequence(
+              this.configuration.identifiantExperience,
+            ),
+          enregistrerImmediatement: (evenementsXway) => {
+            this.enregistrerEvenements(evenementsXway);
+          },
+          ...(this.datesEvenementsFixes !== undefined
+            ? { dateEnregistrement: this.datesEvenementsFixes }
+            : {}),
+        });
+        // Les événements Xway sont déjà persistés (autorisation avant fournisseur).
+        coutComputeXway = resultatXway.coutComputeXwayMicroUsdc;
+      }
+
+      const activite = {
+        ...activiteEco,
+        depenseCompute:
+          this.configuration.xway?.active === true
+            ? coutComputeXway
+            : activiteEco.depenseCompute,
+      };
 
       let resultat;
       try {
@@ -522,6 +595,14 @@ export class ControleurExperience {
     this.statut = reconstruireStatutExperience(evenements);
     this.dateCreation = snapshot.dateCreation;
     this.snapshotSimulateur = snapshot.simulateur;
+    const xway =
+      snapshot.xway !== undefined
+        ? parserConfigurationXway(snapshot.xway as unknown as ConfigurationXwayJson)
+        : undefined;
+    this.passerelleXway = fabriquerPasserelle(
+      xway,
+      reconstruireEtatsDemandesDepuisRegistre(evenements),
+    );
   }
 
   fermer(): void {
@@ -611,6 +692,7 @@ export class ControleurExperience {
       "EXPERIENCE_REPRISE",
       "EXPERIENCE_TERMINEE",
       "CYCLE_EXPERIENCE_AVANCE",
+      "DEMANDE_INFERENCE_RECUE",
     ]);
     const pertinents = evenements.filter((e) => !exclus.has(e.type));
     return pertinents.slice(-limite).reverse().map(projeterEvenement);
@@ -626,6 +708,31 @@ export class ControleurExperience {
 
   projeterHistorique(): readonly PointHistoriqueVen[] {
     return this.historique;
+  }
+
+  projeterXway(): ProjectionXwayGlobale {
+    return projeterXwayGlobal({
+      evenements: this.registre.listerParExperience(
+        this.configuration.identifiantExperience,
+      ),
+      numeroCycleCourant: this.numeroCycleCourant,
+      active: this.configuration.xway?.active === true,
+    });
+  }
+
+  projeterXwayAgent(identifiant: string): ProjectionXwayAgent | undefined {
+    if (
+      this.agents.find((a) => a.identite.identifiant === identifiant) ===
+      undefined
+    ) {
+      return undefined;
+    }
+    return projeterXwayAgent({
+      evenements: this.registre.listerParExperience(
+        this.configuration.identifiantExperience,
+      ),
+      identifiantAgent: identifiant,
+    });
   }
 
   capturerEmpreinteEconomique(): {
@@ -750,6 +857,19 @@ function determinerCycleCourant(evenements: readonly EvenementEsp[]): number {
     }
   }
   return max;
+}
+
+function fabriquerPasserelle(
+  configuration: ConfigurationXway | undefined,
+  etatsDemandes: ReadonlyMap<string, EtatPersistantDemandeXway>,
+): PasserelleXway | undefined {
+  if (configuration === undefined || !configuration.active) {
+    return undefined;
+  }
+  return creerPasserelleXway({
+    configuration,
+    etatsDemandes,
+  });
 }
 
 /** Alias historique pour compatibilité des imports existants. */

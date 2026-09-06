@@ -48,6 +48,11 @@ export type SnapshotCreationExperience = {
   readonly parametresEconomiques: ParametresEconomiquesExperience;
   readonly simulateur: SnapshotSimulateurExperience;
   readonly dateCreation: string;
+  /**
+   * Configuration Xway sérialisée (chaînes micro-USDC) figée à la création.
+   * Absente = Xway inactif pour cette expérience.
+   */
+  readonly xway?: Readonly<Record<string, unknown>>;
 };
 
 export type ChargeExperienceCreee = {
@@ -69,6 +74,7 @@ export type ChargeExperienceCreee = {
   };
   readonly simulateur: SnapshotSimulateurExperience;
   readonly dateCreation: string;
+  readonly xway?: Readonly<Record<string, unknown>>;
 };
 
 export type ChargeCycleExperienceAvance = {
@@ -123,6 +129,7 @@ export function serialiserSnapshotCreationExperience(
     },
     simulateur: snapshot.simulateur,
     dateCreation: snapshot.dateCreation,
+    ...(snapshot.xway !== undefined ? { xway: snapshot.xway } : {}),
   };
 }
 
@@ -211,6 +218,11 @@ export function parserSnapshotCreationExperience(
       version: simulateur.version,
     },
     dateCreation: chargeUtile.dateCreation,
+    ...(chargeUtile.xway !== undefined &&
+    chargeUtile.xway !== null &&
+    typeof chargeUtile.xway === "object"
+      ? { xway: chargeUtile.xway as Readonly<Record<string, unknown>> }
+      : {}),
   };
 }
 

@@ -57,10 +57,14 @@ Onglets :
 | Vue d'ensemble | Identité, état, naissance, runway |
 | Économie | Capital, obligations, VEN, HWM, totaux |
 | Activité | Chronologie registre |
+| Cognition / Xway | Demandes, modèles, jetons, coûts, refus — fournisseur simulé |
 | Décisions | « Moteur de décision non connecté » |
 | Recherche | « Aucune source de données ou recherche connectée » |
 | Portefeuille | « Aucun environnement financier connecté » |
 | Descendance | « Reproduction non activée » |
+
+L'écran principal affiche aussi une section **Xway** globale
+(demandes / autorisations / refus / coûts / répartition modèles).
 
 Placeholders **volontaires et honnêtes** — aucune donnée fictive.
 

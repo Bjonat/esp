@@ -127,6 +127,16 @@ async function gererRequete(
         return;
       }
 
+      if (segments[1] === "xway") {
+        const xwayAgent = controleur.projeterXwayAgent(identifiant);
+        if (xwayAgent === undefined) {
+          repondreJson(reponse, 404, { erreur: "Agent introuvable" });
+          return;
+        }
+        repondreJson(reponse, 200, xwayAgent);
+        return;
+      }
+
       if (segments.length === 1) {
         const agent = controleur.projeterAgent(identifiant);
         if (agent === undefined) {
@@ -148,6 +158,11 @@ async function gererRequete(
 
     if (methode === "GET" && chemin === "/api/tresorerie") {
       repondreJson(reponse, 200, controleur.projeterTresorerie());
+      return;
+    }
+
+    if (methode === "GET" && chemin === "/api/xway") {
+      repondreJson(reponse, 200, controleur.projeterXway());
       return;
     }
 

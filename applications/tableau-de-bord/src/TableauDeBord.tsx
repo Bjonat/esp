@@ -4,11 +4,13 @@ import type {
   InstantaneEsp,
   ProjectionAgent,
   ProjectionEvenement,
+  ProjectionXwayAgent,
 } from "./api-client.js";
 import {
   avancerCycle,
   chargerEvenementsAgent,
   chargerInstantane,
+  chargerXwayAgent,
   demarrerExperience,
   pauseExperience,
   verifierSante,
@@ -23,6 +25,7 @@ type OngletFiche =
   | "vue"
   | "economie"
   | "activite"
+  | "xway"
   | "decisions"
   | "recherche"
   | "portefeuille"
@@ -37,6 +40,7 @@ export function TableauDeBord() {
   const [evenementsAgent, setEvenementsAgent] = useState<
     readonly ProjectionEvenement[]
   >([]);
+  const [xwayAgent, setXwayAgent] = useState<ProjectionXwayAgent | null>(null);
   const [avanceEnCours, setAvanceEnCours] = useState(false);
 
   useEffect(() => {
@@ -81,12 +85,17 @@ export function TableauDeBord() {
   useEffect(() => {
     if (agentSelectionne === null || connexion !== "connecte") {
       setEvenementsAgent([]);
+      setXwayAgent(null);
       return;
     }
     let annule = false;
-    void chargerEvenementsAgent(agentSelectionne).then((evts) => {
+    void Promise.all([
+      chargerEvenementsAgent(agentSelectionne),
+      chargerXwayAgent(agentSelectionne),
+    ]).then(([evts, xway]) => {
       if (!annule) {
         setEvenementsAgent(evts);
+        setXwayAgent(xway);
       }
     });
     return () => {
@@ -323,6 +332,52 @@ export function TableauDeBord() {
             </dl>
           </section>
 
+          <section className="panneau xway-global" aria-label="Xway">
+            <div className="titre-section">
+              <h2>Xway</h2>
+              <span className="badge-mode">{instantane.xway.libelleFournisseur}</span>
+            </div>
+            <dl className="metriques-compactes">
+              <div>
+                <dt>Demandées</dt>
+                <dd>{String(instantane.xway.demandesRecues)}</dd>
+              </div>
+              <div>
+                <dt>Autorisées</dt>
+                <dd>{String(instantane.xway.demandesAutorisees)}</dd>
+              </div>
+              <div>
+                <dt>Refusées</dt>
+                <dd>{String(instantane.xway.demandesRefusees)}</dd>
+              </div>
+              <div>
+                <dt>Exécutées</dt>
+                <dd>{String(instantane.xway.inferencesExecutees)}</dd>
+              </div>
+              <div>
+                <dt>Coût cumulé</dt>
+                <dd>{instantane.xway.coutComputeCumule.usdc} USDC</dd>
+              </div>
+              <div>
+                <dt>Coût cycle courant</dt>
+                <dd>{instantane.xway.coutComputeCycleCourant.usdc} USDC</dd>
+              </div>
+            </dl>
+            {instantane.xway.repartitionParModele.length > 0 && (
+              <ul className="timeline">
+                {instantane.xway.repartitionParModele.map((modele) => (
+                  <li key={modele.modele} className="ligne-evt">
+                    <span className="type">{modele.modele}</span>
+                    <span className="resume">
+                      {String(modele.executees)} ex. / {String(modele.refusees)}{" "}
+                      refus · {modele.coutCumule.usdc} USDC
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
           <section className="panneau historique" aria-label="Historique VEN">
             <h2>Historique VEN population</h2>
             <HistoriqueVen points={instantane.historique} />
@@ -332,6 +387,7 @@ export function TableauDeBord() {
             <FicheAgent
               agent={agent}
               evenements={evenementsAgent}
+              xway={xwayAgent}
               onglet={onglet}
               onOnglet={setOnglet}
               onFermer={() => {
