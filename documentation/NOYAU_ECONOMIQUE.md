@@ -28,7 +28,7 @@ Les types économiques ne sont plus des chaînes libres. Taxonomie v0.1 :
 
 | Type | Rôle |
 |------|------|
-| `AGENT_CREE` | Naissance (sans revenu) |
+| `AGENT_CREE` | Naissance (sans revenu) — payload canonique : génération, indexPopulation, dateNaissance, parent optionnel |
 | `CAPITAL_INITIAL_ATTRIBUE` | Endowment (ancre le HWM, pas un revenu) |
 | `CYCLE_DEMARRE` / `CYCLE_TERMINE` | Bornes de cycle |
 | `REVENU_ACTIVITE` / `PERTE_ACTIVITE` | Activité simulée |

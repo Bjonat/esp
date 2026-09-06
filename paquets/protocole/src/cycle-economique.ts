@@ -9,6 +9,7 @@ import type {
   EntreeEvenementEconomique,
   EvenementEconomique,
 } from "./evenements-economiques.js";
+import type { ChargeAgentCree } from "./evenements-economiques.js";
 import {
   VERSION_SCHEMA_EVENEMENT,
   ecrireMontantChargeUtile,
@@ -335,6 +336,16 @@ export type OptionsAttributionCapital = {
   prefixeIdentifiant?: string;
   dateEnregistrement?: string;
   etatSurvieInitial?: EtatEconomiqueAgent["etatSurvie"];
+  /**
+   * Identité de naissance — payload canonique AGENT_CREE.
+   * Valeurs par défaut : génération 0, index 0, date dérivée.
+   */
+  naissance?: {
+    generation?: number;
+    indexPopulation?: number;
+    dateNaissance?: string;
+    identifiantParent?: string;
+  };
 };
 
 /**
@@ -350,6 +361,32 @@ export function attribuerCapitalInitial(
   assertMicroUsdcNonNegatif(options.montant, "capital initial");
   const numeroCycle = options.numeroCycle ?? 0;
   const prefixe = options.prefixeIdentifiant ?? "";
+  const generation = options.naissance?.generation ?? 0;
+  const indexPopulation = options.naissance?.indexPopulation ?? 0;
+  const dateNaissance =
+    options.naissance?.dateNaissance ??
+    options.dateEnregistrement ??
+    `cycle:${String(numeroCycle)}`;
+
+  if (!Number.isInteger(generation) || generation < 0) {
+    throw new CycleEconomiqueInvalideErreur(
+      "AGENT_CREE : generation doit être un entier >= 0",
+    );
+  }
+  if (!Number.isInteger(indexPopulation) || indexPopulation < 0) {
+    throw new CycleEconomiqueInvalideErreur(
+      "AGENT_CREE : indexPopulation doit être un entier >= 0",
+    );
+  }
+
+  const chargeAgentCree: ChargeAgentCree = {
+    generation,
+    indexPopulation,
+    dateNaissance,
+    ...(options.naissance?.identifiantParent !== undefined
+      ? { identifiantParent: options.naissance.identifiantParent }
+      : {}),
+  };
 
   const evenements: EntreeEvenementEconomique[] = [
     {
@@ -359,7 +396,7 @@ export function attribuerCapitalInitial(
       identifiantExperience: options.identifiantExperience,
       identifiantAgent: options.identifiantAgent,
       numeroCycle,
-      chargeUtile: {},
+      chargeUtile: chargeAgentCree,
       ...(options.dateEnregistrement !== undefined
         ? { dateEnregistrement: options.dateEnregistrement }
         : {}),

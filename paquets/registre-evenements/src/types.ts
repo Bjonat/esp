@@ -1,20 +1,20 @@
 import type {
-  EntreeEvenementEconomique,
-  EvenementEconomique,
+  EntreeEvenementEsp,
+  EvenementEsp,
 } from "@esp/protocole";
 import { VERSION_SCHEMA_EVENEMENT } from "@esp/protocole";
 
 /**
- * Événement du registre — aligné sur le schéma économique du protocole.
+ * Événement du registre — enveloppe ESP (économique + contrôle d'expérience).
  * Une fois enregistré, un événement est immuable (ESP-ECO-003).
  */
-export type Evenement = EvenementEconomique;
+export type Evenement = EvenementEsp;
 
 /**
  * Entrée avant persistance : sans `sequence`.
  * La séquence est attribuée par le registre, monotone par expérience.
  */
-export type EntreeEvenement = EntreeEvenementEconomique;
+export type EntreeEvenement = EntreeEvenementEsp;
 
 export interface RegistreEvenements {
   /**

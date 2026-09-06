@@ -1,4 +1,4 @@
-# Architecture ESP — fondations + noyau économique v0.1
+# Architecture ESP — population, contrôleur et dashboard v0.1
 
 ## Objectif
 
@@ -9,6 +9,9 @@ Ce document décrit les **frontières actuelles** du monorepo.
 Le noyau économique v0.1 est déterministe, auditable et indépendant de toute
 blockchain ou IA réelle.
 
+La phase **population / contrôleur / dashboard v0.1** rend l'expérience
+observable et vivante via une simulation déterministe d'activité économique.
+
 Aucune transaction réelle, aucun wallet financier, aucune inférence payante et
 aucune connexion Solana ne sont implémentés.
 
@@ -17,8 +20,8 @@ aucune connexion Solana ne sont implémentés.
 ```
 esp/
 ├── applications/
-│   ├── controleur/          # Orchestration d'expérience
-│   └── tableau-de-bord/     # Interface d'observation
+│   ├── controleur/          # Orchestrateur + API locale + simulateur dev
+│   └── tableau-de-bord/     # Observateur (Vite + React)
 ├── paquets/
 │   ├── protocole/           # Invariants, types métier, noyau économique
 │   ├── moteur-agent/        # Identité / boucle agent (stub)
@@ -30,10 +33,35 @@ esp/
 │   └── solana/              # Frontière future SOL/USDC (sans réseau)
 ├── documentation/
 │   ├── ARCHITECTURE.md
-│   └── NOYAU_ECONOMIQUE.md
+│   ├── NOYAU_ECONOMIQUE.md
+│   ├── CONTROLEUR_EXPERIENCE.md
+│   └── DASHBOARD.md
 ├── experiences/             # Configurations d'expériences
+├── data/                    # Persistance locale (hors Git)
 └── .github/workflows/       # CI
 ```
+
+## Principe d'autorité
+
+```
+              CONTRÔLEUR
+                  │
+                  │ écrit
+                  ▼
+          REGISTRE ÉVÉNEMENTS
+                  │
+                  │ reconstruit/projette
+                  ▼
+             ÉTAT DE LECTURE
+                  │
+                  │ API
+                  ▼
+              DASHBOARD
+```
+
+Le contrôleur est le **seul écrivain** de l'expérience.
+Le dashboard est un **observateur** : il n'écrit jamais dans SQLite, ne
+recalcule pas les règles économiques et n'invente aucune donnée.
 
 ## Frontières
 
@@ -67,6 +95,7 @@ Couche destinée à l'identité opérationnelle, la boucle, la mémoire, les
 comportements, les décisions et les outils.
 
 À ce stade : stub minimal autour d'un `Agent` du protocole.
+**Aucun moteur de décision connecté** au dashboard.
 
 ### 3. `@esp/registre-evenements` — vérité auditable
 
@@ -114,14 +143,41 @@ Modes prévus : `replay`, `shadow`, `live` — strictement séparés.
 
 ### 7. `@esp/controleur`
 
-Assemble environnement + registre pour piloter une expérience.
-Population et génération valent `0` ; statut affiché : `Fondations`.
+Orchestrateur réel d'expérience :
+
+- `EXPERIENCE_CREEE` / contrôle d'expérience versionné dans le registre ;
+- population Genesis ;
+- avance cycle par cycle ;
+- appelle le **simulateur de développement** (hors protocole) ;
+- passe chaque résultat à `executerCycleEconomique` ;
+- projette l'état pour l'API HTTP locale (`127.0.0.1:3001`) ;
+- reprend correctement après redémarrage **depuis le registre seul**.
+
+Détail : [`CONTROLEUR_EXPERIENCE.md`](./CONTROLEUR_EXPERIENCE.md).
 
 ### 8. `@esp/tableau-de-bord`
 
-Interface d'observation (Vite + React), données statiques pour l'instant.
+Interface d'observation (Vite + React) branchée sur l'API locale.
+
+Affiche clairement : **MODE : SIMULATION DÉTERMINISTE**.
 
 Ne déploie jamais vers `/opt/esp-dashboard` depuis le code de développement.
+
+Détail : [`DASHBOARD.md`](./DASHBOARD.md).
+
+## Données réelles vs simulées
+
+Les événements créés par la simulation sont de **vrais événements ESP**
+enregistrés dans le registre.
+
+Leur **activité économique est simulée** (pas de marché, pas d'IA, pas de chain).
+
+| Réel dans l'expérience | Non réel dans le monde extérieur |
+|------------------------|----------------------------------|
+| Événements du registre | Trading Solana |
+| États / VEN / survie   | Prix de marché |
+| Trésorerie propriétaire| Wallets / argent réel |
+| Cycles expérimentaux   | Agents IA |
 
 ## Invariants exprimés dans le code
 
@@ -136,10 +192,14 @@ Ne déploie jamais vers `/opt/esp-dashboard` depuis le code de développement.
 9. Redevance high-water mark (pas de double taxation d'un même profit).
 10. Distinction capital / obligations / totaux d'activité / trésorerie propriétaire.
 11. Paramètres économiques d'expérience versionnés.
+12. Contrôleur unique writer — dashboard observateur.
+13. Simulation déterministe (même graine → mêmes résultats économiques).
+14. Vérité d'expérience = registre (`EXPERIENCE_CREEE` + contrôle + économique).
+15. Payload canonique `AGENT_CREE` (génération, index, naissance, parent optionnel).
 
 ## Ce qui n'existe pas encore (volontairement)
 
-- Boucle agent complète ;
+- Boucle agent complète / décisions IA ;
 - wallet Ed25519 / Solana ;
 - Jupiter, données de marché, trading, positions SOL ;
 - OpenAI / Anthropic / inference gateway réel ;
@@ -158,4 +218,13 @@ Ne déploie jamais vers `/opt/esp-dashboard` depuis le code de développement.
 - `pnpm test`
 - `pnpm build`
 
-La CI GitHub Action exécute la même séquence.
+## Développement local
+
+```bash
+pnpm dev:controleur          # API 127.0.0.1:3001
+pnpm dev:tableau-de-bord     # UI  127.0.0.1:5173 (proxy /api → 3001)
+# ou
+pnpm dev                     # les deux
+```
+
+La CI GitHub Action exécute lint / typecheck / test / build.

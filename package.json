@@ -13,7 +13,9 @@
     "typecheck": "tsc -b --pretty false && pnpm --filter @esp/tableau-de-bord typecheck",
     "test": "vitest run",
     "build": "pnpm -r --sort run build",
-    "dev:tableau-de-bord": "pnpm --filter @esp/tableau-de-bord dev"
+    "dev:controleur": "pnpm --filter @esp/controleur dev",
+    "dev:tableau-de-bord": "pnpm --filter @esp/tableau-de-bord dev",
+    "dev": "node scripts/dev.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.35.0",
