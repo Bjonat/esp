@@ -54,10 +54,11 @@ Onglets :
 
 | Onglet | Contenu |
 |--------|---------|
-| Vue d'ensemble | Identité, état, naissance, runway |
+| Vue d'ensemble | Identité logique, état, naissance, runway |
+| Identité ESP | Algorithme, empreinte, statut signataire, clé publique abrégée — jamais la privée |
 | Économie | Capital, obligations, VEN, HWM, totaux |
 | Activité | Chronologie registre |
-| Cognition / Xway | Demandes, modèles, jetons, coûts, refus — fournisseur simulé |
+| Cognition / Xway | Demandes, modèles, jetons, coûts, refus (éco ≠ auth) — fournisseur simulé |
 | Décisions | « Moteur de décision non connecté » |
 | Recherche | « Aucune source de données ou recherche connectée » |
 | Portefeuille | « Aucun environnement financier connecté » |

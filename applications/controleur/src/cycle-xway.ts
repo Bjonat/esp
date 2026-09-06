@@ -9,9 +9,14 @@ import {
 import type {
   ConfigurationXway,
   DemandeInference,
+  DemandeInferenceSignee,
   PasserelleXway,
 } from "@esp/xway";
-import { trouverTarifModele } from "@esp/xway";
+import {
+  construireMessageCanoniqueDemandeInference,
+  trouverTarifModele,
+} from "@esp/xway";
+import type { SignataireAgent } from "@esp/moteur-agent";
 import type { AgentExperience } from "./projections.js";
 import { calculerLimiteDepenseCognitive } from "./budget-cognitif.js";
 import { deciderPolitiqueCognitiveDeveloppement } from "./politique-cognitive-developpement.js";
@@ -49,6 +54,8 @@ export function executerCycleCognitifAgent(options: {
   readonly enregistrerImmediatement?: (
     evenements: readonly EntreeEvenementXway[],
   ) => void;
+  /** Si fourni, la demande est signée avant présentation à Xway. */
+  readonly signataire?: SignataireAgent;
 }): ResultatCycleXwayAgent {
   const limite = calculerLimiteDepenseCognitive({
     etat: options.agent.etatEconomique,
@@ -117,7 +124,40 @@ export function executerCycleCognitifAgent(options: {
     }),
   );
 
-  const autorisation = options.passerelle.autoriser(demande);
+  let presentation: DemandeInference | DemandeInferenceSignee = demande;
+  if (options.signataire !== undefined) {
+    if (options.signataire.statut !== "disponible") {
+      evenements.push(
+        creerEntreeDemandeInferenceRefusee({
+          identifiantExperience: options.identifiantExperience,
+          identifiantAgent: options.agent.identite.identifiant,
+          numeroCycle: options.numeroCycle,
+          identifiantDemande,
+          modeleDemande: decision.modele,
+          limiteDepenseAutoriseeMicroUsdc: limite,
+          motifRefus: "authentification_invalide",
+          detail: `Signataire indisponible (statut=${options.signataire.statut}) — aucune régénération`,
+          indiceUnicite: options.prochaineSequence(),
+          ...dateOpts,
+        }),
+      );
+      options.enregistrerImmediatement?.(evenements);
+      return {
+        coutComputeXwayMicroUsdc: 0n,
+        evenements,
+        limiteDepenseAutoriseeMicroUsdc: limite,
+      };
+    }
+    const message = construireMessageCanoniqueDemandeInference(demande);
+    const signe = options.signataire.signer(message);
+    presentation = {
+      demande,
+      clePubliqueBase64Url: signe.clePubliqueBase64Url,
+      signatureBase64Url: signe.signatureBase64Url,
+    };
+  }
+
+  const autorisation = options.passerelle.autoriser(presentation);
 
   if (!autorisation.autorisee) {
     evenements.push(
@@ -167,7 +207,7 @@ export function executerCycleCognitifAgent(options: {
   // Persister l'autorisation (réservation) AVANT l'appel fournisseur.
   options.enregistrerImmediatement?.(evenements);
 
-  const resultat = options.passerelle.executer(demande);
+  const resultat = options.passerelle.executer(presentation);
   const evenementsFinaux: EntreeEvenementXway[] = [];
 
   if (resultat.statut === "refusee") {

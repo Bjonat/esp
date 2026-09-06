@@ -25,6 +25,7 @@ type OngletFiche =
   | "vue"
   | "economie"
   | "activite"
+  | "identite"
   | "xway"
   | "decisions"
   | "recherche"

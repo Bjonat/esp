@@ -14,6 +14,7 @@ import {
   creerEntreeControleExperience,
   creerEntreeCycleExperienceAvance,
   creerEntreeExperienceCreee,
+  creerEntreeIdentiteAgentEnregistree,
   creerTresorerieProprietaire,
   executerCycleEconomique,
   filtrerEvenementsEconomiques,
@@ -27,11 +28,22 @@ import {
   creerRegistreEvenementsSqlite,
   type RegistreEvenementsSqlite,
 } from "@esp/registre-evenements";
+import {
+  CHEMIN_KEYSTORE_IDENTITES_DEFAUT,
+  KeystoreIdentitesLocal,
+  SignataireAgentLocal,
+  genererPaireIdentiteEd25519,
+} from "@esp/moteur-agent";
 import type {
   ConfigurationExperience,
   StatutExperience,
 } from "./configuration-experience.js";
 import { chargerConfigurationExperience } from "./configuration-experience.js";
+import type { ConfigurationIdentiteJson } from "./configuration-identite.js";
+import {
+  parserConfigurationIdentite,
+  serialiserConfigurationIdentite,
+} from "./configuration-identite.js";
 import type {
   AgentExperience,
   PointHistoriqueVen,
@@ -53,6 +65,14 @@ import {
   reconstruirePopulationDepuisEvenements,
   reconstruireTresorerieProprietaire,
 } from "./projections.js";
+import type {
+  IdentitePubliqueAgent,
+  ProjectionIdentiteAgent,
+} from "./projections-identite.js";
+import {
+  projeterIdentiteAgent,
+  reconstruireIdentitesPubliques,
+} from "./projections-identite.js";
 import {
   IDENTIFIANT_SIMULATEUR_DEVELOPPEMENT,
   VERSION_SIMULATEUR_DEVELOPPEMENT,
@@ -86,6 +106,11 @@ export type OptionsControleurExperience = {
   readonly identifiantExperience?: string;
   readonly registre?: RegistreEvenements;
   readonly cheminSqlite?: string;
+  /**
+   * Répertoire local des clés privées d'identité (hors registre).
+   * Défaut : data/developpement/identites
+   */
+  readonly cheminKeystoreIdentites?: string;
   /** Horodatage fixe pour tests déterministes (sinon ISO wall-clock informatif). */
   readonly dateCreationFixe?: string;
   readonly datesEvenementsFixes?: string;
@@ -104,9 +129,11 @@ export class ControleurExperienceErreur extends Error {
  */
 export class ControleurExperience {
   /** Snapshot historique figé à EXPERIENCE_CREEE — pas le JSON courant. */
-  readonly configuration: ConfigurationExperience;
+  configuration: ConfigurationExperience;
   readonly registre: RegistreEvenements;
   private readonly datesEvenementsFixes: string | undefined;
+  private readonly cheminKeystoreIdentites: string;
+  private readonly keystore: KeystoreIdentitesLocal;
   private statut: StatutExperience;
   private dateCreation: string | null;
   private numeroCycleCourant: number;
@@ -121,6 +148,8 @@ export class ControleurExperience {
     configuration: ConfigurationExperience;
     registre: RegistreEvenements;
     datesEvenementsFixes?: string;
+    cheminKeystoreIdentites: string;
+    keystore: KeystoreIdentitesLocal;
     statut: StatutExperience;
     dateCreation: string | null;
     numeroCycleCourant: number;
@@ -134,6 +163,8 @@ export class ControleurExperience {
     this.configuration = options.configuration;
     this.registre = options.registre;
     this.datesEvenementsFixes = options.datesEvenementsFixes;
+    this.cheminKeystoreIdentites = options.cheminKeystoreIdentites;
+    this.keystore = options.keystore;
     this.statut = options.statut;
     this.dateCreation = options.dateCreation;
     this.numeroCycleCourant = options.numeroCycleCourant;
@@ -147,6 +178,8 @@ export class ControleurExperience {
 
   static ouvrir(options: OptionsControleurExperience): ControleurExperience {
     const { registre, registreSqlite } = ouvrirRegistre(options);
+    const cheminKeystoreIdentites =
+      options.cheminKeystoreIdentites ?? CHEMIN_KEYSTORE_IDENTITES_DEFAUT;
 
     const identifiant =
       options.identifiantExperience ??
@@ -172,6 +205,7 @@ export class ControleurExperience {
       }
       return ControleurExperience.creerNouvelle(options.configuration, {
         registre,
+        cheminKeystoreIdentites,
         ...(registreSqlite !== undefined ? { registreSqlite } : {}),
         ...(options.dateCreationFixe !== undefined
           ? { dateCreationFixe: options.dateCreationFixe }
@@ -184,6 +218,7 @@ export class ControleurExperience {
 
     return ControleurExperience.reconstruireDepuisEvenements(evenements, {
       registre,
+      cheminKeystoreIdentites,
       ...(registreSqlite !== undefined ? { registreSqlite } : {}),
       ...(options.datesEvenementsFixes !== undefined
         ? { datesEvenementsFixes: options.datesEvenementsFixes }
@@ -199,6 +234,7 @@ export class ControleurExperience {
     cheminSqlite?: string;
     identifiantExperience: string;
     datesEvenementsFixes?: string;
+    cheminKeystoreIdentites?: string;
   }): ControleurExperience {
     return ControleurExperience.ouvrir({
       identifiantExperience: options.identifiantExperience,
@@ -209,12 +245,16 @@ export class ControleurExperience {
       ...(options.datesEvenementsFixes !== undefined
         ? { datesEvenementsFixes: options.datesEvenementsFixes }
         : {}),
+      ...(options.cheminKeystoreIdentites !== undefined
+        ? { cheminKeystoreIdentites: options.cheminKeystoreIdentites }
+        : {}),
     });
   }
 
   static depuisFichiers(options: {
     cheminConfiguration: string;
     cheminSqlite: string;
+    cheminKeystoreIdentites?: string;
   }): ControleurExperience {
     const configuration = chargerConfigurationExperience(
       options.cheminConfiguration,
@@ -222,6 +262,9 @@ export class ControleurExperience {
     return ControleurExperience.ouvrir({
       configuration,
       cheminSqlite: options.cheminSqlite,
+      ...(options.cheminKeystoreIdentites !== undefined
+        ? { cheminKeystoreIdentites: options.cheminKeystoreIdentites }
+        : {}),
     });
   }
 
@@ -230,6 +273,7 @@ export class ControleurExperience {
     options: {
       registre: RegistreEvenements;
       registreSqlite?: RegistreEvenementsSqlite;
+      cheminKeystoreIdentites: string;
       dateCreationFixe?: string;
       datesEvenementsFixes?: string;
     },
@@ -243,6 +287,10 @@ export class ControleurExperience {
     const xwaySerialise =
       configuration.xway !== undefined
         ? serialiserConfigurationXway(configuration.xway)
+        : undefined;
+    const identiteSerialisee =
+      configuration.identite !== undefined
+        ? serialiserConfigurationIdentite(configuration.identite)
         : undefined;
     const snapshot: SnapshotCreationExperience = {
       identifiantExperience: configuration.identifiantExperience,
@@ -258,13 +306,25 @@ export class ControleurExperience {
       ...(xwaySerialise !== undefined
         ? { xway: xwaySerialise as unknown as Readonly<Record<string, unknown>> }
         : {}),
+      ...(identiteSerialisee !== undefined
+        ? {
+            identite:
+              identiteSerialisee as unknown as Readonly<Record<string, unknown>>,
+          }
+        : {}),
     };
 
-    const passerelleXway = fabriquerPasserelle(configuration.xway, new Map());
+    const keystore = new KeystoreIdentitesLocal(options.cheminKeystoreIdentites);
+    const passerelleXway = fabriquerPasserelle(configuration.xway, new Map(), {
+      authentificationRequise: configuration.identite?.active === true,
+      clesPubliquesParAgent: new Map(),
+    });
 
     const controleur = new ControleurExperience({
       configuration,
       registre: options.registre,
+      cheminKeystoreIdentites: options.cheminKeystoreIdentites,
+      keystore,
       statut: "configuree",
       dateCreation,
       numeroCycleCourant: 0,
@@ -290,6 +350,7 @@ export class ControleurExperience {
       }),
     ]);
     controleur.creerPopulationGenesis();
+    controleur.rafraichirPasserelleXway(new Map());
     controleur.statut = "prete";
     return controleur;
   }
@@ -299,6 +360,7 @@ export class ControleurExperience {
     options: {
       registre: RegistreEvenements;
       registreSqlite?: RegistreEvenementsSqlite;
+      cheminKeystoreIdentites: string;
       datesEvenementsFixes?: string;
     },
   ): ControleurExperience {
@@ -313,6 +375,12 @@ export class ControleurExperience {
       snapshot.xway !== undefined
         ? parserConfigurationXway(snapshot.xway as unknown as ConfigurationXwayJson)
         : undefined;
+    const identite =
+      snapshot.identite !== undefined
+        ? parserConfigurationIdentite(
+            snapshot.identite as unknown as ConfigurationIdentiteJson,
+          )
+        : undefined;
     const configuration: ConfigurationExperience = {
       identifiantExperience: snapshot.identifiantExperience,
       versionProtocole: snapshot.versionProtocole,
@@ -322,6 +390,7 @@ export class ControleurExperience {
       capitalInitialParAgentMicroUsdc: snapshot.capitalInitialParAgentMicroUsdc,
       parametresEconomiques: snapshot.parametresEconomiques,
       ...(xway !== undefined ? { xway } : {}),
+      ...(identite !== undefined ? { identite } : {}),
     };
 
     const economiques = filtrerEvenementsEconomiques(evenements);
@@ -331,11 +400,18 @@ export class ControleurExperience {
     const historique = reconstruireHistoriqueParCycle(economiques, agents);
     const statut = reconstruireStatutExperience(evenements);
     const etatsDemandes = reconstruireEtatsDemandesDepuisRegistre(evenements);
-    const passerelleXway = fabriquerPasserelle(xway, etatsDemandes);
+    const identitesPubliques = reconstruireIdentitesPubliques(evenements);
+    const keystore = new KeystoreIdentitesLocal(options.cheminKeystoreIdentites);
+    const passerelleXway = fabriquerPasserelle(xway, etatsDemandes, {
+      authentificationRequise: identite?.active === true,
+      clesPubliquesParAgent: carteClesPubliques(identitesPubliques),
+    });
 
     return new ControleurExperience({
       configuration,
       registre: options.registre,
+      cheminKeystoreIdentites: options.cheminKeystoreIdentites,
+      keystore,
       statut,
       dateCreation: snapshot.dateCreation,
       numeroCycleCourant,
@@ -371,6 +447,37 @@ export class ControleurExperience {
 
   obtenirSnapshotSimulateur(): SnapshotCreationExperience["simulateur"] {
     return this.snapshotSimulateur;
+  }
+
+  obtenirCheminKeystoreIdentites(): string {
+    return this.cheminKeystoreIdentites;
+  }
+
+  obtenirSignataire(identifiantAgent: string): SignataireAgentLocal {
+    const publique = this.obtenirIdentitesPubliques().get(identifiantAgent);
+    return SignataireAgentLocal.depuisKeystore({
+      keystore: this.keystore,
+      identifiantExperience: this.configuration.identifiantExperience,
+      identifiantAgent,
+      clePubliqueEnregistreeBase64Url: publique?.clePubliqueBase64Url ?? null,
+      identiteActive: this.configuration.identite?.active === true,
+    });
+  }
+
+  obtenirIdentitesPubliques(): Map<string, IdentitePubliqueAgent> {
+    return reconstruireIdentitesPubliques(
+      this.registre.listerParExperience(
+        this.configuration.identifiantExperience,
+      ),
+    );
+  }
+
+  projeterIdentiteAgent(identifiantAgent: string): ProjectionIdentiteAgent {
+    return projeterIdentiteAgent({
+      identifiantAgent,
+      identitesPubliques: this.obtenirIdentitesPubliques(),
+      statutSignataire: this.obtenirSignataire(identifiantAgent).statut,
+    });
   }
 
   private enregistrerControle(
@@ -493,6 +600,11 @@ export class ControleurExperience {
           ...(this.datesEvenementsFixes !== undefined
             ? { dateEnregistrement: this.datesEvenementsFixes }
             : {}),
+          ...(this.configuration.identite?.active === true
+            ? {
+                signataire: this.obtenirSignataire(agent.identite.identifiant),
+              }
+            : {}),
         });
         // Les événements Xway sont déjà persistés (autorisation avant fournisseur).
         coutComputeXway = resultatXway.coutComputeXwayMicroUsdc;
@@ -599,9 +711,32 @@ export class ControleurExperience {
       snapshot.xway !== undefined
         ? parserConfigurationXway(snapshot.xway as unknown as ConfigurationXwayJson)
         : undefined;
+    const identite =
+      snapshot.identite !== undefined
+        ? parserConfigurationIdentite(
+            snapshot.identite as unknown as ConfigurationIdentiteJson,
+          )
+        : undefined;
+    this.configuration = {
+      identifiantExperience: snapshot.identifiantExperience,
+      versionProtocole: snapshot.versionProtocole,
+      mode: snapshot.mode,
+      graineSimulation: snapshot.graineSimulation,
+      taillePopulationInitiale: snapshot.taillePopulationInitiale,
+      capitalInitialParAgentMicroUsdc: snapshot.capitalInitialParAgentMicroUsdc,
+      parametresEconomiques: snapshot.parametresEconomiques,
+      ...(xway !== undefined ? { xway } : {}),
+      ...(identite !== undefined ? { identite } : {}),
+    };
     this.passerelleXway = fabriquerPasserelle(
       xway,
       reconstruireEtatsDemandesDepuisRegistre(evenements),
+      {
+        authentificationRequise: identite?.active === true,
+        clesPubliquesParAgent: carteClesPubliques(
+          reconstruireIdentitesPubliques(evenements),
+        ),
+      },
     );
   }
 
@@ -651,7 +786,7 @@ export class ControleurExperience {
   projeterAgents(): ProjectionAgent[] {
     const enfants = construireMapEnfants(this.agents);
     return this.agents.map((agent) =>
-      projeterAgent(agent, this.configuration.parametresEconomiques, enfants),
+      this.projeterAgentComplet(agent, enfants),
     );
   }
 
@@ -660,10 +795,22 @@ export class ControleurExperience {
     if (agent === undefined) {
       return undefined;
     }
+    return this.projeterAgentComplet(agent, construireMapEnfants(this.agents));
+  }
+
+  private projeterAgentComplet(
+    agent: AgentExperience,
+    enfants: ReadonlyMap<string, readonly string[]>,
+  ): ProjectionAgent {
+    const projectionIdentite =
+      this.configuration.identite?.active === true
+        ? this.projeterIdentiteAgent(agent.identite.identifiant)
+        : undefined;
     return projeterAgent(
       agent,
       this.configuration.parametresEconomiques,
-      construireMapEnfants(this.agents),
+      enfants,
+      projectionIdentite,
     );
   }
 
@@ -754,10 +901,12 @@ export class ControleurExperience {
         etat: a.etatEconomique,
       })),
       tresorerie: this.tresorerie,
-      typesEvenements: evenements.map(
-        (e) =>
-          `${e.type}:${e.identifiantAgent ?? "-"}:${e.numeroCycle}:${JSON.stringify(e.chargeUtile)}`,
-      ),
+      typesEvenements: evenements
+        .filter((e) => e.type !== "IDENTITE_AGENT_ENREGISTREE")
+        .map(
+          (e) =>
+            `${e.type}:${e.identifiantAgent ?? "-"}:${e.numeroCycle}:${JSON.stringify(e.chargeUtile)}`,
+        ),
     };
   }
 
@@ -798,6 +947,32 @@ export class ControleurExperience {
       });
 
       this.enregistrerEvenements(evenements);
+
+      if (this.configuration.identite?.active === true) {
+        const paire = genererPaireIdentiteEd25519();
+        const stockee = this.keystore.enregistrerClePrivee({
+          identifiantExperience: this.configuration.identifiantExperience,
+          identifiantAgent: identifiant,
+          clePriveePkcs8Der: paire.clePriveePkcs8Der,
+        });
+        this.enregistrerEvenements([
+          creerEntreeIdentiteAgentEnregistree({
+            identifiantExperience: this.configuration.identifiantExperience,
+            identifiantAgent: identifiant,
+            clePubliqueBase64Url: stockee.clePubliqueBase64Url,
+            empreinteClePublique: stockee.empreinteClePublique,
+            versionIdentite: this.configuration.identite.version,
+            indiceUnicite: this.registre.consulterProchaineSequence(
+              this.configuration.identifiantExperience,
+            ),
+            numeroCycle: 0,
+            ...(this.datesEvenementsFixes !== undefined
+              ? { dateEnregistrement: this.datesEvenementsFixes }
+              : { dateEnregistrement: dateNaissance }),
+          }),
+        ]);
+      }
+
       agents.push({
         identite: {
           identifiant: agent.identifiant,
@@ -811,6 +986,24 @@ export class ControleurExperience {
     }
 
     this.agents = agents;
+  }
+
+  private rafraichirPasserelleXway(
+    etatsDemandes?: ReadonlyMap<string, EtatPersistantDemandeXway>,
+  ): void {
+    const evenements = this.registre.listerParExperience(
+      this.configuration.identifiantExperience,
+    );
+    this.passerelleXway = fabriquerPasserelle(
+      this.configuration.xway,
+      etatsDemandes ?? reconstruireEtatsDemandesDepuisRegistre(evenements),
+      {
+        authentificationRequise: this.configuration.identite?.active === true,
+        clesPubliquesParAgent: carteClesPubliques(
+          reconstruireIdentitesPubliques(evenements),
+        ),
+      },
+    );
   }
 
   private enregistrerEvenements(
@@ -859,9 +1052,23 @@ function determinerCycleCourant(evenements: readonly EvenementEsp[]): number {
   return max;
 }
 
+function carteClesPubliques(
+  identites: ReadonlyMap<string, IdentitePubliqueAgent>,
+): Map<string, string> {
+  const carte = new Map<string, string>();
+  for (const [identifiant, identite] of identites) {
+    carte.set(identifiant, identite.clePubliqueBase64Url);
+  }
+  return carte;
+}
+
 function fabriquerPasserelle(
   configuration: ConfigurationXway | undefined,
   etatsDemandes: ReadonlyMap<string, EtatPersistantDemandeXway>,
+  options?: {
+    authentificationRequise?: boolean;
+    clesPubliquesParAgent?: ReadonlyMap<string, string>;
+  },
 ): PasserelleXway | undefined {
   if (configuration === undefined || !configuration.active) {
     return undefined;
@@ -869,6 +1076,12 @@ function fabriquerPasserelle(
   return creerPasserelleXway({
     configuration,
     etatsDemandes,
+    ...(options?.authentificationRequise === true
+      ? { authentificationRequise: true }
+      : {}),
+    ...(options?.clesPubliquesParAgent !== undefined
+      ? { clesPubliquesParAgent: options.clesPubliquesParAgent }
+      : {}),
   });
 }
 

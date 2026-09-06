@@ -21,6 +21,7 @@ import type { ParametresEconomiquesExperience } from "@esp/protocole";
 import type { MontantApi } from "./serialisation-api.js";
 import { serialiserMontantApi } from "./serialisation-api.js";
 import type { ModeExperience, StatutExperience } from "./configuration-experience.js";
+import type { ProjectionIdentiteAgent } from "./projections-identite.js";
 
 /** Identité d'agent enrichie pour l'observation (généalogie prête). */
 export interface IdentiteAgentExperience {
@@ -63,6 +64,8 @@ export interface ProjectionAgent {
   readonly dernierCycleActif: number;
   readonly economie: ProjectionMontantsAgent;
   readonly identifiantsEnfants: readonly string[];
+  /** Identité cryptographique publique — jamais de clé privée. */
+  readonly identite?: ProjectionIdentiteAgent;
 }
 
 export interface ProjectionPopulation {
@@ -202,6 +205,7 @@ export function projeterAgent(
   agent: AgentExperience,
   parametres: ParametresEconomiquesExperience,
   enfantsParParent: ReadonlyMap<string, readonly string[]>,
+  projectionIdentite?: ProjectionIdentiteAgent,
 ): ProjectionAgent {
   const runway = calculerRunwayEnCycles(
     agent.etatEconomique,
@@ -219,6 +223,9 @@ export function projeterAgent(
     dernierCycleActif: agent.etatEconomique.dernierNumeroCycle,
     economie: projeterMontantsAgent(agent.etatEconomique),
     identifiantsEnfants: enfantsParParent.get(agent.identite.identifiant) ?? [],
+    ...(projectionIdentite !== undefined
+      ? { identite: projectionIdentite }
+      : {}),
   };
 }
 
@@ -345,7 +352,15 @@ function resumerEvenement(evenement: {
     return `modèle ${String(evenement.chargeUtile.modeleDemande ?? "?")}`;
   }
   if (evenement.type === "DEMANDE_INFERENCE_REFUSEE") {
-    return String(evenement.chargeUtile.motifRefus ?? "budget insuffisant");
+    const motif = String(evenement.chargeUtile.motifRefus ?? "refus");
+    if (motif === "authentification_invalide") {
+      return "authentification refusée";
+    }
+    return motif;
+  }
+  if (evenement.type === "IDENTITE_AGENT_ENREGISTREE") {
+    const emp = evenement.chargeUtile.empreinteClePublique;
+    return `ed25519 · ${typeof emp === "string" ? `${emp.slice(0, 12)}…` : "?"}`;
   }
   if (evenement.type === "INFERENCE_EXECUTEE") {
     const jetonsEntree = evenement.chargeUtile.jetonsEntree;

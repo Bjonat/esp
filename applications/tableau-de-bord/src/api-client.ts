@@ -63,6 +63,15 @@ export interface ProjectionAgent {
     readonly redevances: MontantApi;
   };
   readonly identifiantsEnfants: readonly string[];
+  /** Identité cryptographique publique — jamais de clé privée. */
+  readonly identite?: {
+    readonly algorithme: "ed25519" | null;
+    readonly empreinteClePublique: string | null;
+    readonly clePubliqueAbregee: string | null;
+    readonly clePubliqueBase64Url: string | null;
+    readonly statut: "disponible" | "cle_privee_indisponible" | "non_configuree";
+    readonly versionIdentite: string | null;
+  };
 }
 
 export interface ProjectionEvenement {

@@ -59,3 +59,17 @@ export type {
   FaitEvenementDemandeXway,
 } from "./etats-demande.js";
 export { reconstruireEtatsDemandesXway } from "./etats-demande.js";
+
+export type { DemandeInferenceSignee } from "./signature-demande.js";
+export {
+  DOMAINE_SIGNATURE_XWAY_INFERENCE,
+  VERSION_MESSAGE_SIGNATURE_XWAY,
+  construireMessageCanoniqueDemandeInference,
+  empreinteContenuDemande,
+} from "./signature-demande.js";
+
+export type {
+  MotifEchecAuthentificationXway,
+  ResultatAuthentificationXway,
+} from "./authentification.js";
+export { authentifierDemandeInference } from "./authentification.js";

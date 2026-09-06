@@ -1,4 +1,5 @@
 import type { MicroUsdc } from "@esp/protocole";
+import { authentifierDemandeInference } from "./authentification.js";
 import { trouverTarifModele } from "./configuration.js";
 import type {
   EtatPersistantDemandeXway,
@@ -6,6 +7,7 @@ import type {
 import type { FournisseurInference } from "./fournisseur.js";
 import { creerFournisseurInferenceSimule } from "./fournisseur-simule.js";
 import { CompteReservationsCognitives } from "./reservations.js";
+import type { DemandeInferenceSignee } from "./signature-demande.js";
 import type {
   ConfigurationXway,
   DemandeInference,
@@ -66,6 +68,9 @@ export class PasserelleXway {
   private readonly comptes = new CompteReservationsCognitives();
   private readonly dossiers = new Map<string, DossierDemandeInterne>();
   private readonly traces: TraceDemandeXway[] = [];
+  private readonly authentificationRequise: boolean;
+  private readonly clesPubliquesParAgent: ReadonlyMap<string, string>;
+  private compteurAppelsFournisseur = 0;
 
   constructor(options: {
     configuration: ConfigurationXway;
@@ -73,10 +78,19 @@ export class PasserelleXway {
     /** @deprecated préférer etatsDemandes reconstruits depuis le registre */
     demandesDejaConsommees?: readonly string[];
     etatsDemandes?: ReadonlyMap<string, EtatPersistantDemandeXway>;
+    /**
+     * Si true : AUTH avant estimation / réservation / fournisseur.
+     * Exige une DemandeInferenceSignee.
+     */
+    authentificationRequise?: boolean;
+    /** Clés publiques enregistrées (registre) — source de vérité. */
+    clesPubliquesParAgent?: ReadonlyMap<string, string>;
   }) {
     this.configuration = options.configuration;
     this.fournisseur =
       options.fournisseur ?? creerFournisseurInferenceSimule();
+    this.authentificationRequise = options.authentificationRequise === true;
+    this.clesPubliquesParAgent = options.clesPubliquesParAgent ?? new Map();
 
     if (options.etatsDemandes !== undefined) {
       this.hydraterDepuisEtats(options.etatsDemandes);
@@ -105,6 +119,11 @@ export class PasserelleXway {
     return this.comptes;
   }
 
+  /** Compteur de tests — appels réels au fournisseur d'inférence. */
+  obtenirNombreAppelsFournisseur(): number {
+    return this.compteurAppelsFournisseur;
+  }
+
   obtenirEtatDemande(
     identifiantDemande: string,
   ): EtatDemandeInference | undefined {
@@ -123,9 +142,39 @@ export class PasserelleXway {
 
   /**
    * Estime, vérifie la capacité (limite − réservations − coûts réglés), réserve.
+   * Si authentification requise : AUTH avant toute estimation / réservation.
    * N'appelle pas le fournisseur d'inférence.
    */
-  autoriser(demande: DemandeInference): ResultatAutorisationInference {
+  autoriser(
+    demandeOuEnveloppe: DemandeInference | DemandeInferenceSignee,
+  ): ResultatAutorisationInference {
+    const { demande, refusAuth } = this.resoudreDemandeAuthentifiee(
+      demandeOuEnveloppe,
+    );
+    if (refusAuth !== undefined) {
+      this.enregistrerDossier(demande, {
+        etat: "refusee",
+        estimation: null,
+        coutFinalMicroUsdc: 0n,
+        motifRefus: "authentification_invalide",
+        detail: refusAuth.detail,
+        repriseSansConfirmationFournisseur: false,
+      });
+      this.traces.push({
+        demande,
+        etat: "refusee",
+        coutFinalMicroUsdc: 0n,
+        motifRefus: "authentification_invalide",
+        detail: refusAuth.detail,
+      });
+      return {
+        autorisee: false,
+        motif: "authentification_invalide",
+        estimation: null,
+        detail: refusAuth.detail,
+      };
+    }
+
     const existant = this.dossiers.get(demande.identifiantDemande);
     if (existant !== undefined) {
       if (existant.etat === "autorisee" && existant.estimation !== null) {
@@ -270,7 +319,40 @@ export class PasserelleXway {
    * Exécute après autorisation (réservation).
    * Idempotent : une demande EXECUTEE ne rappelle jamais le fournisseur.
    */
-  executer(demande: DemandeInference): ResultatExecutionInference {
+  executer(
+    demandeOuEnveloppe: DemandeInference | DemandeInferenceSignee,
+  ): ResultatExecutionInference {
+    const { demande, refusAuth } = this.resoudreDemandeAuthentifiee(
+      demandeOuEnveloppe,
+    );
+    const dossierExistant = this.dossiers.get(demande.identifiantDemande);
+    const dejaAutoriseeLocale =
+      dossierExistant?.etat === "autorisee" &&
+      dossierExistant.repriseSansConfirmationFournisseur === false;
+
+    if (
+      refusAuth !== undefined &&
+      !dejaAutoriseeLocale &&
+      dossierExistant?.etat !== "executee" &&
+      dossierExistant?.etat !== "refusee" &&
+      dossierExistant?.etat !== "echouee"
+    ) {
+      this.enregistrerDossier(demande, {
+        etat: "refusee",
+        estimation: null,
+        coutFinalMicroUsdc: 0n,
+        motifRefus: "authentification_invalide",
+        detail: refusAuth.detail,
+        repriseSansConfirmationFournisseur: false,
+      });
+      return {
+        statut: "refusee",
+        motif: "authentification_invalide",
+        detail: refusAuth.detail,
+        estimation: null,
+      };
+    }
+
     const dossier = this.dossiers.get(demande.identifiantDemande);
 
     if (dossier?.etat === "executee") {
@@ -343,7 +425,7 @@ export class PasserelleXway {
     if (dossier?.etat === "autorisee" && dossier.estimation !== null) {
       autorisationEstimation = dossier.estimation;
     } else {
-      const autorisation = this.autoriser(demande);
+      const autorisation = this.autoriser(demandeOuEnveloppe);
       if (!autorisation.autorisee) {
         return {
           statut: "refusee",
@@ -365,6 +447,7 @@ export class PasserelleXway {
 
     try {
       const reponse = this.fournisseur.inferer(demande, tarif);
+      this.compteurAppelsFournisseur += 1;
       const coutFinal = reponse.usage.coutMicroUsdc;
 
       if (coutFinal > autorisationEstimation.coutMaximumEstimeMicroUsdc) {
@@ -611,6 +694,47 @@ export class PasserelleXway {
     }
   }
 
+  private resoudreDemandeAuthentifiee(
+    demandeOuEnveloppe: DemandeInference | DemandeInferenceSignee,
+  ): {
+    demande: DemandeInference;
+    refusAuth?: { detail: string };
+  } {
+    const estEnveloppe = "demande" in demandeOuEnveloppe && "signatureBase64Url" in demandeOuEnveloppe;
+    const demande = estEnveloppe
+      ? (demandeOuEnveloppe as DemandeInferenceSignee).demande
+      : (demandeOuEnveloppe as DemandeInference);
+
+    if (!this.authentificationRequise) {
+      return { demande };
+    }
+
+    if (!estEnveloppe) {
+      return {
+        demande,
+        refusAuth: {
+          detail:
+            "Authentification requise : enveloppe signée absente (ESP-XWAY-INFERENCE-V1)",
+        },
+      };
+    }
+
+    const enveloppe = demandeOuEnveloppe as DemandeInferenceSignee;
+    const auth = authentifierDemandeInference({
+      enveloppe,
+      clePubliqueEnregistreeBase64Url: this.clesPubliquesParAgent.get(
+        enveloppe.demande.identifiantAgent,
+      ),
+    });
+    if (!auth.ok) {
+      return {
+        demande: enveloppe.demande,
+        refusAuth: { detail: `${auth.motif}: ${auth.detail}` },
+      };
+    }
+    return { demande: enveloppe.demande };
+  }
+
   private resoudreTarif(
     identifiant: DemandeInference["modeleDemande"],
   ): TarifModeleInference | undefined {
@@ -623,6 +747,8 @@ export function creerPasserelleXway(options: {
   fournisseur?: FournisseurInference;
   demandesDejaConsommees?: readonly string[];
   etatsDemandes?: ReadonlyMap<string, EtatPersistantDemandeXway>;
+  authentificationRequise?: boolean;
+  clesPubliquesParAgent?: ReadonlyMap<string, string>;
 }): PasserelleXway {
   return new PasserelleXway(options);
 }
