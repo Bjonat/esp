@@ -50,6 +50,22 @@ export {
   reconstruireTresorerieProprietaire,
 } from "./projections.js";
 
+export type {
+  ProjectionXwayAgent,
+  ProjectionXwayGlobale,
+} from "./projections-xway.js";
+export {
+  projeterXwayAgent,
+  projeterXwayGlobal,
+  reconstruireEtatsDemandesDepuisRegistre,
+} from "./projections-xway.js";
+
+export {
+  calculerCapaciteCognitiveDisponible,
+  calculerLimiteDepenseCognitive,
+} from "./budget-cognitif.js";
+export { deciderPolitiqueCognitiveDeveloppement } from "./politique-cognitive-developpement.js";
+
 export type { MontantApi } from "./serialisation-api.js";
 export {
   microUsdcVersAffichageUsdc,

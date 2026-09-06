@@ -75,9 +75,27 @@ export type {
 } from "./evenements-esp.js";
 export {
   estEvenementEconomique,
+  estEvenementXway,
   estTypeEvenementEsp,
   filtrerEvenementsEconomiques,
+  filtrerEvenementsXway,
 } from "./evenements-esp.js";
+
+export type {
+  ChargeDemandeInference,
+  EntreeEvenementXway,
+  NatureEchecInferenceProtocole,
+  TypeEvenementXway,
+} from "./evenements-xway.js";
+export {
+  TYPES_EVENEMENT_XWAY,
+  creerEntreeDemandeInferenceAutorisee,
+  creerEntreeDemandeInferenceRecue,
+  creerEntreeDemandeInferenceRefusee,
+  creerEntreeInferenceEchouee,
+  creerEntreeInferenceExecutee,
+  estTypeEvenementXway,
+} from "./evenements-xway.js";
 
 
 export type {

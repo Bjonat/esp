@@ -336,12 +336,32 @@ function resumerEvenement(evenement: {
   readonly type: string;
   readonly chargeUtile: Readonly<Record<string, unknown>>;
 }): string {
-  const montant = extraireMontantEvenement(evenement);
   if (evenement.type === "ETAT_SURVIE_MODIFIE") {
     const depuis = String(evenement.chargeUtile.depuis ?? "?");
     const vers = String(evenement.chargeUtile.vers ?? "?");
     return `${depuis} → ${vers}`;
   }
+  if (evenement.type === "DEMANDE_INFERENCE_AUTORISEE") {
+    return `modèle ${String(evenement.chargeUtile.modeleDemande ?? "?")}`;
+  }
+  if (evenement.type === "DEMANDE_INFERENCE_REFUSEE") {
+    return String(evenement.chargeUtile.motifRefus ?? "budget insuffisant");
+  }
+  if (evenement.type === "INFERENCE_EXECUTEE") {
+    const jetonsEntree = evenement.chargeUtile.jetonsEntree;
+    const jetonsSortie = evenement.chargeUtile.jetonsSortie;
+    const cout = evenement.chargeUtile.coutFinalMicroUsdc;
+    let coutAffiche = "";
+    if (typeof cout === "string") {
+      try {
+        coutAffiche = ` · coût ${serialiserMontantApi(lireMontantChargeUtile(evenement.chargeUtile, "coutFinalMicroUsdc")).usdc} USDC`;
+      } catch {
+        coutAffiche = "";
+      }
+    }
+    return `${String(jetonsEntree ?? "?")}+${String(jetonsSortie ?? "?")} jetons${coutAffiche}`;
+  }
+  const montant = extraireMontantEvenement(evenement);
   if (montant !== null) {
     const signe =
       evenement.type === "REVENU_ACTIVITE" ||

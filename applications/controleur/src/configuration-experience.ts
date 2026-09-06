@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 import type { ParametresEconomiquesExperience } from "@esp/protocole";
 import { parserMicroUsdc, validerParametresEconomiques } from "@esp/protocole";
 import type { MicroUsdc } from "@esp/protocole";
+import type { ConfigurationXway, ConfigurationXwayJson } from "@esp/xway";
+import { parserConfigurationXway } from "@esp/xway";
 
 /**
  * Mode d'expérience v0.1 — simulation déterministe uniquement.
@@ -37,6 +39,7 @@ export interface ConfigurationExperienceJson {
     readonly seuilRunwayContraintEnCycles: number;
     readonly cyclesDormanceAvantMort: number;
   };
+  readonly xway?: ConfigurationXwayJson;
 }
 
 export interface ConfigurationExperience {
@@ -47,6 +50,7 @@ export interface ConfigurationExperience {
   readonly taillePopulationInitiale: number;
   readonly capitalInitialParAgentMicroUsdc: MicroUsdc;
   readonly parametresEconomiques: ParametresEconomiquesExperience;
+  readonly xway?: ConfigurationXway;
 }
 
 export class ConfigurationExperienceInvalideErreur extends Error {
@@ -125,6 +129,9 @@ export function parserConfigurationExperience(
       brut.capitalInitialParAgentMicroUsdc,
     ),
     parametresEconomiques: parametres,
+    ...(brut.xway !== undefined
+      ? { xway: parserConfigurationXway(brut.xway) }
+      : {}),
   };
 }
 

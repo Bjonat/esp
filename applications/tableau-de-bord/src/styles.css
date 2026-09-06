@@ -227,6 +227,10 @@ body {
   grid-column: 8 / -1;
 }
 
+.xway-global {
+  grid-column: 1 / -1;
+}
+
 .historique {
   grid-column: 1 / span 5;
 }

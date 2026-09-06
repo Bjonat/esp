@@ -1,9 +1,14 @@
-import type { ProjectionAgent, ProjectionEvenement } from "./api-client.js";
+import type {
+  ProjectionAgent,
+  ProjectionEvenement,
+  ProjectionXwayAgent,
+} from "./api-client.js";
 
 type Onglet =
   | "vue"
   | "economie"
   | "activite"
+  | "xway"
   | "decisions"
   | "recherche"
   | "portefeuille"
@@ -12,6 +17,7 @@ type Onglet =
 type Props = {
   readonly agent: ProjectionAgent;
   readonly evenements: readonly ProjectionEvenement[];
+  readonly xway: ProjectionXwayAgent | null;
   readonly onglet: Onglet;
   readonly onOnglet: (onglet: Onglet) => void;
   readonly onFermer: () => void;
@@ -21,6 +27,7 @@ const ONGLET_LIBELLES: Record<Onglet, string> = {
   vue: "Vue d'ensemble",
   economie: "Économie",
   activite: "Activité",
+  xway: "Cognition / Xway",
   decisions: "Décisions",
   recherche: "Recherche",
   portefeuille: "Portefeuille",
@@ -122,6 +129,57 @@ export function FicheAgent(props: Props) {
             </li>
           ))}
         </ul>
+      )}
+
+      {props.onglet === "xway" && (
+        <div className="xway-agent">
+          <p className="badge-mode">{props.xway?.libelleFournisseur ?? "FOURNISSEUR SIMULÉ — aucune IA réelle"}</p>
+          {props.xway === null ? (
+            <p className="rappel">Aucune donnée Xway pour cet agent.</p>
+          ) : (
+            <dl className="metriques-compactes">
+              <div>
+                <dt>Demandes</dt>
+                <dd>{String(props.xway.nombreDemandes)}</dd>
+              </div>
+              <div>
+                <dt>Exécutées</dt>
+                <dd>{String(props.xway.inferencesExecutees)}</dd>
+              </div>
+              <div>
+                <dt>Refusées</dt>
+                <dd>{String(props.xway.inferencesRefusees)}</dd>
+              </div>
+              <div>
+                <dt>Modèles</dt>
+                <dd>{props.xway.modelesUtilises.join(", ") || "—"}</dd>
+              </div>
+              <div>
+                <dt>Jetons entrée</dt>
+                <dd>{String(props.xway.jetonsEntreeCumules)}</dd>
+              </div>
+              <div>
+                <dt>Jetons sortie</dt>
+                <dd>{String(props.xway.jetonsSortieCumules)}</dd>
+              </div>
+              <LigneMontant libelle="Coût cumulé" montant={props.xway.coutCumule.usdc} />
+              <div>
+                <dt>Budget cognitif (dernier)</dt>
+                <dd>
+                  {props.xway.budgetCognitifDernierCycle?.usdc ?? "—"} USDC
+                </dd>
+              </div>
+              <div>
+                <dt>Dernier appel</dt>
+                <dd>
+                  {props.xway.dernierAppel === null
+                    ? "—"
+                    : `Cycle ${String(props.xway.dernierAppel.numeroCycle)} · ${props.xway.dernierAppel.type}`}
+                </dd>
+              </div>
+            </dl>
+          )}
+        </div>
       )}
 
       {props.onglet === "decisions" && (
