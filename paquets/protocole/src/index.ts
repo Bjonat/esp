@@ -28,6 +28,7 @@ export {
 } from "./monnaie.js";
 
 export type {
+  ChargeAgentCree,
   ChargeCapitalInitial,
   ChargeDette,
   ChargeEtatSurvie,
@@ -45,6 +46,39 @@ export {
   estTypeEvenementEconomique,
   lireMontantChargeUtile,
 } from "./evenements-economiques.js";
+
+export type {
+  ChargeCycleExperienceAvance,
+  ChargeExperienceCreee,
+  EntreeEvenementExperience,
+  ModeExperienceProtocole,
+  SnapshotCreationExperience,
+  SnapshotSimulateurExperience,
+  StatutExperienceProtocole,
+  TypeEvenementExperience,
+} from "./evenements-experience.js";
+export {
+  TYPES_EVENEMENT_EXPERIENCE,
+  creerEntreeControleExperience,
+  creerEntreeCycleExperienceAvance,
+  creerEntreeExperienceCreee,
+  estTypeEvenementExperience,
+  parserSnapshotCreationExperience,
+  reconstruireStatutExperience,
+  serialiserSnapshotCreationExperience,
+} from "./evenements-experience.js";
+
+export type {
+  EntreeEvenementEsp,
+  EvenementEsp,
+  TypeEvenementEsp,
+} from "./evenements-esp.js";
+export {
+  estEvenementEconomique,
+  estTypeEvenementEsp,
+  filtrerEvenementsEconomiques,
+} from "./evenements-esp.js";
+
 
 export type {
   ContratEconomique,

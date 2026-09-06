@@ -1,6 +1,6 @@
 import { DatabaseSync } from "node:sqlite";
-import type { TypeEvenementEconomique } from "@esp/protocole";
-import { estTypeEvenementEconomique } from "@esp/protocole";
+import type { TypeEvenementEsp } from "@esp/protocole";
+import { estTypeEvenementEsp } from "@esp/protocole";
 import type {
   EntreeEvenement,
   Evenement,
@@ -193,7 +193,7 @@ export class RegistreEvenementsSqlite implements RegistreEvenements {
 }
 
 function ligneVersEvenement(ligne: LigneEvenement): Evenement {
-  if (!estTypeEvenementEconomique(ligne.type)) {
+  if (!estTypeEvenementEsp(ligne.type)) {
     throw new Error(`Type d'événement SQLite inconnu : ${ligne.type}`);
   }
 
@@ -204,7 +204,7 @@ function ligneVersEvenement(ligne: LigneEvenement): Evenement {
   return figerProfondement({
     identifiant: ligne.identifiant,
     versionSchema: ligne.version_schema,
-    type: ligne.type as TypeEvenementEconomique,
+    type: ligne.type as TypeEvenementEsp,
     identifiantExperience: ligne.identifiant_experience,
     numeroCycle: ligne.numero_cycle,
     sequence: ligne.sequence,

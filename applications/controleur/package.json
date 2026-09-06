@@ -14,11 +14,14 @@
   "files": ["dist"],
   "scripts": {
     "build": "tsc -b",
-    "typecheck": "tsc -b --pretty false"
+    "typecheck": "tsc -b --pretty false",
+    "dev": "tsx src/serveur.ts"
   },
   "dependencies": {
-    "@esp/environnement": "workspace:*",
     "@esp/protocole": "workspace:*",
     "@esp/registre-evenements": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.5"
   }
 }

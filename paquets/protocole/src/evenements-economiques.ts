@@ -99,6 +99,17 @@ export type ChargeCapitalInitial = {
   montantMicroUsdc: string;
 };
 
+/**
+ * Payload canonique de naissance d'un agent (domaine protocole).
+ * Le contrôleur fournit les valeurs ; il ne fabrique pas une forme ad hoc.
+ */
+export type ChargeAgentCree = {
+  generation: number;
+  indexPopulation: number;
+  dateNaissance: string;
+  identifiantParent?: string;
+};
+
 export type ChargeMontantSimple = {
   montantMicroUsdc: string;
 };

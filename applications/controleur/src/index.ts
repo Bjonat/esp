@@ -1,6 +1,58 @@
 export type {
-  ControleurExperience,
-  OptionsControleur,
-  ResumeObservation,
+  ControleurExperience as ControleurExperienceType,
+  OptionsControleurExperience,
 } from "./controleur.js";
-export { creerControleurExperience } from "./controleur.js";
+export {
+  ControleurExperience,
+  ControleurExperienceErreur,
+  creerControleurExperience,
+} from "./controleur.js";
+
+export type {
+  ConfigurationExperience,
+  ConfigurationExperienceJson,
+  ModeExperience,
+  StatutExperience,
+} from "./configuration-experience.js";
+export {
+  ConfigurationExperienceInvalideErreur,
+  chargerConfigurationExperience,
+  parserConfigurationExperience,
+} from "./configuration-experience.js";
+
+export {
+  IDENTIFIANT_SIMULATEUR_DEVELOPPEMENT,
+  VERSION_SIMULATEUR_DEVELOPPEMENT,
+  simulerActiviteCycle,
+} from "./simulateur-developpement.js";
+export type { OptionsSimulateurDeveloppement } from "./simulateur-developpement.js";
+
+export { demarrerServeurApi } from "./api.js";
+export type { OptionsServeurApi, ServeurApi } from "./api.js";
+
+export type {
+  AgentExperience,
+  IdentiteAgentExperience,
+  PointHistoriqueVen,
+  ProjectionAgent,
+  ProjectionArbreGenealogique,
+  ProjectionEvenement,
+  ProjectionExperience,
+  ProjectionPopulation,
+  ProjectionTresorerie,
+} from "./projections.js";
+export {
+  projeterAgent,
+  projeterArbreGenealogique,
+  projeterPopulation,
+  projeterTresorerie,
+  reconstruirePopulationDepuisEvenements,
+  reconstruireTresorerieProprietaire,
+} from "./projections.js";
+
+export type { MontantApi } from "./serialisation-api.js";
+export {
+  microUsdcVersAffichageUsdc,
+  serialiserJsonApi,
+  serialiserMontantApi,
+} from "./serialisation-api.js";
