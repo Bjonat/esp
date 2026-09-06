@@ -8,6 +8,7 @@
   "references": [
     { "path": "../../paquets/protocole" },
     { "path": "../../paquets/registre-evenements" },
+    { "path": "../../paquets/moteur-agent" },
     { "path": "../../paquets/xway" }
   ]
 }

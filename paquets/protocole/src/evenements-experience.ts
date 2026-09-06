@@ -53,6 +53,11 @@ export type SnapshotCreationExperience = {
    * Absente = Xway inactif pour cette expérience.
    */
   readonly xway?: Readonly<Record<string, unknown>>;
+  /**
+   * Configuration identité cryptographique figée à la création.
+   * Absente = identité non configurée (legacy).
+   */
+  readonly identite?: Readonly<Record<string, unknown>>;
 };
 
 export type ChargeExperienceCreee = {
@@ -75,6 +80,7 @@ export type ChargeExperienceCreee = {
   readonly simulateur: SnapshotSimulateurExperience;
   readonly dateCreation: string;
   readonly xway?: Readonly<Record<string, unknown>>;
+  readonly identite?: Readonly<Record<string, unknown>>;
 };
 
 export type ChargeCycleExperienceAvance = {
@@ -130,6 +136,7 @@ export function serialiserSnapshotCreationExperience(
     simulateur: snapshot.simulateur,
     dateCreation: snapshot.dateCreation,
     ...(snapshot.xway !== undefined ? { xway: snapshot.xway } : {}),
+    ...(snapshot.identite !== undefined ? { identite: snapshot.identite } : {}),
   };
 }
 
@@ -222,6 +229,11 @@ export function parserSnapshotCreationExperience(
     chargeUtile.xway !== null &&
     typeof chargeUtile.xway === "object"
       ? { xway: chargeUtile.xway as Readonly<Record<string, unknown>> }
+      : {}),
+    ...(chargeUtile.identite !== undefined &&
+    chargeUtile.identite !== null &&
+    typeof chargeUtile.identite === "object"
+      ? { identite: chargeUtile.identite as Readonly<Record<string, unknown>> }
       : {}),
   };
 }

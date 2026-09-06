@@ -66,6 +66,27 @@ export {
 } from "./budget-cognitif.js";
 export { deciderPolitiqueCognitiveDeveloppement } from "./politique-cognitive-developpement.js";
 
+export type {
+  ConfigurationIdentite,
+  ConfigurationIdentiteJson,
+} from "./configuration-identite.js";
+export {
+  VERSION_CONFIGURATION_IDENTITE,
+  parserConfigurationIdentite,
+  serialiserConfigurationIdentite,
+} from "./configuration-identite.js";
+
+export type {
+  IdentitePubliqueAgent,
+  ProjectionIdentiteAgent,
+} from "./projections-identite.js";
+export {
+  abregerClePublique,
+  chargeUtileIdentiteContientSecret,
+  projeterIdentiteAgent,
+  reconstruireIdentitesPubliques,
+} from "./projections-identite.js";
+
 export type { MontantApi } from "./serialisation-api.js";
 export {
   microUsdcVersAffichageUsdc,

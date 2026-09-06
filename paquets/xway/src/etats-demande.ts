@@ -153,6 +153,7 @@ function estMotifRefus(valeur: string | undefined): valeur is MotifRefusInferenc
     valeur === "modele_inconnu" ||
     valeur === "demande_deja_consommee" ||
     valeur === "demande_invalide" ||
-    valeur === "capacite_reservee_insuffisante"
+    valeur === "capacite_reservee_insuffisante" ||
+    valeur === "authentification_invalide"
   );
 }

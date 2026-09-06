@@ -75,9 +75,11 @@ export type {
 } from "./evenements-esp.js";
 export {
   estEvenementEconomique,
+  estEvenementIdentite,
   estEvenementXway,
   estTypeEvenementEsp,
   filtrerEvenementsEconomiques,
+  filtrerEvenementsIdentite,
   filtrerEvenementsXway,
 } from "./evenements-esp.js";
 
@@ -96,6 +98,17 @@ export {
   creerEntreeInferenceExecutee,
   estTypeEvenementXway,
 } from "./evenements-xway.js";
+
+export type {
+  ChargeIdentiteAgentEnregistree,
+  EntreeEvenementIdentite,
+  TypeEvenementIdentite,
+} from "./evenements-identite.js";
+export {
+  TYPES_EVENEMENT_IDENTITE,
+  creerEntreeIdentiteAgentEnregistree,
+  estTypeEvenementIdentite,
+} from "./evenements-identite.js";
 
 
 export type {

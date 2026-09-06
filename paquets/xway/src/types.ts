@@ -67,7 +67,8 @@ export type MotifRefusInference =
   | "modele_inconnu"
   | "demande_deja_consommee"
   | "demande_invalide"
-  | "capacite_reservee_insuffisante";
+  | "capacite_reservee_insuffisante"
+  | "authentification_invalide";
 
 export type ReponseInferenceSimulee = {
   readonly texte: string;

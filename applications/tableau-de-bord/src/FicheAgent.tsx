@@ -8,6 +8,7 @@ type Onglet =
   | "vue"
   | "economie"
   | "activite"
+  | "identite"
   | "xway"
   | "decisions"
   | "recherche"
@@ -27,6 +28,7 @@ const ONGLET_LIBELLES: Record<Onglet, string> = {
   vue: "Vue d'ensemble",
   economie: "Économie",
   activite: "Activité",
+  identite: "Identité ESP",
   xway: "Cognition / Xway",
   decisions: "Décisions",
   recherche: "Recherche",
@@ -131,6 +133,47 @@ export function FicheAgent(props: Props) {
         </ul>
       )}
 
+      {props.onglet === "identite" && (
+        <div className="identite-agent">
+          <p className="rappel">
+            Identité cryptographique ESP (Ed25519) — distincte de tout wallet financier.
+            Aucune clé privée n&apos;est affichée.
+          </p>
+          {props.agent.identite === undefined ? (
+            <p className="rappel">Identité non configurée pour cette expérience.</p>
+          ) : (
+            <dl className="metriques-compactes">
+              <div>
+                <dt>Algorithme</dt>
+                <dd>{props.agent.identite.algorithme ?? "—"}</dd>
+              </div>
+              <div>
+                <dt>Statut</dt>
+                <dd className="mono">
+                  {libelleStatutIdentite(props.agent.identite.statut)}
+                </dd>
+              </div>
+              <div>
+                <dt>Empreinte publique</dt>
+                <dd className="mono">
+                  {props.agent.identite.empreinteClePublique ?? "—"}
+                </dd>
+              </div>
+              <div>
+                <dt>Clé publique (abrégée)</dt>
+                <dd className="mono">
+                  {props.agent.identite.clePubliqueAbregee ?? "—"}
+                </dd>
+              </div>
+              <div>
+                <dt>Version</dt>
+                <dd>{props.agent.identite.versionIdentite ?? "—"}</dd>
+              </div>
+            </dl>
+          )}
+        </div>
+      )}
+
       {props.onglet === "xway" && (
         <div className="xway-agent">
           <p className="badge-mode">{props.xway?.libelleFournisseur ?? "FOURNISSEUR SIMULÉ — aucune IA réelle"}</p>
@@ -214,4 +257,17 @@ function LigneMontant(props: { libelle: string; montant: string }) {
       <dd>{props.montant} USDC</dd>
     </div>
   );
+}
+
+function libelleStatutIdentite(
+  statut: "disponible" | "cle_privee_indisponible" | "non_configuree",
+): string {
+  switch (statut) {
+    case "disponible":
+      return "disponible";
+    case "cle_privee_indisponible":
+      return "clé privée indisponible";
+    case "non_configuree":
+      return "non configurée";
+  }
 }

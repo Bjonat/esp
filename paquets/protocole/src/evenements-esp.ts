@@ -10,6 +10,11 @@ import type {
 } from "./evenements-experience.js";
 import { estTypeEvenementExperience } from "./evenements-experience.js";
 import type {
+  EntreeEvenementIdentite,
+  TypeEvenementIdentite,
+} from "./evenements-identite.js";
+import { estTypeEvenementIdentite } from "./evenements-identite.js";
+import type {
   EntreeEvenementXway,
   TypeEvenementXway,
 } from "./evenements-xway.js";
@@ -21,12 +26,14 @@ import { estTypeEvenementXway } from "./evenements-xway.js";
 export type TypeEvenementEsp =
   | TypeEvenementEconomique
   | TypeEvenementExperience
-  | TypeEvenementXway;
+  | TypeEvenementXway
+  | TypeEvenementIdentite;
 
 export type EntreeEvenementEsp =
   | EntreeEvenementEconomique
   | EntreeEvenementExperience
-  | EntreeEvenementXway;
+  | EntreeEvenementXway
+  | EntreeEvenementIdentite;
 
 export type EvenementEsp = Omit<EvenementEconomique, "type"> & {
   readonly type: TypeEvenementEsp;
@@ -38,7 +45,8 @@ export function estTypeEvenementEsp(
   return (
     estTypeEvenementEconomique(valeur) ||
     estTypeEvenementExperience(valeur) ||
-    estTypeEvenementXway(valeur)
+    estTypeEvenementXway(valeur) ||
+    estTypeEvenementIdentite(valeur)
   );
 }
 
@@ -64,4 +72,16 @@ export function filtrerEvenementsXway(
   evenements: readonly EvenementEsp[],
 ): Array<EvenementEsp & { type: TypeEvenementXway }> {
   return evenements.filter(estEvenementXway);
+}
+
+export function estEvenementIdentite(
+  evenement: EvenementEsp,
+): evenement is EvenementEsp & { type: TypeEvenementIdentite } {
+  return estTypeEvenementIdentite(evenement.type);
+}
+
+export function filtrerEvenementsIdentite(
+  evenements: readonly EvenementEsp[],
+): Array<EvenementEsp & { type: TypeEvenementIdentite }> {
+  return evenements.filter(estEvenementIdentite);
 }

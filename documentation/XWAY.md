@@ -6,7 +6,7 @@ Xway est le **médiateur** entre un agent ESP et les ressources externes
 qu'il consomme (ici : inférence cognitive simulée).
 
 ```
-AGENT → demande → XWAY → autorisation (+ réservation) → fournisseur → usage → coût
+AGENT → demande signée → XWAY (AUTH) → autorisation (+ réservation) → fournisseur → usage → coût
                                               ↓
                                     contrôleur enregistre
                                               ↓
@@ -15,7 +15,8 @@ AGENT → demande → XWAY → autorisation (+ réservation) → fournisseur →
 
 ## Ce que Xway fait
 
-- reçoit une `DemandeInference` ;
+- reçoit une `DemandeInference` (éventuellement signée) ;
+- **authentifie** l'agent (Ed25519) avant toute estimation / réservation ;
 - estime un coût maximum ;
 - **réserve** temporairement ce plafond à l'autorisation ;
 - autorise ou refuse selon la capacité disponible ;
@@ -33,7 +34,22 @@ AGENT → demande → XWAY → autorisation (+ réservation) → fournisseur →
 - calculer la fitness ;
 - connaître Solana ;
 - devenir source de vérité économique ;
-- créer de crédits / wallet / monnaie Xway.
+- créer de crédits / wallet / monnaie Xway ;
+- **posséder ou recevoir la clé privée** d'un agent.
+
+## Authentification
+
+Lorsque `identite.active` est figé pour l'expérience :
+
+1. enveloppe `DemandeInferenceSignee` obligatoire ;
+2. domaine `ESP-XWAY-INFERENCE-V1` ;
+3. clé présentée = clé enregistrée pour `identifiantAgent` ;
+4. signature vérifiée sur le message canonique.
+
+Échec d'auth → motif `authentification_invalide` :
+aucune réservation, aucun fournisseur, aucun coût.
+
+Détail identité : [`IDENTITE_AGENT.md`](./IDENTITE_AGENT.md).
 
 ## Autorisation et capacité
 
