@@ -58,7 +58,7 @@ function configJson(
 }
 
 describe("Source de vérité expérimentale (hardening)", () => {
-  it("A — JSON modifié après création n'altère pas l'expérience historique", () => {
+  it("A — JSON modifié après création n'altère pas l'expérience historique", async () => {
     const repertoire = repertoireTemp();
     const cheminSqlite = join(repertoire, "esp.sqlite");
     const cheminConfig = join(repertoire, "config.json");
@@ -87,7 +87,7 @@ describe("Source de vérité expérimentale (hardening)", () => {
     expect(creation.configuration.parametresEconomiques.version).toBe(
       "historique-v1",
     );
-    creation.avancerUnCycle();
+    await creation.avancerUnCycle();
     creation.fermer();
 
     const modifiee = configJson({
@@ -121,7 +121,7 @@ describe("Source de vérité expérimentale (hardening)", () => {
     reprise.fermer();
   });
 
-  it("B — créer → démarrer → avancer → pause → redémarrer reconstruit statut et cycle", () => {
+  it("B — créer → démarrer → avancer → pause → redémarrer reconstruit statut et cycle", async () => {
     const repertoire = repertoireTemp();
     const cheminSqlite = join(repertoire, "esp.sqlite");
     const configuration = parserConfigurationExperience(configJson());
@@ -135,8 +135,8 @@ describe("Source de vérité expérimentale (hardening)", () => {
     expect(premier.obtenirStatut()).toBe("prete");
     premier.demarrer();
     expect(premier.obtenirStatut()).toBe("en_cours");
-    premier.avancerUnCycle();
-    premier.avancerUnCycle();
+    await premier.avancerUnCycle();
+    await premier.avancerUnCycle();
     expect(premier.obtenirNumeroCycleCourant()).toBe(2);
     premier.mettreEnPause();
     expect(premier.obtenirStatut()).toBe("en_pause");
@@ -152,7 +152,7 @@ describe("Source de vérité expérimentale (hardening)", () => {
     second.fermer();
   });
 
-  it("C — reconstruction sans fichier de configuration original", () => {
+  it("C — reconstruction sans fichier de configuration original", async () => {
     const repertoire = repertoireTemp();
     const cheminSqlite = join(repertoire, "esp.sqlite");
     const configuration = parserConfigurationExperience(
@@ -165,9 +165,9 @@ describe("Source de vérité expérimentale (hardening)", () => {
       dateCreationFixe: "2020-06-01T00:00:00.000Z",
       datesEvenementsFixes: "2020-06-01T00:00:00.000Z",
     });
-    createur.avancerUnCycle();
-    createur.avancerUnCycle();
-    createur.avancerUnCycle();
+    await createur.avancerUnCycle();
+    await createur.avancerUnCycle();
+    await createur.avancerUnCycle();
     const empreinte = createur.capturerEmpreinteEconomique();
     createur.fermer();
 
@@ -189,7 +189,7 @@ describe("Source de vérité expérimentale (hardening)", () => {
     sansJson.fermer();
   });
 
-  it("D — AGENT_CREE respecte un payload métier canonique", () => {
+  it("D — AGENT_CREE respecte un payload métier canonique", async () => {
     const naissance = attribuerCapitalInitial({
       identifiantExperience: "exp-agent-cree",
       identifiantAgent: "agent-x",
@@ -227,7 +227,7 @@ describe("Source de vérité expérimentale (hardening)", () => {
     }
   });
 
-  it("EXPERIENCE_CREEE fige le snapshot exact des paramètres", () => {
+  it("EXPERIENCE_CREEE fige le snapshot exact des paramètres", async () => {
     const controleur = ControleurExperience.ouvrir({
       configuration: parserConfigurationExperience(configJson()),
       registre: creerRegistreEvenementsMemoire(),
@@ -244,7 +244,7 @@ describe("Source de vérité expérimentale (hardening)", () => {
     expect(snapshot.parametresEconomiques.version).toBe("demo-verite");
   });
 
-  it("ouvrirDepuisRegistre refuse un SQLite sans EXPERIENCE_CREEE", () => {
+  it("ouvrirDepuisRegistre refuse un SQLite sans EXPERIENCE_CREEE", async () => {
     const repertoire = repertoireTemp();
     const chemin = join(repertoire, "legacy.sqlite");
     const registre = creerRegistreEvenementsSqlite(chemin);

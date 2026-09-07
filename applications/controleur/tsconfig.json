@@ -8,6 +8,8 @@
   "references": [
     { "path": "../../paquets/protocole" },
     { "path": "../../paquets/registre-evenements" },
-    { "path": "../../paquets/xway" }
+    { "path": "../../paquets/moteur-agent" },
+    { "path": "../../paquets/xway" },
+    { "path": "../../adaptateurs/openai" }
   ]
 }

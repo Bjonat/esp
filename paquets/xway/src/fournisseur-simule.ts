@@ -6,7 +6,7 @@ import type { FournisseurInference } from "./fournisseur.js";
 import type {
   DemandeInference,
   EstimationCoutInference,
-  ReponseInferenceSimulee,
+  ReponseInference,
   TarifModeleInference,
 } from "./types.js";
 
@@ -25,10 +25,10 @@ export class FournisseurInferenceSimule implements FournisseurInference {
     return estimerCoutInference(demande, tarif);
   }
 
-  inferer(
+  async inferer(
     demande: DemandeInference,
     tarif: TarifModeleInference,
-  ): ReponseInferenceSimulee {
+  ): Promise<ReponseInference> {
     const usage = calculerUsageInference({ demande, tarif });
     const texte = [
       "[FOURNISSEUR SIMULÉ — aucune IA réelle]",

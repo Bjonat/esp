@@ -231,6 +231,16 @@ body {
   grid-column: 1 / -1;
 }
 
+.banniere-reel {
+  margin: 0 0 0.75rem;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid #8a6a2f;
+  background: #2a2318;
+  color: #e6c27a;
+  font-size: 0.82rem;
+  letter-spacing: 0.02em;
+}
+
 .historique {
   grid-column: 1 / span 5;
 }

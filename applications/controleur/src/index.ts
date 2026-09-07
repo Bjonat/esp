@@ -53,6 +53,7 @@ export {
 export type {
   ProjectionXwayAgent,
   ProjectionXwayGlobale,
+  ProjectionInferenceRecente,
 } from "./projections-xway.js";
 export {
   projeterXwayAgent,
@@ -60,11 +61,38 @@ export {
   reconstruireEtatsDemandesDepuisRegistre,
 } from "./projections-xway.js";
 
+export type { ProjectionCoutsInfrastructureExterne } from "./projections-infrastructure-externe.js";
+export {
+  projeterCoutsInfrastructureExterne,
+  reconstruireEtatPlafondFournisseur,
+} from "./projections-infrastructure-externe.js";
+
 export {
   calculerCapaciteCognitiveDisponible,
   calculerLimiteDepenseCognitive,
 } from "./budget-cognitif.js";
 export { deciderPolitiqueCognitiveDeveloppement } from "./politique-cognitive-developpement.js";
+
+export type {
+  ConfigurationIdentite,
+  ConfigurationIdentiteJson,
+} from "./configuration-identite.js";
+export {
+  VERSION_CONFIGURATION_IDENTITE,
+  parserConfigurationIdentite,
+  serialiserConfigurationIdentite,
+} from "./configuration-identite.js";
+
+export type {
+  IdentitePubliqueAgent,
+  ProjectionIdentiteAgent,
+} from "./projections-identite.js";
+export {
+  abregerClePublique,
+  chargeUtileIdentiteContientSecret,
+  projeterIdentiteAgent,
+  reconstruireIdentitesPubliques,
+} from "./projections-identite.js";
 
 export type { MontantApi } from "./serialisation-api.js";
 export {
@@ -72,3 +100,17 @@ export {
   serialiserJsonApi,
   serialiserMontantApi,
 } from "./serialisation-api.js";
+
+export type {
+  ApercuInferenceTest,
+  AuditRegistreInferenceTest,
+  DiagnosticExecutionInferenceTest,
+  ResultatInferenceTest,
+} from "./inference-test.js";
+export {
+  NOMBRE_APPELS_RESEAU_MAX_INFERENCE_TEST,
+  calculerApercuInferenceTest,
+  construireDemandeInferenceTest,
+  construireMessagesTacheCognitiveV01,
+  montantDepenseComputeDepuisTest,
+} from "./inference-test.js";

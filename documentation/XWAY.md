@@ -6,7 +6,7 @@ Xway est le **médiateur** entre un agent ESP et les ressources externes
 qu'il consomme (ici : inférence cognitive simulée).
 
 ```
-AGENT → demande → XWAY → autorisation (+ réservation) → fournisseur → usage → coût
+AGENT → demande signée → XWAY (AUTH) → autorisation (+ réservation) → fournisseur → usage → coût
                                               ↓
                                     contrôleur enregistre
                                               ↓
@@ -15,7 +15,8 @@ AGENT → demande → XWAY → autorisation (+ réservation) → fournisseur →
 
 ## Ce que Xway fait
 
-- reçoit une `DemandeInference` ;
+- reçoit une `DemandeInference` (éventuellement signée) ;
+- **authentifie** l'agent (Ed25519) avant toute estimation / réservation ;
 - estime un coût maximum ;
 - **réserve** temporairement ce plafond à l'autorisation ;
 - autorise ou refuse selon la capacité disponible ;
@@ -33,7 +34,22 @@ AGENT → demande → XWAY → autorisation (+ réservation) → fournisseur →
 - calculer la fitness ;
 - connaître Solana ;
 - devenir source de vérité économique ;
-- créer de crédits / wallet / monnaie Xway.
+- créer de crédits / wallet / monnaie Xway ;
+- **posséder ou recevoir la clé privée** d'un agent.
+
+## Authentification
+
+Lorsque `identite.active` est figé pour l'expérience :
+
+1. enveloppe `DemandeInferenceSignee` obligatoire ;
+2. domaine `ESP-XWAY-INFERENCE-V1` ;
+3. clé présentée = clé enregistrée pour `identifiantAgent` ;
+4. signature vérifiée sur le message canonique.
+
+Échec d'auth → motif `authentification_invalide` :
+aucune réservation, aucun fournisseur, aucun coût.
+
+Détail identité : [`IDENTITE_AGENT.md`](./IDENTITE_AGENT.md).
 
 ## Autorisation et capacité
 
@@ -99,21 +115,28 @@ Champ `natureEchec` sur `INFERENCE_ECHOUEE`.
 
 ## Fournisseur
 
-Interface générique `FournisseurInference` — non liée à OpenAI.
+Interface générique `FournisseurInference` — non liée à un SDK.
 
-Implémentation v0.1 : `FournisseurInferenceSimule`
+Implémentations :
 
-- déterministe ;
-- sans réseau ;
-- sans SDK ;
-- réponse explicitement marquée non-intelligente.
+- `FournisseurInferenceSimule` — défaut, déterministe, sans réseau ;
+- `FournisseurInferenceOpenAi` (`@esp/adaptateur-openai`) — Responses API,
+  opt-in via `xway.fournisseur: openai`.
+
+Détail : [`FOURNISSEUR_IA_REEL.md`](./FOURNISSEUR_IA_REEL.md).
 
 ## Jetons (approximation documentée)
 
 Pas un tokenizer OpenAI.
 
+Simulé :
+
 - entrée : `floor(longueurUTF16 / 4)` + cadrage par message ;
 - sortie : dérivée déterministe de la demande, bornée.
+
+Avant appel réel (borne conservatrice) :
+
+- entrée : `ceil(longueurUTF16 / 2) + 8` par message.
 
 Coût :
 
@@ -160,7 +183,7 @@ Section `xway` dans `experiences/*.json`, figée dans `EXPERIENCE_CREEE`.
 
 ## Futur provider réel
 
-Un futur adaptateur OpenAI/Anthropic implémentera `FournisseurInference`
-sans changer le contrat d'autorisation ni le chemin `DEPENSE_COMPUTE`.
+✅ Livré en v0.1 opt-in : adaptateur OpenAI (`gpt-5.6-luna` / `luna_reel_v01`).
+Le contrat d'autorisation et le chemin `DEPENSE_COMPUTE` restent inchangés.
 Aucune clé API dans le protocole.
 Réconciliation explicite requise en cas de `resultat_indetermine`.

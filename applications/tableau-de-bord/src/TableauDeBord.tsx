@@ -25,6 +25,7 @@ type OngletFiche =
   | "vue"
   | "economie"
   | "activite"
+  | "identite"
   | "xway"
   | "decisions"
   | "recherche"
@@ -337,6 +338,9 @@ export function TableauDeBord() {
               <h2>Xway</h2>
               <span className="badge-mode">{instantane.xway.libelleFournisseur}</span>
             </div>
+            {instantane.xway.banniereFournisseurReel !== null && (
+              <p className="banniere-reel">{instantane.xway.banniereFournisseurReel}</p>
+            )}
             <dl className="metriques-compactes">
               <div>
                 <dt>Demandées</dt>
@@ -355,8 +359,14 @@ export function TableauDeBord() {
                 <dd>{String(instantane.xway.inferencesExecutees)}</dd>
               </div>
               <div>
-                <dt>Coût cumulé</dt>
+                <dt>Coût imputé ESP</dt>
                 <dd>{instantane.xway.coutComputeCumule.usdc} USDC</dd>
+              </div>
+              <div>
+                <dt>Coût fournisseur estimé</dt>
+                <dd className="mono">
+                  {instantane.xway.coutFournisseurEstimeCumuleMicroUsd} µUSD
+                </dd>
               </div>
               <div>
                 <dt>Coût cycle courant</dt>

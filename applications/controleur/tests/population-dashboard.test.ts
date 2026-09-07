@@ -66,7 +66,7 @@ function ouvrirControleurMemoire(
 }
 
 describe("Population, contrôleur et dashboard v0.1", () => {
-  it("A — Population Genesis : N agents, capitalisations, génération 0", () => {
+  it("A — Population Genesis : N agents, capitalisations, génération 0", async () => {
     const controleur = ouvrirControleurMemoire({
       taillePopulationInitiale: 7,
     });
@@ -98,14 +98,14 @@ describe("Population, contrôleur et dashboard v0.1", () => {
     expect(capitalTotal).toBe(70_000_000n);
   });
 
-  it("B — Déterminisme : même config + graine + cycles → mêmes résultats", () => {
-    const executer = () => {
+  it("B — Déterminisme : même config + graine + cycles → mêmes résultats", async () => {
+    const executer = async () => {
       const controleur = ouvrirControleurMemoire({
         graineSimulation: 12345,
         taillePopulationInitiale: 10,
       });
       for (let cycle = 0; cycle < 100; cycle += 1) {
-        controleur.avancerUnCycle();
+        await controleur.avancerUnCycle();
       }
       return controleur.capturerEmpreinteEconomique();
     };
@@ -115,12 +115,12 @@ describe("Population, contrôleur et dashboard v0.1", () => {
     expect(empreinteA).toEqual(empreinteB);
   });
 
-  it("C — Multi-agents : états séparés, séquences monotones", () => {
+  it("C — Multi-agents : états séparés, séquences monotones", async () => {
     const controleur = ouvrirControleurMemoire({
       taillePopulationInitiale: 5,
     });
-    controleur.avancerUnCycle();
-    controleur.avancerUnCycle();
+    await controleur.avancerUnCycle();
+    await controleur.avancerUnCycle();
 
     const evenements = controleur.registre.listerParExperience(
       controleur.configuration.identifiantExperience,
@@ -141,7 +141,7 @@ describe("Population, contrôleur et dashboard v0.1", () => {
     }
   });
 
-  it("D — Mort : reste visible, plus d'activité, jamais réactivé", () => {
+  it("D — Mort : reste visible, plus d'activité, jamais réactivé", async () => {
     const controleur = ouvrirControleurMemoire({
       taillePopulationInitiale: 3,
       capitalInitialParAgentMicroUsdc: "80000",
@@ -158,7 +158,7 @@ describe("Population, contrôleur et dashboard v0.1", () => {
     });
 
     for (let cycle = 0; cycle < 40; cycle += 1) {
-      controleur.avancerUnCycle();
+      await controleur.avancerUnCycle();
       if (
         controleur
           .obtenirAgents()
@@ -182,8 +182,8 @@ describe("Population, contrôleur et dashboard v0.1", () => {
       .listerParAgent(mort.identite.identifiant)
       .filter((e) => e.numeroCycle > cycleMort).length;
 
-    controleur.avancerUnCycle();
-    controleur.avancerUnCycle();
+    await controleur.avancerUnCycle();
+    await controleur.avancerUnCycle();
 
     const mortApres = controleur
       .obtenirAgents()
@@ -198,12 +198,12 @@ describe("Population, contrôleur et dashboard v0.1", () => {
     expect(evenementsApres.length).toBe(evenementsAvant);
   });
 
-  it("E — Reconstruction : population mémoire == population depuis événements", () => {
+  it("E — Reconstruction : population mémoire == population depuis événements", async () => {
     const controleur = ouvrirControleurMemoire({
       taillePopulationInitiale: 4,
     });
     for (let cycle = 0; cycle < 15; cycle += 1) {
-      controleur.avancerUnCycle();
+      await controleur.avancerUnCycle();
     }
 
     const memoire = controleur.capturerEmpreinteEconomique();
@@ -224,7 +224,7 @@ describe("Population, contrôleur et dashboard v0.1", () => {
     }
   });
 
-  it("F — Redémarrage : 20 cycles + reprise cycle 21 == 21 cycles continus", () => {
+  it("F — Redémarrage : 20 cycles + reprise cycle 21 == 21 cycles continus", async () => {
     const repertoire = repertoireTemp();
     const cheminSqlite = join(repertoire, "esp.sqlite");
     const configuration = configurationDemo({
@@ -239,7 +239,7 @@ describe("Population, contrôleur et dashboard v0.1", () => {
       datesEvenementsFixes: "2020-01-01T00:00:00.000Z",
     });
     for (let cycle = 0; cycle < 21; cycle += 1) {
-      continu.avancerUnCycle();
+      await continu.avancerUnCycle();
     }
     const empreinteContinue = continu.capturerEmpreinteEconomique();
 
@@ -250,7 +250,7 @@ describe("Population, contrôleur et dashboard v0.1", () => {
       datesEvenementsFixes: "2020-01-01T00:00:00.000Z",
     });
     for (let cycle = 0; cycle < 20; cycle += 1) {
-      premier.avancerUnCycle();
+      await premier.avancerUnCycle();
     }
     premier.fermer();
 
@@ -260,7 +260,7 @@ describe("Population, contrôleur et dashboard v0.1", () => {
       datesEvenementsFixes: "2020-01-01T00:00:00.000Z",
     });
     expect(second.obtenirNumeroCycleCourant()).toBe(20);
-    second.avancerUnCycle();
+    await second.avancerUnCycle();
     const empreinteReprise = second.capturerEmpreinteEconomique();
     second.fermer();
 
@@ -277,7 +277,7 @@ describe("Population, contrôleur et dashboard v0.1", () => {
       taillePopulationInitiale: 6,
     });
     for (let cycle = 0; cycle < 8; cycle += 1) {
-      controleur.avancerUnCycle();
+      await controleur.avancerUnCycle();
     }
 
     const serveur = await demarrerServeurApi({
@@ -301,7 +301,7 @@ describe("Population, contrôleur et dashboard v0.1", () => {
       taillePopulationInitiale: 3,
     });
     for (let cycle = 0; cycle < 5; cycle += 1) {
-      controleur.avancerUnCycle();
+      await controleur.avancerUnCycle();
     }
     const identifiant = controleur.obtenirAgents()[0]!.identite.identifiant;
 
@@ -333,7 +333,7 @@ describe("Population, contrôleur et dashboard v0.1", () => {
       taillePopulationInitiale: 4,
     });
     for (let cycle = 0; cycle < 12; cycle += 1) {
-      controleur.avancerUnCycle();
+      await controleur.avancerUnCycle();
     }
 
     const serveur = await demarrerServeurApi({
@@ -355,7 +355,7 @@ describe("Population, contrôleur et dashboard v0.1", () => {
     }
   });
 
-  it("J — Arbre : N racines Genesis, 0 relation", () => {
+  it("J — Arbre : N racines Genesis, 0 relation", async () => {
     const controleur = ouvrirControleurMemoire({
       taillePopulationInitiale: 8,
     });
@@ -384,7 +384,7 @@ describe("Population, contrôleur et dashboard v0.1", () => {
       )) as { evenements: unknown[] };
       expect(activite.evenements).toEqual([]);
 
-      controleur.avancerUnCycle();
+      await controleur.avancerUnCycle();
       const apres = (await fetchJson(
         `http://${adresse}/api/activite-recente`,
       )) as { evenements: Array<{ identifiant: string }> };
@@ -413,7 +413,7 @@ describe("Population, contrôleur et dashboard v0.1", () => {
         taillePopulationInitiale: 4,
       });
       for (let cycle = 0; cycle < 10; cycle += 1) {
-        controleur.avancerUnCycle();
+        await controleur.avancerUnCycle();
         if (delaiMs > 0) {
           await new Promise((r) => setTimeout(r, delaiMs));
         }
@@ -426,7 +426,7 @@ describe("Population, contrôleur et dashboard v0.1", () => {
     expect(rapide).toEqual(lente);
   });
 
-  it("Simulateur de développement : déterministe et hors protocole", () => {
+  it("Simulateur de développement : déterministe et hors protocole", async () => {
     const a = simulerActiviteCycle({
       graineSimulation: 12345,
       identifiantAgent: "agent-a",
@@ -447,7 +447,7 @@ describe("Population, contrôleur et dashboard v0.1", () => {
     expect(a.revenuActivite + a.perteActivite).toBeGreaterThanOrEqual(0n);
   });
 
-  it("Reprise SQLite isolee : reconstruction après fermeture", () => {
+  it("Reprise SQLite isolee : reconstruction après fermeture", async () => {
     const repertoire = repertoireTemp();
     const chemin = join(repertoire, "seul.sqlite");
     const configuration = configurationDemo({
@@ -461,8 +461,8 @@ describe("Population, contrôleur et dashboard v0.1", () => {
       dateCreationFixe: "2020-01-01T00:00:00.000Z",
       datesEvenementsFixes: "2020-01-01T00:00:00.000Z",
     });
-    premier.avancerUnCycle();
-    premier.avancerUnCycle();
+    await premier.avancerUnCycle();
+    await premier.avancerUnCycle();
     const empreinte = premier.capturerEmpreinteEconomique();
     premier.fermer();
 

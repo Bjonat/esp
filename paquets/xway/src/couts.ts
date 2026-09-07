@@ -1,4 +1,5 @@
-import type { MicroUsdc } from "@esp/protocole";
+import type { MicroUsdc, MicroUsd } from "@esp/protocole";
+import type { BaremeCoutInference } from "./types.js";
 import type {
   DemandeInference,
   EstimationCoutInference,
@@ -10,7 +11,7 @@ import type {
 /**
  * Approximation déterministe de jetons — PAS un tokenizer OpenAI.
  *
- * Règle documentée v0.1 :
+ * Règle documentée v0.1 (fournisseur simulé) :
  * - chaque message contribue floor(longueurUTF16 / 4) jetons (minimum 1 si non vide) ;
  * - +2 jetons de cadrage par message ;
  * - total entrée = max(1, somme).
@@ -23,6 +24,24 @@ export function compterJetonsMessages(
     const longueur = message.contenu.length;
     const corps = longueur === 0 ? 0 : Math.max(1, Math.floor(longueur / 4));
     total += corps + 2;
+  }
+  return Math.max(1, total);
+}
+
+/**
+ * Borne conservatrice d'entrée AVANT appel réseau.
+ * Documentée : ceil(longueurUTF16 / 2) + 8 par message — volontairement haute
+ * pour garantir coutFinalImpute <= reservation (jamais sous-estimer).
+ */
+export function compterJetonsEntreeConservateur(
+  messages: readonly MessageInference[],
+): number {
+  let total = 0;
+  for (const message of messages) {
+    const longueur = message.contenu.length;
+    const corps =
+      longueur === 0 ? 0 : Math.max(1, Math.ceil(longueur / 2));
+    total += corps + 8;
   }
   return Math.max(1, total);
 }
@@ -51,16 +70,31 @@ export function determinerJetonsSortie(options: {
 }
 
 /**
- * Coût entier micro-USDC :
+ * Coût entier micro-USDC (imputation agent) :
  * floor(jetons * tarifParMillion / 1_000_000) pour entrée et sortie, puis somme.
- * Aucun flottant monétaire.
+ *
+ * Barème ESP agent (v0.1) — imputation des jetons d'entrée cachés :
+ * - `jetonsEntree` = total entrée fournisseur (OpenAI `input_tokens`),
+ *   qui INCLUT déjà les jetons cachés comme sous-ensemble ;
+ * - `jetonsEntreeCache` est informatif / pour l'estimation fournisseur ;
+ * - côté agent : TOUT le total entrée est imputé au tarif entrée unique
+ *   (pas de tarif cache distinct dans TarifModeleInference) ;
+ * - JAMAIS `jetonsEntree + jetonsEntreeCache` (double comptage interdit).
  */
 export function calculerCoutUsageMicroUsdc(
   jetonsEntree: number,
   jetonsSortie: number,
   tarif: TarifModeleInference,
+  jetonsEntreeCache = 0,
 ): MicroUsdc {
   assertJetonsNonNegatifs(jetonsEntree, jetonsSortie);
+  if (!Number.isInteger(jetonsEntreeCache) || jetonsEntreeCache < 0) {
+    throw new Error("jetonsEntreeCache invalides");
+  }
+  if (jetonsEntreeCache > jetonsEntree) {
+    throw new Error("jetonsEntreeCache > jetonsEntree");
+  }
+  // Total entrée une seule fois (cache ⊆ entrée).
   const coutEntree =
     (BigInt(jetonsEntree) * tarif.coutParMillionJetonsEntreeMicroUsdc) /
     1_000_000n;
@@ -70,11 +104,58 @@ export function calculerCoutUsageMicroUsdc(
   return coutEntree + coutSortie;
 }
 
+/**
+ * ESTIMATION coût fournisseur externe (micro-USD) depuis barème figé + usage mesuré.
+ * Pas une facture exacte — réconciliation future éventuelle.
+ *
+ * Distinction explicite du barème historique :
+ * - jetons non cachés → coutParMillionJetonsEntreeMicroUsd ;
+ * - jetons cachés (sous-ensemble de l'entrée) → coutParMillionJetonsEntreeCacheMicroUsd ;
+ * - sortie → coutParMillionJetonsSortieMicroUsd.
+ *
+ * `jetonsEntree` = total ; `jetonsEntreeCache` ⊆ total ; nonCache = total − cache.
+ */
+export function calculerCoutFournisseurEstimeMicroUsd(
+  options: {
+    readonly jetonsEntree: number;
+    readonly jetonsSortie: number;
+    readonly jetonsEntreeCache?: number;
+    readonly bareme: BaremeCoutInference;
+  },
+): MicroUsd {
+  const cache = options.jetonsEntreeCache ?? 0;
+  assertJetonsNonNegatifs(options.jetonsEntree, options.jetonsSortie);
+  if (!Number.isInteger(cache) || cache < 0) {
+    throw new Error("jetonsEntreeCache invalides");
+  }
+  if (cache > options.jetonsEntree) {
+    throw new Error("jetonsEntreeCache > jetonsEntree");
+  }
+  const nonCache = options.jetonsEntree - cache;
+  const coutEntree =
+    (BigInt(nonCache) * options.bareme.coutParMillionJetonsEntreeMicroUsd) /
+    1_000_000n;
+  const coutCache =
+    (BigInt(cache) * options.bareme.coutParMillionJetonsEntreeCacheMicroUsd) /
+    1_000_000n;
+  const coutSortie =
+    (BigInt(options.jetonsSortie) *
+      options.bareme.coutParMillionJetonsSortieMicroUsd) /
+    1_000_000n;
+  return coutEntree + coutCache + coutSortie;
+}
+
 export function estimerCoutInference(
   demande: DemandeInference,
   tarif: TarifModeleInference,
+  options?: {
+    readonly conservateur?: boolean;
+    readonly bareme?: BaremeCoutInference;
+  },
 ): EstimationCoutInference {
-  const jetonsEntreeEstimes = compterJetonsMessages(demande.messages);
+  const jetonsEntreeEstimes = options?.conservateur
+    ? compterJetonsEntreeConservateur(demande.messages)
+    : compterJetonsMessages(demande.messages);
   const jetonsSortieMax = Math.min(
     demande.nombreMaxJetonsSortie,
     tarif.nombreMaxJetonsSortie,
@@ -84,11 +165,24 @@ export function estimerCoutInference(
     jetonsSortieMax,
     tarif,
   );
-  return {
+  const estimation: EstimationCoutInference = {
     jetonsEntreeEstimes,
     jetonsSortieMax,
     coutMaximumEstimeMicroUsdc,
   };
+  if (options?.bareme !== undefined) {
+    return {
+      ...estimation,
+      coutMaximumEstimeFournisseurMicroUsd:
+        calculerCoutFournisseurEstimeMicroUsd({
+          jetonsEntree: jetonsEntreeEstimes,
+          jetonsSortie: jetonsSortieMax,
+          jetonsEntreeCache: 0,
+          bareme: options.bareme,
+        }),
+    };
+  }
+  return estimation;
 }
 
 export function calculerUsageInference(options: {

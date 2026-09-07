@@ -55,5 +55,10 @@
       "identifiant": "fournisseur-inference-simule",
       "version": "0.1.0"
     }
+  },
+  "identite": {
+    "active": true,
+    "algorithme": "ed25519",
+    "version": "0.1.0"
   }
 }

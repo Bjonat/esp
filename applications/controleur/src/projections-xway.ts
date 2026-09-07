@@ -4,6 +4,7 @@ import type {
   EtatPersistantDemandeXway,
   FaitEvenementDemandeXway,
   NatureEchecInference,
+  SelecteurFournisseurXway,
 } from "@esp/xway";
 import { reconstruireEtatsDemandesXway } from "@esp/xway";
 import type { MontantApi } from "./serialisation-api.js";
@@ -11,8 +12,11 @@ import { serialiserMontantApi } from "./serialisation-api.js";
 
 export type ProjectionXwayGlobale = {
   readonly active: boolean;
-  readonly fournisseurSimule: true;
-  readonly libelleFournisseur: "FOURNISSEUR SIMULÉ — aucune IA réelle";
+  readonly fournisseurSimule: boolean;
+  readonly fournisseurReel: boolean;
+  readonly selecteurFournisseur: SelecteurFournisseurXway;
+  readonly libelleFournisseur: string;
+  readonly banniereFournisseurReel: string | null;
   readonly demandesRecues: number;
   readonly demandesAutorisees: number;
   readonly demandesRefusees: number;
@@ -20,6 +24,7 @@ export type ProjectionXwayGlobale = {
   readonly inferencesEchouees: number;
   readonly coutComputeCumule: MontantApi;
   readonly coutComputeCycleCourant: MontantApi;
+  readonly coutFournisseurEstimeCumuleMicroUsd: string;
   readonly repartitionParModele: readonly {
     readonly modele: string;
     readonly executees: number;
@@ -28,10 +33,27 @@ export type ProjectionXwayGlobale = {
   }[];
 };
 
+export type ProjectionInferenceRecente = {
+  readonly numeroCycle: number;
+  readonly modele: string | null;
+  readonly jetonsEntree: number | null;
+  readonly jetonsSortie: number | null;
+  readonly coutImputeEsp: MontantApi | null;
+  readonly coutFournisseurEstimeMicroUsd: string | null;
+  readonly latenceMs: number | null;
+  readonly statut: string;
+  readonly propositionResume: string | null;
+  readonly propositionAction: string | null;
+  readonly propositionConfiance: number | null;
+  readonly propositionValide: boolean | null;
+};
+
 export type ProjectionXwayAgent = {
   readonly identifiantAgent: string;
-  readonly fournisseurSimule: true;
-  readonly libelleFournisseur: "FOURNISSEUR SIMULÉ — aucune IA réelle";
+  readonly fournisseurSimule: boolean;
+  readonly fournisseurReel: boolean;
+  readonly selecteurFournisseur: SelecteurFournisseurXway;
+  readonly libelleFournisseur: string;
   readonly nombreDemandes: number;
   readonly modelesUtilises: readonly string[];
   readonly inferencesRefusees: number;
@@ -39,20 +61,31 @@ export type ProjectionXwayAgent = {
   readonly jetonsEntreeCumules: number;
   readonly jetonsSortieCumules: number;
   readonly coutCumule: MontantApi;
+  readonly coutFournisseurEstimeCumuleMicroUsd: string;
   readonly dernierAppel: {
     readonly numeroCycle: number;
     readonly type: string;
     readonly modele: string | null;
     readonly resume: string;
   } | null;
+  readonly derniereInference: ProjectionInferenceRecente | null;
   readonly budgetCognitifDernierCycle: MontantApi | null;
 };
+
+function libelleFournisseur(selecteur: SelecteurFournisseurXway): string {
+  return selecteur === "openai"
+    ? "FOURNISSEUR : OPENAI RÉEL"
+    : "FOURNISSEUR : SIMULÉ";
+}
 
 export function projeterXwayGlobal(options: {
   readonly evenements: readonly EvenementEsp[];
   readonly numeroCycleCourant: number;
   readonly active: boolean;
+  readonly selecteurFournisseur?: SelecteurFournisseurXway;
+  readonly identifiantFournisseur?: string;
 }): ProjectionXwayGlobale {
+  const selecteur = options.selecteurFournisseur ?? "simule";
   const xway = filtrerEvenementsXway(options.evenements);
   let demandesRecues = 0;
   let demandesAutorisees = 0;
@@ -61,6 +94,7 @@ export function projeterXwayGlobal(options: {
   let inferencesEchouees = 0;
   let coutCumule = 0n;
   let coutCycleCourant = 0n;
+  let coutFournisseur = 0n;
   const parModele = new Map<
     string,
     { executees: number; refusees: number; cout: MicroUsdc }
@@ -100,6 +134,10 @@ export function projeterXwayGlobal(options: {
         if (evenement.numeroCycle === options.numeroCycleCourant) {
           coutCycleCourant += cout;
         }
+        const cf = evenement.chargeUtile.coutFournisseurEstimeMicroUsd;
+        if (typeof cf === "string" && /^-?\d+$/.test(cf)) {
+          coutFournisseur += BigInt(cf);
+        }
         break;
       }
       case "INFERENCE_ECHOUEE":
@@ -113,8 +151,14 @@ export function projeterXwayGlobal(options: {
 
   return {
     active: options.active,
-    fournisseurSimule: true,
-    libelleFournisseur: "FOURNISSEUR SIMULÉ — aucune IA réelle",
+    fournisseurSimule: selecteur === "simule",
+    fournisseurReel: selecteur === "openai",
+    selecteurFournisseur: selecteur,
+    libelleFournisseur: libelleFournisseur(selecteur),
+    banniereFournisseurReel:
+      selecteur === "openai"
+        ? "INFÉRENCE IA RÉELLE — environnement économique toujours simulé"
+        : null,
     demandesRecues,
     demandesAutorisees,
     demandesRefusees,
@@ -122,6 +166,7 @@ export function projeterXwayGlobal(options: {
     inferencesEchouees,
     coutComputeCumule: serialiserMontantApi(coutCumule),
     coutComputeCycleCourant: serialiserMontantApi(coutCycleCourant),
+    coutFournisseurEstimeCumuleMicroUsd: coutFournisseur.toString(10),
     repartitionParModele: [...parModele.entries()].map(([modele, stats]) => ({
       modele,
       executees: stats.executees,
@@ -134,7 +179,10 @@ export function projeterXwayGlobal(options: {
 export function projeterXwayAgent(options: {
   readonly evenements: readonly EvenementEsp[];
   readonly identifiantAgent: string;
+  readonly selecteurFournisseur?: SelecteurFournisseurXway;
+  readonly identifiantFournisseur?: string;
 }): ProjectionXwayAgent {
+  const selecteur = options.selecteurFournisseur ?? "simule";
   const xway = filtrerEvenementsXway(options.evenements).filter(
     (e) => e.identifiantAgent === options.identifiantAgent,
   );
@@ -145,8 +193,10 @@ export function projeterXwayAgent(options: {
   let jetonsEntree = 0;
   let jetonsSortie = 0;
   let coutCumule = 0n;
+  let coutFournisseur = 0n;
   const modeles = new Set<string>();
   let dernier: ProjectionXwayAgent["dernierAppel"] = null;
+  let derniereInference: ProjectionInferenceRecente | null = null;
   let budgetDernier: MontantApi | null = null;
 
   for (const evenement of xway) {
@@ -185,6 +235,48 @@ export function projeterXwayAgent(options: {
         evenement.chargeUtile,
         "coutFinalMicroUsdc",
       );
+      const cf = evenement.chargeUtile.coutFournisseurEstimeMicroUsd;
+      if (typeof cf === "string" && /^-?\d+$/.test(cf)) {
+        coutFournisseur += BigInt(cf);
+      }
+      derniereInference = {
+        numeroCycle: evenement.numeroCycle,
+        modele,
+        jetonsEntree:
+          typeof evenement.chargeUtile.jetonsEntree === "number"
+            ? evenement.chargeUtile.jetonsEntree
+            : null,
+        jetonsSortie:
+          typeof evenement.chargeUtile.jetonsSortie === "number"
+            ? evenement.chargeUtile.jetonsSortie
+            : null,
+        coutImputeEsp: serialiserMontantApi(
+          lireMontantOptionnel(evenement.chargeUtile, "coutFinalMicroUsdc"),
+        ),
+        coutFournisseurEstimeMicroUsd:
+          typeof cf === "string" ? cf : null,
+        latenceMs:
+          typeof evenement.chargeUtile.latenceMs === "number"
+            ? evenement.chargeUtile.latenceMs
+            : null,
+        statut: "executee",
+        propositionResume:
+          typeof evenement.chargeUtile.propositionResume === "string"
+            ? evenement.chargeUtile.propositionResume
+            : null,
+        propositionAction:
+          typeof evenement.chargeUtile.propositionAction === "string"
+            ? evenement.chargeUtile.propositionAction
+            : null,
+        propositionConfiance:
+          typeof evenement.chargeUtile.propositionConfiance === "number"
+            ? evenement.chargeUtile.propositionConfiance
+            : null,
+        propositionValide:
+          typeof evenement.chargeUtile.propositionValide === "boolean"
+            ? evenement.chargeUtile.propositionValide
+            : null,
+      };
     }
 
     dernier = {
@@ -197,8 +289,10 @@ export function projeterXwayAgent(options: {
 
   return {
     identifiantAgent: options.identifiantAgent,
-    fournisseurSimule: true,
-    libelleFournisseur: "FOURNISSEUR SIMULÉ — aucune IA réelle",
+    fournisseurSimule: selecteur === "simule",
+    fournisseurReel: selecteur === "openai",
+    selecteurFournisseur: selecteur,
+    libelleFournisseur: libelleFournisseur(selecteur),
     nombreDemandes,
     modelesUtilises: [...modeles],
     inferencesRefusees,
@@ -206,7 +300,9 @@ export function projeterXwayAgent(options: {
     jetonsEntreeCumules: jetonsEntree,
     jetonsSortieCumules: jetonsSortie,
     coutCumule: serialiserMontantApi(coutCumule),
+    coutFournisseurEstimeCumuleMicroUsd: coutFournisseur.toString(10),
     dernierAppel: dernier,
+    derniereInference,
     budgetCognitifDernierCycle: budgetDernier,
   };
 }

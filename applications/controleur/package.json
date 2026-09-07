@@ -18,6 +18,8 @@
     "dev": "tsx src/serveur.ts"
   },
   "dependencies": {
+    "@esp/adaptateur-openai": "workspace:*",
+    "@esp/moteur-agent": "workspace:*",
     "@esp/protocole": "workspace:*",
     "@esp/registre-evenements": "workspace:*",
     "@esp/xway": "workspace:*"

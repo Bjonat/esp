@@ -46,6 +46,21 @@ export type ChargeDemandeInference = {
   natureEchec?: NatureEchecInferenceProtocole;
   /** Montant réservé à l'autorisation (capacité opérationnelle, pas une dépense). */
   reservationMicroUsdc?: string;
+  /** ESTIMATION coût fournisseur externe (micro-USD) — pas un débit agent. */
+  coutFournisseurEstimeMicroUsd?: string;
+  identifiantReponseFournisseur?: string;
+  jetonsEntreeCache?: number;
+  latenceMs?: number;
+  propositionResume?: string;
+  propositionAction?: string;
+  propositionConfiance?: number;
+  propositionValide?: boolean;
+  /** Statut brut Responses API (completed / incomplete / failed). */
+  statutFournisseurBrut?: string;
+  /** État de sortie structurée ESP — distinct de la facturation. */
+  etatResultatFournisseur?: string;
+  motifIncomplet?: string;
+  jetonsRaisonnement?: number;
 };
 
 export function estTypeEvenementXway(
@@ -144,6 +159,19 @@ export function creerEntreeInferenceExecutee(options: {
   fournisseur: string;
   indiceUnicite: number;
   dateEnregistrement?: string;
+  /** Estimation coût fournisseur externe (micro-USD) — observabilité, pas débit. */
+  coutFournisseurEstimeMicroUsd?: string;
+  identifiantReponseFournisseur?: string;
+  jetonsEntreeCache?: number;
+  latenceMs?: number;
+  propositionResume?: string;
+  propositionAction?: string;
+  propositionConfiance?: number;
+  propositionValide?: boolean;
+  statutFournisseurBrut?: string;
+  etatResultatFournisseur?: string;
+  motifIncomplet?: string;
+  jetonsRaisonnement?: number;
 }): EntreeEvenementXway {
   return baseEntree(options, "INFERENCE_EXECUTEE", {
     identifiantDemande: options.identifiantDemande,
@@ -152,6 +180,42 @@ export function creerEntreeInferenceExecutee(options: {
     jetonsSortie: options.jetonsSortie,
     coutFinalMicroUsdc: ecrireMontantChargeUtile(options.coutFinalMicroUsdc),
     fournisseur: options.fournisseur,
+    ...(options.coutFournisseurEstimeMicroUsd !== undefined
+      ? { coutFournisseurEstimeMicroUsd: options.coutFournisseurEstimeMicroUsd }
+      : {}),
+    ...(options.identifiantReponseFournisseur !== undefined
+      ? {
+          identifiantReponseFournisseur: options.identifiantReponseFournisseur,
+        }
+      : {}),
+    ...(options.jetonsEntreeCache !== undefined
+      ? { jetonsEntreeCache: options.jetonsEntreeCache }
+      : {}),
+    ...(options.latenceMs !== undefined ? { latenceMs: options.latenceMs } : {}),
+    ...(options.propositionResume !== undefined
+      ? { propositionResume: options.propositionResume }
+      : {}),
+    ...(options.propositionAction !== undefined
+      ? { propositionAction: options.propositionAction }
+      : {}),
+    ...(options.propositionConfiance !== undefined
+      ? { propositionConfiance: options.propositionConfiance }
+      : {}),
+    ...(options.propositionValide !== undefined
+      ? { propositionValide: options.propositionValide }
+      : {}),
+    ...(options.statutFournisseurBrut !== undefined
+      ? { statutFournisseurBrut: options.statutFournisseurBrut }
+      : {}),
+    ...(options.etatResultatFournisseur !== undefined
+      ? { etatResultatFournisseur: options.etatResultatFournisseur }
+      : {}),
+    ...(options.motifIncomplet !== undefined
+      ? { motifIncomplet: options.motifIncomplet }
+      : {}),
+    ...(options.jetonsRaisonnement !== undefined
+      ? { jetonsRaisonnement: options.jetonsRaisonnement }
+      : {}),
   });
 }
 

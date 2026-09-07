@@ -4,6 +4,11 @@ import { parserMicroUsdc, validerParametresEconomiques } from "@esp/protocole";
 import type { MicroUsdc } from "@esp/protocole";
 import type { ConfigurationXway, ConfigurationXwayJson } from "@esp/xway";
 import { parserConfigurationXway } from "@esp/xway";
+import type {
+  ConfigurationIdentite,
+  ConfigurationIdentiteJson,
+} from "./configuration-identite.js";
+import { parserConfigurationIdentite } from "./configuration-identite.js";
 
 /**
  * Mode d'expérience v0.1 — simulation déterministe uniquement.
@@ -40,6 +45,7 @@ export interface ConfigurationExperienceJson {
     readonly cyclesDormanceAvantMort: number;
   };
   readonly xway?: ConfigurationXwayJson;
+  readonly identite?: ConfigurationIdentiteJson;
 }
 
 export interface ConfigurationExperience {
@@ -51,6 +57,7 @@ export interface ConfigurationExperience {
   readonly capitalInitialParAgentMicroUsdc: MicroUsdc;
   readonly parametresEconomiques: ParametresEconomiquesExperience;
   readonly xway?: ConfigurationXway;
+  readonly identite?: ConfigurationIdentite;
 }
 
 export class ConfigurationExperienceInvalideErreur extends Error {
@@ -131,6 +138,9 @@ export function parserConfigurationExperience(
     parametresEconomiques: parametres,
     ...(brut.xway !== undefined
       ? { xway: parserConfigurationXway(brut.xway) }
+      : {}),
+    ...(brut.identite !== undefined
+      ? { identite: parserConfigurationIdentite(brut.identite) }
       : {}),
   };
 }

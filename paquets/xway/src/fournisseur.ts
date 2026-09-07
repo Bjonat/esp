@@ -1,13 +1,16 @@
 import type {
   DemandeInference,
   EstimationCoutInference,
-  ReponseInferenceSimulee,
+  ReponseInference,
   TarifModeleInference,
 } from "./types.js";
 
 /**
  * Interface générique d'un fournisseur d'inférence.
  * Non liée à OpenAI / Anthropic / tout SDK externe.
+ *
+ * `inferer` est asynchrone pour permettre les adaptateurs réseau
+ * sans coupler @esp/xway à un SDK.
  */
 export interface FournisseurInference {
   estimerCout(
@@ -18,5 +21,5 @@ export interface FournisseurInference {
   inferer(
     demande: DemandeInference,
     tarif: TarifModeleInference,
-  ): ReponseInferenceSimulee;
+  ): Promise<ReponseInference>;
 }

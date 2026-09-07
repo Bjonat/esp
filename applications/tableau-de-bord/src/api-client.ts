@@ -63,6 +63,15 @@ export interface ProjectionAgent {
     readonly redevances: MontantApi;
   };
   readonly identifiantsEnfants: readonly string[];
+  /** Identité cryptographique publique — jamais de clé privée. */
+  readonly identite?: {
+    readonly algorithme: "ed25519" | null;
+    readonly empreinteClePublique: string | null;
+    readonly clePubliqueAbregee: string | null;
+    readonly clePubliqueBase64Url: string | null;
+    readonly statut: "disponible" | "cle_privee_indisponible" | "non_configuree";
+    readonly versionIdentite: string | null;
+  };
 }
 
 export interface ProjectionEvenement {
@@ -110,8 +119,11 @@ export interface PointHistorique {
 
 export interface ProjectionXwayGlobale {
   readonly active: boolean;
-  readonly fournisseurSimule: true;
+  readonly fournisseurSimule: boolean;
+  readonly fournisseurReel: boolean;
+  readonly selecteurFournisseur: "simule" | "openai";
   readonly libelleFournisseur: string;
+  readonly banniereFournisseurReel: string | null;
   readonly demandesRecues: number;
   readonly demandesAutorisees: number;
   readonly demandesRefusees: number;
@@ -119,6 +131,7 @@ export interface ProjectionXwayGlobale {
   readonly inferencesEchouees: number;
   readonly coutComputeCumule: MontantApi;
   readonly coutComputeCycleCourant: MontantApi;
+  readonly coutFournisseurEstimeCumuleMicroUsd: string;
   readonly repartitionParModele: readonly {
     readonly modele: string;
     readonly executees: number;
@@ -127,9 +140,26 @@ export interface ProjectionXwayGlobale {
   }[];
 }
 
+export interface ProjectionInferenceRecente {
+  readonly numeroCycle: number;
+  readonly modele: string | null;
+  readonly jetonsEntree: number | null;
+  readonly jetonsSortie: number | null;
+  readonly coutImputeEsp: MontantApi | null;
+  readonly coutFournisseurEstimeMicroUsd: string | null;
+  readonly latenceMs: number | null;
+  readonly statut: string;
+  readonly propositionResume: string | null;
+  readonly propositionAction: string | null;
+  readonly propositionConfiance: number | null;
+  readonly propositionValide: boolean | null;
+}
+
 export interface ProjectionXwayAgent {
   readonly identifiantAgent: string;
-  readonly fournisseurSimule: true;
+  readonly fournisseurSimule: boolean;
+  readonly fournisseurReel: boolean;
+  readonly selecteurFournisseur: "simule" | "openai";
   readonly libelleFournisseur: string;
   readonly nombreDemandes: number;
   readonly modelesUtilises: readonly string[];
@@ -138,12 +168,14 @@ export interface ProjectionXwayAgent {
   readonly jetonsEntreeCumules: number;
   readonly jetonsSortieCumules: number;
   readonly coutCumule: MontantApi;
+  readonly coutFournisseurEstimeCumuleMicroUsd: string;
   readonly dernierAppel: {
     readonly numeroCycle: number;
     readonly type: string;
     readonly modele: string | null;
     readonly resume: string;
   } | null;
+  readonly derniereInference: ProjectionInferenceRecente | null;
   readonly budgetCognitifDernierCycle: MontantApi | null;
 }
 
