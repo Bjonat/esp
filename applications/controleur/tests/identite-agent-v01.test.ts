@@ -116,7 +116,7 @@ function demandeTest(
 }
 
 describe("Identité agent ESP v0.1", () => {
-  it("A — N agents → N identités distinctes", () => {
+  it("A — N agents → N identités distinctes", async () => {
     const repertoire = mkdtempSync(join(tmpdir(), "esp-id-"));
     repertoires.push(repertoire);
     const controleur = ControleurExperience.ouvrir({
@@ -139,7 +139,7 @@ describe("Identité agent ESP v0.1", () => {
     expect([...empreintes].every((e) => e !== null)).toBe(true);
   });
 
-  it("B — signature valide → vérification OK", () => {
+  it("B — signature valide → vérification OK", async () => {
     const paire = genererPaireIdentiteEd25519();
     const signataire = SignataireAgentLocal.depuisClePriveeMemoire({
       identifiantAgent: "agent-a",
@@ -157,7 +157,7 @@ describe("Identité agent ESP v0.1", () => {
     ).toBe(true);
   });
 
-  it("C — message modifié → vérification KO", () => {
+  it("C — message modifié → vérification KO", async () => {
     const paire = genererPaireIdentiteEd25519();
     const signataire = SignataireAgentLocal.depuisClePriveeMemoire({
       identifiantAgent: "agent-a",
@@ -179,7 +179,7 @@ describe("Identité agent ESP v0.1", () => {
     ).toBe(false);
   });
 
-  it("D — usurpation clé B pour agent A → refus", () => {
+  it("D — usurpation clé B pour agent A → refus", async () => {
     const a = genererPaireIdentiteEd25519();
     const b = genererPaireIdentiteEd25519();
     const signataireB = SignataireAgentLocal.depuisClePriveeMemoire({
@@ -203,7 +203,7 @@ describe("Identité agent ESP v0.1", () => {
     }
   });
 
-  it("E — auth valide → chemin Xway normal", () => {
+  it("E — auth valide → chemin Xway normal", async () => {
     const paire = genererPaireIdentiteEd25519();
     const signataire = SignataireAgentLocal.depuisClePriveeMemoire({
       identifiantAgent: "agent-a",
@@ -219,7 +219,7 @@ describe("Identité agent ESP v0.1", () => {
         ["agent-a", paire.clePubliqueBase64Url],
       ]),
     });
-    const resultat = passerelle.executer({
+    const resultat = await passerelle.executer({
       demande,
       clePubliqueBase64Url: signe.clePubliqueBase64Url,
       signatureBase64Url: signe.signatureBase64Url,
@@ -228,7 +228,7 @@ describe("Identité agent ESP v0.1", () => {
     expect(passerelle.obtenirNombreAppelsFournisseur()).toBe(1);
   });
 
-  it("F — refus auth : aucune réservation / fournisseur / coût", () => {
+  it("F — refus auth : aucune réservation / fournisseur / coût", async () => {
     const a = genererPaireIdentiteEd25519();
     const b = genererPaireIdentiteEd25519();
     const signataireB = SignataireAgentLocal.depuisClePriveeMemoire({
@@ -245,7 +245,7 @@ describe("Identité agent ESP v0.1", () => {
         ["agent-a", a.clePubliqueBase64Url],
       ]),
     });
-    const resultat = passerelle.executer({
+    const resultat = await passerelle.executer({
       demande,
       clePubliqueBase64Url: signe.clePubliqueBase64Url,
       signatureBase64Url: signe.signatureBase64Url,
@@ -263,7 +263,7 @@ describe("Identité agent ESP v0.1", () => {
     ).toBe(0n);
   });
 
-  it("G — reprise : clé retrouvée après redémarrage", () => {
+  it("G — reprise : clé retrouvée après redémarrage", async () => {
     const repertoire = mkdtempSync(join(tmpdir(), "esp-id-"));
     repertoires.push(repertoire);
     const cheminSqlite = join(repertoire, "esp.sqlite");
@@ -301,7 +301,7 @@ describe("Identité agent ESP v0.1", () => {
     second.fermer();
   });
 
-  it("H — perte clé : fail closed, aucune régénération", () => {
+  it("H — perte clé : fail closed, aucune régénération", async () => {
     const repertoire = mkdtempSync(join(tmpdir(), "esp-id-"));
     repertoires.push(repertoire);
     const cheminSqlite = join(repertoire, "esp.sqlite");
@@ -347,7 +347,7 @@ describe("Identité agent ESP v0.1", () => {
     second.fermer();
   });
 
-  it("I — registre : aucune clé privée dans les événements", () => {
+  it("I — registre : aucune clé privée dans les événements", async () => {
     const repertoire = mkdtempSync(join(tmpdir(), "esp-id-"));
     repertoires.push(repertoire);
     const controleur = ControleurExperience.ouvrir({
@@ -406,7 +406,7 @@ describe("Identité agent ESP v0.1", () => {
     }
   });
 
-  it("K — permissions keystore 0600 / 0700 lorsque la plateforme le permet", () => {
+  it("K — permissions keystore 0600 / 0700 lorsque la plateforme le permet", async () => {
     const repertoire = mkdtempSync(join(tmpdir(), "esp-id-"));
     repertoires.push(repertoire);
     const keystore = new KeystoreIdentitesLocal(join(repertoire, "identites"));
@@ -440,8 +440,8 @@ describe("Identité agent ESP v0.1", () => {
     ).toBe(0o600);
   });
 
-  it("L — déterminisme économique : identité n'altère pas le résultat métier", () => {
-    const run = (avecIdentite: boolean) => {
+  it("L — déterminisme économique : identité n'altère pas le résultat métier", async () => {
+    const run = async (avecIdentite: boolean) => {
       const repertoire = mkdtempSync(join(tmpdir(), "esp-id-"));
       repertoires.push(repertoire);
       // Même identifiantExperience : la graine de simulation hashe l'id agent.
@@ -479,7 +479,7 @@ describe("Identité agent ESP v0.1", () => {
         dateCreationFixe: "2020-01-01T00:00:00.000Z",
         datesEvenementsFixes: "2020-01-01T00:00:00.000Z",
       });
-      for (let i = 0; i < 10; i += 1) c.avancerUnCycle();
+      for (let i = 0; i < 10; i += 1) await c.avancerUnCycle();
       const emp = c.capturerEmpreinteEconomique();
       return {
         agents: emp.agents.map((a) => ({
@@ -492,7 +492,7 @@ describe("Identité agent ESP v0.1", () => {
     expect(run(true)).toEqual(run(false));
   });
 
-  it("M — séparation domaine ESP-XWAY-INFERENCE-V1", () => {
+  it("M — séparation domaine ESP-XWAY-INFERENCE-V1", async () => {
     const message = construireMessageCanoniqueDemandeInference(demandeTest());
     const texte = message.toString("utf8");
     expect(texte.startsWith(DOMAINE_SIGNATURE_XWAY_INFERENCE)).toBe(true);
@@ -500,7 +500,7 @@ describe("Identité agent ESP v0.1", () => {
     expect(texte).not.toContain("ESP-PAIEMENT");
   });
 
-  it("N — idempotence : demande signée exécutée puis redémarrage sans 2e conso", () => {
+  it("N — idempotence : demande signée exécutée puis redémarrage sans 2e conso", async () => {
     const repertoire = mkdtempSync(join(tmpdir(), "esp-id-"));
     repertoires.push(repertoire);
     const cheminSqlite = join(repertoire, "esp.sqlite");
@@ -514,7 +514,7 @@ describe("Identité agent ESP v0.1", () => {
       dateCreationFixe: "2020-01-01T00:00:00.000Z",
       datesEvenementsFixes: "2020-01-01T00:00:00.000Z",
     });
-    for (let i = 0; i < 8; i += 1) premier.avancerUnCycle();
+    for (let i = 0; i < 8; i += 1) await premier.avancerUnCycle();
     const executeesAvant = premier.registre
       .listerParExperience(conf.identifiantExperience)
       .filter((e) => e.type === "INFERENCE_EXECUTEE");
@@ -564,7 +564,7 @@ describe("Identité agent ESP v0.1", () => {
         ],
       ]),
     });
-    const replay = passerelle.executer({
+    const replay = await passerelle.executer({
       demande,
       clePubliqueBase64Url: signe.clePubliqueBase64Url,
       signatureBase64Url: signe.signatureBase64Url,

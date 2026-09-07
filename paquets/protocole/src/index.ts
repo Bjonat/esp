@@ -15,15 +15,19 @@ export {
   transitionnerEtatSurvie,
 } from "./etat-survie.js";
 
-export type { MicroUsdc, PointsDeBase } from "./monnaie.js";
+export type { MicroUsdc, MicroUsd, PointsDeBase } from "./monnaie.js";
 export {
   MICRO_USDC_PAR_USDC,
+  MICRO_USD_PAR_USD,
   POINTS_DE_BASE_PAR_UNITE,
   MontantInvalideErreur,
   appliquerTauxPointsDeBase,
   assertMicroUsdcNonNegatif,
+  assertMicroUsdNonNegatif,
   parserMicroUsdc,
+  parserMicroUsd,
   serialiserMicroUsdc,
+  serialiserMicroUsd,
   usdcVersMicroUsdc,
 } from "./monnaie.js";
 
@@ -173,3 +177,20 @@ export {
 } from "./cycle-economique.js";
 
 export { reconstruireEtatEconomique } from "./reconstruction.js";
+
+export type {
+  AttributionDepenseComputeXway,
+  AttributionHistoriqueXway,
+  ChargeDepenseCompute,
+  OrigineDepenseCompute,
+} from "./provenance-depense-compute.js";
+export {
+  ORIGINES_DEPENSE_COMPUTE,
+  ProvenanceDepenseComputeErreur,
+  assertDemandesXwayNonDejaAttribuees,
+  collecterAttributionsXwayHistoriques,
+  construireChargeDepenseCompute,
+  estOrigineDepenseCompute,
+  lireAttributionsXwayDepuisCharge,
+  trouverAttributionsPourDemande,
+} from "./provenance-depense-compute.js";

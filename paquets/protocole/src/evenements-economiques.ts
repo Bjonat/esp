@@ -114,6 +114,9 @@ export type ChargeMontantSimple = {
   montantMicroUsdc: string;
 };
 
+/** @deprecated Preferer ChargeDepenseCompute avec provenance explicite. */
+export type ChargeDepenseComputeLegacy = ChargeMontantSimple;
+
 export type ChargeEtatSurvie = {
   depuis: EtatSurvie;
   vers: EtatSurvie;

@@ -115,21 +115,28 @@ Champ `natureEchec` sur `INFERENCE_ECHOUEE`.
 
 ## Fournisseur
 
-Interface générique `FournisseurInference` — non liée à OpenAI.
+Interface générique `FournisseurInference` — non liée à un SDK.
 
-Implémentation v0.1 : `FournisseurInferenceSimule`
+Implémentations :
 
-- déterministe ;
-- sans réseau ;
-- sans SDK ;
-- réponse explicitement marquée non-intelligente.
+- `FournisseurInferenceSimule` — défaut, déterministe, sans réseau ;
+- `FournisseurInferenceOpenAi` (`@esp/adaptateur-openai`) — Responses API,
+  opt-in via `xway.fournisseur: openai`.
+
+Détail : [`FOURNISSEUR_IA_REEL.md`](./FOURNISSEUR_IA_REEL.md).
 
 ## Jetons (approximation documentée)
 
 Pas un tokenizer OpenAI.
 
+Simulé :
+
 - entrée : `floor(longueurUTF16 / 4)` + cadrage par message ;
 - sortie : dérivée déterministe de la demande, bornée.
+
+Avant appel réel (borne conservatrice) :
+
+- entrée : `ceil(longueurUTF16 / 2) + 8` par message.
 
 Coût :
 
@@ -176,7 +183,7 @@ Section `xway` dans `experiences/*.json`, figée dans `EXPERIENCE_CREEE`.
 
 ## Futur provider réel
 
-Un futur adaptateur OpenAI/Anthropic implémentera `FournisseurInference`
-sans changer le contrat d'autorisation ni le chemin `DEPENSE_COMPUTE`.
+✅ Livré en v0.1 opt-in : adaptateur OpenAI (`gpt-5.6-luna` / `luna_reel_v01`).
+Le contrat d'autorisation et le chemin `DEPENSE_COMPUTE` restent inchangés.
 Aucune clé API dans le protocole.
 Réconciliation explicite requise en cas de `resultat_indetermine`.

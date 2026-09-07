@@ -52,7 +52,7 @@ const fournisseurControle: FournisseurInference = {
       coutMaximumEstimeMicroUsdc: 10_000n,
     };
   },
-  inferer(demande) {
+  async inferer(demande) {
     if (demande.identifiantDemande.endsWith("-A")) {
       return {
         texte: "[SIM] A",
@@ -149,7 +149,7 @@ function configXwayJson(): ConfigurationExperienceJson {
 }
 
 describe("Xway hardening — réservation & reprise", () => {
-  it("A — B refusée tant que A n'est pas réglée", () => {
+  it("A — B refusée tant que A n'est pas réglée", async () => {
     const passerelle = creerPasserelleXway({
       configuration: creerConfigurationXwayDemonstration(),
       fournisseur: fournisseurControle,
@@ -164,7 +164,7 @@ describe("Xway hardening — réservation & reprise", () => {
     }
   });
 
-  it("B — règlement A libère reservation - coutFinal", () => {
+  it("B — règlement A libère reservation - coutFinal", async () => {
     const passerelle = creerPasserelleXway({
       configuration: creerConfigurationXwayDemonstration(),
       fournisseur: fournisseurControle,
@@ -173,7 +173,7 @@ describe("Xway hardening — réservation & reprise", () => {
     expect(passerelle.autoriser(demande("dem-A", budget)).autorisee).toBe(
       true,
     );
-    const exec = passerelle.executer(demande("dem-A", budget));
+    const exec = await passerelle.executer(demande("dem-A", budget));
     expect(exec.statut).toBe("executee");
     if (exec.statut === "executee") {
       expect(exec.coutFinalMicroUsdc).toBe(30_000n);
@@ -183,7 +183,7 @@ describe("Xway hardening — réservation & reprise", () => {
     expect(b.autorisee).toBe(true);
   });
 
-  it("C — la réservation seule ne modifie jamais la VEN", () => {
+  it("C — la réservation seule ne modifie jamais la VEN", async () => {
     const etat = creerEtatEconomiqueInitial({
       identifiantAgent: "agent-res",
       capitalLiquide: 5_000_000n,
@@ -203,7 +203,7 @@ describe("Xway hardening — réservation & reprise", () => {
     expect(calculerValeurEconomiqueNette(etat)).toBe(venAvant);
   });
 
-  it("D — DEPENSE_COMPUTE = coûts réellement réglés uniquement", () => {
+  it("D — DEPENSE_COMPUTE = coûts réellement réglés uniquement", async () => {
     const passerelle = creerPasserelleXway({
       configuration: creerConfigurationXwayDemonstration(),
       fournisseur: fournisseurControle,
@@ -214,7 +214,7 @@ describe("Xway hardening — réservation & reprise", () => {
     expect(passerelle.autoriser(demande("dem-B", budget)).autorisee).toBe(
       false,
     );
-    const exec = passerelle.executer(demande("dem-A", budget));
+    const exec = await passerelle.executer(demande("dem-A", budget));
     expect(exec.statut).toBe("executee");
     if (exec.statut === "executee") {
       expect(exec.coutFinalMicroUsdc).toBe(30_000n);
@@ -234,7 +234,7 @@ describe("Xway hardening — réservation & reprise", () => {
     ).toBe(0n);
   });
 
-  it("coutsRegles du cycle N ne réduisent pas le plafond du cycle N+1", () => {
+  it("coutsRegles du cycle N ne réduisent pas le plafond du cycle N+1", async () => {
     const passerelle = creerPasserelleXway({
       configuration: creerConfigurationXwayDemonstration(),
       fournisseur: fournisseurControle,
@@ -246,7 +246,7 @@ describe("Xway hardening — réservation & reprise", () => {
       passerelle.autoriser(demande("c1-A", plafondParCycle, { numeroCycle: 1 }))
         .autorisee,
     ).toBe(true);
-    const execC1 = passerelle.executer(
+    const execC1 = await passerelle.executer(
       demande("c1-A", plafondParCycle, { numeroCycle: 1 }),
     );
     expect(execC1.statut).toBe("executee");
@@ -279,7 +279,7 @@ describe("Xway hardening — réservation & reprise", () => {
     expect(autoC2.autorisee).toBe(true);
   });
 
-  it("idempotence après redémarrage — aucune 2e exécution / 2e coût", () => {
+  it("idempotence après redémarrage — aucune 2e exécution / 2e coût", async () => {
     const repertoire = mkdtempSync(join(tmpdir(), "esp-xway-hard-"));
     repertoires.push(repertoire);
     const cheminSqlite = join(repertoire, "esp.sqlite");
@@ -291,7 +291,7 @@ describe("Xway hardening — réservation & reprise", () => {
       dateCreationFixe: "2020-01-01T00:00:00.000Z",
       datesEvenementsFixes: "2020-01-01T00:00:00.000Z",
     });
-    for (let i = 0; i < 10; i += 1) premier.avancerUnCycle();
+    for (let i = 0; i < 10; i += 1) await premier.avancerUnCycle();
     const evenements = premier.registre.listerParExperience(
       conf.identifiantExperience,
     );
@@ -319,7 +319,7 @@ describe("Xway hardening — réservation & reprise", () => {
       configuration: creerConfigurationXwayDemonstration(),
       etatsDemandes: etats,
     });
-    const replay = passerelle.executer(
+    const replay = await passerelle.executer(
       demande(idDemande, 1_000_000n, {
         identifiantAgent: String(cible.identifiantAgent),
         numeroCycle: cible.numeroCycle,
@@ -343,7 +343,7 @@ describe("Xway hardening — réservation & reprise", () => {
     second.fermer();
   });
 
-  it("refus persisté — pas de réévaluation silencieuse", () => {
+  it("refus persisté — pas de réévaluation silencieuse", async () => {
     const etats = reconstruireEtatsDemandesXway([
       {
         type: "DEMANDE_INFERENCE_RECUE",
@@ -366,18 +366,18 @@ describe("Xway hardening — réservation & reprise", () => {
       fournisseur: fournisseurControle,
       etatsDemandes: etats,
     });
-    const r = passerelle.executer(demande("dem-refus", 100_000n));
+    const r = await passerelle.executer(demande("dem-refus", 100_000n));
     expect(r.statut).toBe("refusee");
     if (r.statut === "refusee") {
       expect(r.motif).toBe("budget_insuffisant");
     }
   });
 
-  it("AUTORISEE reprise sans suite → resultat_indetermine, pas de rappel fournisseur", () => {
+  it("AUTORISEE reprise sans suite → resultat_indetermine, pas de rappel fournisseur", async () => {
     let appelsFournisseur = 0;
     const fournisseurCompte: FournisseurInference = {
       estimerCout: fournisseurControle.estimerCout.bind(fournisseurControle),
-      inferer(demande, tarif) {
+      async inferer(demande, tarif) {
         appelsFournisseur += 1;
         return fournisseurControle.inferer(demande, tarif);
       },
@@ -396,7 +396,7 @@ describe("Xway hardening — réservation & reprise", () => {
       fournisseur: fournisseurCompte,
       etatsDemandes: etats,
     });
-    const r = passerelle.executer(demande("dem-A", 100_000n));
+    const r = await passerelle.executer(demande("dem-A", 100_000n));
     expect(r.statut).toBe("resultat_indetermine");
     expect(appelsFournisseur).toBe(0);
     expect(
@@ -407,7 +407,7 @@ describe("Xway hardening — réservation & reprise", () => {
     ).toBe(80_000n);
   });
 
-  it("declarerResultatIndetermine conserve la réservation", () => {
+  it("declarerResultatIndetermine conserve la réservation", async () => {
     const passerelle = creerPasserelleXway({
       configuration: creerConfigurationXwayDemonstration(),
       fournisseur: fournisseurControle,

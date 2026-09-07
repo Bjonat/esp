@@ -15,6 +15,8 @@ import {
   ecrireMontantChargeUtile,
   lireMontantChargeUtile,
 } from "./evenements-economiques.js";
+import { construireChargeDepenseCompute } from "./provenance-depense-compute.js";
+import type { OrigineDepenseCompute } from "./provenance-depense-compute.js";
 import { ajusterHighWaterMarkTransfert } from "./high-water-mark.js";
 import type { MicroUsdc } from "./monnaie.js";
 import { assertMicroUsdcNonNegatif } from "./monnaie.js";
@@ -48,6 +50,17 @@ export type OptionsCycleEconomique = {
   etat: EtatEconomiqueAgent;
   tresorerie: TresorerieProprietaire;
   activite: ResultatActiviteCycle;
+  /**
+   * Provenance causale du débit DEPENSE_COMPUTE (métadonnée, pas un 2e débit).
+   * Absente → événement sans origine (compatibilité legacy).
+   */
+  provenanceDepenseCompute?: {
+    readonly origine: OrigineDepenseCompute;
+    readonly attributionsXway?: readonly {
+      readonly identifiantDemande: string;
+      readonly montantMicroUsdc: MicroUsdc;
+    }[];
+  };
   /** Préfixe des identifiants d'événements (tests / contrôleur). */
   prefixeIdentifiant?: string;
   dateEnregistrement?: string;
@@ -190,9 +203,28 @@ export function executerCycleEconomique(
   if (options.activite.depenseCompute > 0n) {
     etat.capitalLiquide -= options.activite.depenseCompute;
     etat.totalDepensesCompute += options.activite.depenseCompute;
-    pousserEvenement(contexte, "DEPENSE_COMPUTE", {
-      montantMicroUsdc: ecrireMontantChargeUtile(options.activite.depenseCompute),
-    });
+    if (options.provenanceDepenseCompute !== undefined) {
+      pousserEvenement(
+        contexte,
+        "DEPENSE_COMPUTE",
+        construireChargeDepenseCompute({
+          montantMicroUsdc: options.activite.depenseCompute,
+          origine: options.provenanceDepenseCompute.origine,
+          ...(options.provenanceDepenseCompute.attributionsXway !== undefined
+            ? {
+                attributionsXway:
+                  options.provenanceDepenseCompute.attributionsXway,
+              }
+            : {}),
+        }),
+      );
+    } else {
+      pousserEvenement(contexte, "DEPENSE_COMPUTE", {
+        montantMicroUsdc: ecrireMontantChargeUtile(
+          options.activite.depenseCompute,
+        ),
+      });
+    }
   }
   if (options.activite.depenseDonnees > 0n) {
     etat.capitalLiquide -= options.activite.depenseDonnees;

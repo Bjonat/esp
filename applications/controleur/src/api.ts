@@ -186,7 +186,7 @@ async function gererRequete(
     }
 
     if (methode === "POST" && chemin === "/api/experience/avancer") {
-      const resultat = controleur.avancerUnCycle();
+      const resultat = await controleur.avancerUnCycle();
       repondreJson(reponse, 200, resultat);
       return;
     }
@@ -198,6 +198,21 @@ async function gererRequete(
 
     if (methode === "POST" && chemin === "/api/experience/pause") {
       repondreJson(reponse, 200, controleur.mettreEnPause());
+      return;
+    }
+
+    const matchInferenceTest = /^\/api\/agents\/([^/]+)\/inference-test$/.exec(
+      chemin,
+    );
+    if (methode === "POST" && matchInferenceTest !== null) {
+      const identifiant = decodeURIComponent(matchInferenceTest[1] ?? "");
+      const resultat = await controleur.executerInferenceTest(identifiant);
+      repondreJson(reponse, 200, resultat);
+      return;
+    }
+
+    if (methode === "GET" && chemin === "/api/couts-infrastructure-externe") {
+      repondreJson(reponse, 200, controleur.projeterCoutsInfrastructureExterne());
       return;
     }
 

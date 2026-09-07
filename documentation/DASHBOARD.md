@@ -25,8 +25,11 @@ Le dashboard ne laisse jamais croire qu'il s'agit de :
 
 - trading Solana réel ;
 - données de marché réelles ;
-- agents IA ;
-- argent réel.
+- argent réel de l'agent.
+
+Si le fournisseur Xway est OpenAI réel, une bannière distincte précise :
+
+**INFÉRENCE IA RÉELLE — environnement économique toujours simulé**
 
 ## États d'affichage
 
@@ -58,7 +61,7 @@ Onglets :
 | Identité ESP | Algorithme, empreinte, statut signataire, clé publique abrégée — jamais la privée |
 | Économie | Capital, obligations, VEN, HWM, totaux |
 | Activité | Chronologie registre |
-| Cognition / Xway | Demandes, modèles, jetons, coûts, refus (éco ≠ auth) — fournisseur simulé |
+| Cognition / Xway | Demandes, modèles, jetons, coût imputé ESP, estimation fournisseur, proposition — SIMULÉ ou OPENAI RÉEL |
 | Décisions | « Moteur de décision non connecté » |
 | Recherche | « Aucune source de données ou recherche connectée » |
 | Portefeuille | « Aucun environnement financier connecté » |

@@ -9,10 +9,12 @@ Phases livrées :
 
 - noyau économique v0.1 ;
 - population / contrôleur / dashboard v0.1 ;
-- **Xway v0.1** — ressources cognitives **simulées** ;
-- **Identité agent v0.1** — Ed25519, distincte de tout wallet.
+- **Xway v0.1** — ressources cognitives (simulées + adaptateur OpenAI opt-in) ;
+- **Identité agent v0.1** — Ed25519, distincte de tout wallet ;
+- **Fournisseur IA réel v0.1** — OpenAI Responses, économie toujours simulée.
 
-Aucune transaction réelle, aucun wallet Solana, aucune IA réelle.
+Aucune transaction réelle, aucun wallet Solana. IA réelle uniquement via opt-in
+explicite (`xway.fournisseur: openai`) + `OPENAI_API_KEY`.
 
 ## Organisation du monorepo
 
@@ -27,13 +29,18 @@ esp/
 │   ├── registre-evenements/ # Journal append-only
 │   ├── xway/                # Passerelle ressources + authentification de demandes
 │   └── environnement/       # Abstraction marché
+├── adaptateurs/
+│   ├── openai/              # FournisseurInferenceOpenAi (SDK isolé)
+│   ├── replay/
+│   └── solana/
 ├── documentation/
 │   ├── ARCHITECTURE.md
 │   ├── NOYAU_ECONOMIQUE.md
 │   ├── CONTROLEUR_EXPERIENCE.md
 │   ├── DASHBOARD.md
 │   ├── XWAY.md
-│   └── IDENTITE_AGENT.md
+│   ├── IDENTITE_AGENT.md
+│   └── FOURNISSEUR_IA_REEL.md
 ├── experiences/
 └── data/                    # Hors Git (SQLite + keystore identités)
 ```
@@ -78,7 +85,8 @@ agrège `coutFinal` Xway dans `depenseCompute`, seul writer du registre.
 ### `@esp/tableau-de-bord`
 
 Observateur. Sections Xway + **Identité ESP**.
-Bannière Xway : **FOURNISSEUR SIMULÉ — aucune IA réelle**.
+Bannière Xway : **FOURNISSEUR : SIMULÉ** ou **OPENAI RÉEL**
+(+ bannière « INFÉRENCE IA RÉELLE — environnement économique toujours simulé »).
 
 ## Invariants identité
 
@@ -94,5 +102,8 @@ Bannière Xway : **FOURNISSEUR SIMULÉ — aucune IA réelle**.
 
 ## Hors périmètre actuel
 
-OpenAI / Anthropic ; wallets Solana ; Jupiter ; reproduction / héritage / mutation ;
-rotation de clés ; HSM / Vault ; service réseau Xway indépendant.
+Anthropic / Gemini / multi-provider ; wallets Solana ; Jupiter ; reproduction /
+héritage / mutation ; tool calling ; rotation de clés ; HSM / Vault ;
+service réseau Xway indépendant.
+
+Voir [`FOURNISSEUR_IA_REEL.md`](./FOURNISSEUR_IA_REEL.md) pour l'adaptateur OpenAI v0.1.

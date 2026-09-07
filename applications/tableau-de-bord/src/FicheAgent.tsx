@@ -176,7 +176,12 @@ export function FicheAgent(props: Props) {
 
       {props.onglet === "xway" && (
         <div className="xway-agent">
-          <p className="badge-mode">{props.xway?.libelleFournisseur ?? "FOURNISSEUR SIMULÉ — aucune IA réelle"}</p>
+          <p className="badge-mode">{props.xway?.libelleFournisseur ?? "FOURNISSEUR : SIMULÉ"}</p>
+          {props.xway?.fournisseurReel === true && (
+            <p className="banniere-reel">
+              INFÉRENCE IA RÉELLE — environnement économique toujours simulé
+            </p>
+          )}
           {props.xway === null ? (
             <p className="rappel">Aucune donnée Xway pour cet agent.</p>
           ) : (
@@ -205,13 +210,41 @@ export function FicheAgent(props: Props) {
                 <dt>Jetons sortie</dt>
                 <dd>{String(props.xway.jetonsSortieCumules)}</dd>
               </div>
-              <LigneMontant libelle="Coût cumulé" montant={props.xway.coutCumule.usdc} />
+              <LigneMontant libelle="Coût imputé ESP" montant={props.xway.coutCumule.usdc} />
+              <div>
+                <dt>Coût fournisseur estimé (µUSD)</dt>
+                <dd className="mono">{props.xway.coutFournisseurEstimeCumuleMicroUsd}</dd>
+              </div>
               <div>
                 <dt>Budget cognitif (dernier)</dt>
                 <dd>
                   {props.xway.budgetCognitifDernierCycle?.usdc ?? "—"} USDC
                 </dd>
               </div>
+              {props.xway.derniereInference !== null && (
+                <>
+                  <div>
+                    <dt>Dernière latence</dt>
+                    <dd>
+                      {props.xway.derniereInference.latenceMs !== null
+                        ? `${String(props.xway.derniereInference.latenceMs)} ms`
+                        : "—"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Proposition</dt>
+                    <dd>
+                      {props.xway.derniereInference.propositionValide === false
+                        ? "[invalide] "
+                        : ""}
+                      {props.xway.derniereInference.propositionResume ?? "—"}
+                      {props.xway.derniereInference.propositionAction !== null
+                        ? ` → ${props.xway.derniereInference.propositionAction}`
+                        : ""}
+                    </dd>
+                  </div>
+                </>
+              )}
               <div>
                 <dt>Dernier appel</dt>
                 <dd>

@@ -4,8 +4,13 @@ import { trouverTarifModele } from "./configuration.js";
 import type {
   EtatPersistantDemandeXway,
 } from "./etats-demande.js";
+import {
+  ErreurFournisseurInference,
+  ErreurSurconsommationInference,
+} from "./erreurs-fournisseur.js";
 import type { FournisseurInference } from "./fournisseur.js";
 import { creerFournisseurInferenceSimule } from "./fournisseur-simule.js";
+import { ComptePlafondFournisseurReel } from "./plafond-fournisseur.js";
 import { CompteReservationsCognitives } from "./reservations.js";
 import type { DemandeInferenceSignee } from "./signature-demande.js";
 import type {
@@ -66,6 +71,7 @@ export class PasserelleXway {
   private readonly configuration: ConfigurationXway;
   private readonly fournisseur: FournisseurInference;
   private readonly comptes = new CompteReservationsCognitives();
+  private readonly plafondFournisseur: ComptePlafondFournisseurReel;
   private readonly dossiers = new Map<string, DossierDemandeInterne>();
   private readonly traces: TraceDemandeXway[] = [];
   private readonly authentificationRequise: boolean;
@@ -85,12 +91,23 @@ export class PasserelleXway {
     authentificationRequise?: boolean;
     /** Clés publiques enregistrées (registre) — source de vérité. */
     clesPubliquesParAgent?: ReadonlyMap<string, string>;
+    /** Restauration du plafond fournisseur réel depuis projection. */
+    etatPlafondFournisseur?: {
+      readonly cumuleMicroUsd: bigint;
+      readonly nombreAppels: number;
+    };
   }) {
     this.configuration = options.configuration;
     this.fournisseur =
       options.fournisseur ?? creerFournisseurInferenceSimule();
     this.authentificationRequise = options.authentificationRequise === true;
     this.clesPubliquesParAgent = options.clesPubliquesParAgent ?? new Map();
+    this.plafondFournisseur = new ComptePlafondFournisseurReel(
+      options.configuration.plafondDepenseFournisseurReelleMicroUsd,
+    );
+    if (options.etatPlafondFournisseur !== undefined) {
+      this.plafondFournisseur.restaurer(options.etatPlafondFournisseur);
+    }
 
     if (options.etatsDemandes !== undefined) {
       this.hydraterDepuisEtats(options.etatsDemandes);
@@ -119,6 +136,10 @@ export class PasserelleXway {
     return this.comptes;
   }
 
+  obtenirComptePlafondFournisseur(): ComptePlafondFournisseurReel {
+    return this.plafondFournisseur;
+  }
+
   /** Compteur de tests — appels réels au fournisseur d'inférence. */
   obtenirNombreAppelsFournisseur(): number {
     return this.compteurAppelsFournisseur;
@@ -138,6 +159,20 @@ export class PasserelleXway {
       },
       demande.limiteDepenseAutoriseeMicroUsdc,
     );
+  }
+
+  /**
+   * Estimation via le fournisseur injecté — même chemin que `autoriser`,
+   * sans réservation ni mutation d'état.
+   */
+  estimerCoutPourDemande(
+    demande: DemandeInference,
+  ): EstimationCoutInference | undefined {
+    const tarif = this.resoudreTarif(demande.modeleDemande);
+    if (tarif === undefined) {
+      return undefined;
+    }
+    return this.fournisseur.estimerCout(demande, tarif);
   }
 
   /**
@@ -243,6 +278,40 @@ export class PasserelleXway {
     }
 
     const estimation = this.fournisseur.estimerCout(demande, tarif);
+
+    // Circuit breaker propriétaire — indépendant du budget agent.
+    const estimationFournisseur =
+      estimation.coutMaximumEstimeFournisseurMicroUsd ?? 0n;
+    if (
+      this.configuration.fournisseur.selecteur === "openai" &&
+      !this.plafondFournisseur.peutAutoriser(estimationFournisseur)
+    ) {
+      const detail =
+        "Plafond de dépense fournisseur réelle atteint — aucune nouvelle inférence réelle";
+      this.enregistrerDossier(demande, {
+        etat: "refusee",
+        estimation,
+        coutFinalMicroUsdc: 0n,
+        motifRefus: "plafond_fournisseur_reel_atteint",
+        detail,
+        repriseSansConfirmationFournisseur: false,
+      });
+      this.traces.push({
+        demande,
+        etat: "refusee",
+        coutFinalMicroUsdc: 0n,
+        motifRefus: "plafond_fournisseur_reel_atteint",
+        detail,
+        coutMaximumEstimeMicroUsdc: estimation.coutMaximumEstimeMicroUsdc,
+      });
+      return {
+        autorisee: false,
+        motif: "plafond_fournisseur_reel_atteint",
+        estimation,
+        detail,
+      };
+    }
+
     const cle = {
       identifiantAgent: demande.identifiantAgent,
       numeroCycle: demande.numeroCycle,
@@ -317,11 +386,12 @@ export class PasserelleXway {
 
   /**
    * Exécute après autorisation (réservation).
-   * Idempotent : une demande EXECUTEE ne rappelle jamais le fournisseur.
+   * Idempotent : une demande EXECUTEE / REFUSEE / RESULTAT_INDETERMINE
+   * ne rappelle jamais le fournisseur sous le même identifiant.
    */
-  executer(
+  async executer(
     demandeOuEnveloppe: DemandeInference | DemandeInferenceSignee,
-  ): ResultatExecutionInference {
+  ): Promise<ResultatExecutionInference> {
     const { demande, refusAuth } = this.resoudreDemandeAuthentifiee(
       demandeOuEnveloppe,
     );
@@ -395,7 +465,6 @@ export class PasserelleXway {
       dossier?.etat === "autorisee" &&
       dossier.repriseSansConfirmationFournisseur
     ) {
-      // Préparation réseau : AUTORISEE reprise sans preuve d'issue fournisseur.
       dossier.etat = "echouee";
       dossier.natureEchec = "resultat_indetermine";
       dossier.detail =
@@ -446,14 +515,44 @@ export class PasserelleXway {
     }
 
     try {
-      const reponse = this.fournisseur.inferer(demande, tarif);
+      const reponse = await this.fournisseur.inferer(demande, tarif);
       this.compteurAppelsFournisseur += 1;
       const coutFinal = reponse.usage.coutMicroUsdc;
+      const reservation = autorisationEstimation.coutMaximumEstimeMicroUsdc;
 
-      if (coutFinal > autorisationEstimation.coutMaximumEstimeMicroUsdc) {
-        throw new XwayErreur(
-          `Invariant Xway violé : coût final ${coutFinal.toString(10)} > estimation max ${autorisationEstimation.coutMaximumEstimeMicroUsdc.toString(10)}`,
-        );
+      if (coutFinal > reservation) {
+        // Ne PAS débiter au-delà — erreur système explicite pour réconciliation.
+        const detail = `Surconsommation système : coutFinal ${coutFinal.toString(10)} > reservation ${reservation.toString(10)} — aucun débit, réservation conservée`;
+        this.enregistrerDossier(demande, {
+          etat: "echouee",
+          estimation: autorisationEstimation,
+          coutFinalMicroUsdc: 0n,
+          detail,
+          natureEchec: "resultat_indetermine",
+          jetonsEntree: reponse.usage.jetonsEntree,
+          jetonsSortie: reponse.usage.jetonsSortie,
+          texteReponse: reponse.texte,
+          repriseSansConfirmationFournisseur: true,
+        });
+        this.traces.push({
+          demande,
+          etat: "echouee",
+          coutFinalMicroUsdc: 0n,
+          detail,
+          natureEchec: "resultat_indetermine",
+          coutMaximumEstimeMicroUsdc: reservation,
+        });
+        // Expose l'erreur pour les appelants / tests tout en renvoyant l'état indéterminé.
+        const erreurSurconso = new ErreurSurconsommationInference({
+          coutFinalMicroUsdc: coutFinal,
+          reservationMicroUsdc: reservation,
+        });
+        return {
+          statut: "resultat_indetermine",
+          detail: `${detail} [${erreurSurconso.name}]`,
+          estimation: autorisationEstimation,
+          natureEchec: "resultat_indetermine",
+        };
       }
       if (coutFinal > demande.limiteDepenseAutoriseeMicroUsdc) {
         throw new XwayErreur(
@@ -461,8 +560,6 @@ export class PasserelleXway {
         );
       }
 
-      const reservation =
-        autorisationEstimation.coutMaximumEstimeMicroUsdc;
       this.comptes.regler({
         cle: {
           identifiantAgent: demande.identifiantAgent,
@@ -471,6 +568,12 @@ export class PasserelleXway {
         identifiantDemande: demande.identifiantDemande,
         coutFinalMicroUsdc: coutFinal,
       });
+
+      if (reponse.coutFournisseurEstimeMicroUsd !== undefined) {
+        this.plafondFournisseur.enregistrerEstimationConsommee(
+          reponse.coutFournisseurEstimeMicroUsd,
+        );
+      }
 
       this.enregistrerDossier(demande, {
         etat: "executee",
@@ -487,8 +590,7 @@ export class PasserelleXway {
         coutFinalMicroUsdc: coutFinal,
         jetonsEntree: reponse.usage.jetonsEntree,
         jetonsSortie: reponse.usage.jetonsSortie,
-        coutMaximumEstimeMicroUsdc:
-          autorisationEstimation.coutMaximumEstimeMicroUsdc,
+        coutMaximumEstimeMicroUsdc: reservation,
         reservationMicroUsdc: reservation,
       });
 
@@ -498,13 +600,24 @@ export class PasserelleXway {
         coutFinalMicroUsdc: coutFinal,
         estimation: autorisationEstimation,
         reservationLibereeMicroUsdc: reservation - coutFinal,
+        ...(reponse.coutFournisseurEstimeMicroUsd !== undefined
+          ? {
+              coutFournisseurEstimeMicroUsd:
+                reponse.coutFournisseurEstimeMicroUsd,
+            }
+          : {}),
       };
     } catch (erreur) {
       if (erreur instanceof XwayErreur) {
         throw erreur;
       }
+      if (erreur instanceof ErreurFournisseurInference) {
+        return this.echouerAvantConsommation(demande, autorisationEstimation, {
+          detail: erreur.message,
+          natureEchec: erreur.natureEchec,
+        });
+      }
       const detail = erreur instanceof Error ? erreur.message : String(erreur);
-      // Fournisseur simulé synchrone : échec = certain avant/ pendant sans ambiguïté réseau.
       return this.echouerAvantConsommation(demande, autorisationEstimation, {
         detail,
         natureEchec: "echec_certain",
@@ -578,11 +691,19 @@ export class PasserelleXway {
       natureEchec: options.natureEchec,
       coutMaximumEstimeMicroUsdc: estimation.coutMaximumEstimeMicroUsdc,
     });
+    if (options.natureEchec === "resultat_indetermine") {
+      return {
+        statut: "resultat_indetermine",
+        detail: options.detail,
+        estimation,
+        natureEchec: "resultat_indetermine",
+      };
+    }
     return {
       statut: "echouee",
       detail: options.detail,
       estimation,
-      natureEchec: options.natureEchec,
+      natureEchec: "echec_certain",
     };
   }
 
@@ -749,6 +870,10 @@ export function creerPasserelleXway(options: {
   etatsDemandes?: ReadonlyMap<string, EtatPersistantDemandeXway>;
   authentificationRequise?: boolean;
   clesPubliquesParAgent?: ReadonlyMap<string, string>;
+  etatPlafondFournisseur?: {
+    readonly cumuleMicroUsd: bigint;
+    readonly nombreAppels: number;
+  };
 }): PasserelleXway {
   return new PasserelleXway(options);
 }

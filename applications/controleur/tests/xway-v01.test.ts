@@ -106,18 +106,18 @@ function configAvecXway(
 }
 
 describe("Xway v0.1", () => {
-  it("A — estimation déterministe", () => {
+  it("A — estimation déterministe", async () => {
     const conf = creerConfigurationXwayDemonstration();
     const tarif = trouverTarifModele(conf.modeles, "modele_standard")!;
     const d = demandeBase();
     expect(estimerCoutInference(d, tarif)).toEqual(estimerCoutInference(d, tarif));
   });
 
-  it("B — budget suffisant : autorisée puis exécutée", () => {
+  it("B — budget suffisant : autorisée puis exécutée", async () => {
     const passerelle = creerPasserelleXway({
       configuration: creerConfigurationXwayDemonstration(),
     });
-    const resultat = passerelle.executer(
+    const resultat = await passerelle.executer(
       demandeBase({ limiteDepenseAutoriseeMicroUsdc: 1_000_000n }),
     );
     expect(resultat.statut).toBe("executee");
@@ -129,11 +129,11 @@ describe("Xway v0.1", () => {
     }
   });
 
-  it("C — budget insuffisant : refus, coût 0", () => {
+  it("C — budget insuffisant : refus, coût 0", async () => {
     const passerelle = creerPasserelleXway({
       configuration: creerConfigurationXwayDemonstration(),
     });
-    const resultat = passerelle.executer(
+    const resultat = await passerelle.executer(
       demandeBase({
         modeleDemande: "modele_premium",
         limiteDepenseAutoriseeMicroUsdc: 20_000n,
@@ -145,7 +145,7 @@ describe("Xway v0.1", () => {
     }
   });
 
-  it("D — coût exact entier micro-USDC", () => {
+  it("D — coût exact entier micro-USDC", async () => {
     const conf = creerConfigurationXwayDemonstration();
     const tarif = trouverTarifModele(conf.modeles, "modele_economique")!;
     const usage = calculerUsageInference({
@@ -156,14 +156,14 @@ describe("Xway v0.1", () => {
     expect(usage.coutMicroUsdc).toBeGreaterThanOrEqual(0n);
   });
 
-  it("E — absence de double débit économique", () => {
+  it("E — absence de double débit économique", async () => {
     const controleur = ControleurExperience.ouvrir({
       configuration: configAvecXway(),
       registre: creerRegistreEvenementsMemoire(),
       dateCreationFixe: "2020-01-01T00:00:00.000Z",
       datesEvenementsFixes: "2020-01-01T00:00:00.000Z",
     });
-    for (let i = 0; i < 15; i += 1) controleur.avancerUnCycle();
+    for (let i = 0; i < 15; i += 1) await controleur.avancerUnCycle();
     const evenements = controleur.registre.listerParExperience(
       controleur.configuration.identifiantExperience,
     );
@@ -183,14 +183,14 @@ describe("Xway v0.1", () => {
     expect(executees.length).toBeGreaterThan(0);
   });
 
-  it("F — idempotence demande", () => {
+  it("F — idempotence demande", async () => {
     const passerelle = creerPasserelleXway({
       configuration: creerConfigurationXwayDemonstration(),
     });
     const d = demandeBase({ identifiantDemande: "unique-once" });
-    const premier = passerelle.executer(d);
+    const premier = await passerelle.executer(d);
     expect(premier.statut).toBe("executee");
-    const second = passerelle.executer(d);
+    const second = await passerelle.executer(d);
     expect(second.statut).toBe("executee");
     if (premier.statut === "executee" && second.statut === "executee") {
       expect(second.dejaConnue).toBe(true);
@@ -198,14 +198,14 @@ describe("Xway v0.1", () => {
     }
   });
 
-  it("G — multi-agent : budgets séparés", () => {
+  it("G — multi-agent : budgets séparés", async () => {
     const controleur = ControleurExperience.ouvrir({
       configuration: configAvecXway({ taillePopulationInitiale: 3 }),
       registre: creerRegistreEvenementsMemoire(),
       dateCreationFixe: "2020-01-01T00:00:00.000Z",
       datesEvenementsFixes: "2020-01-01T00:00:00.000Z",
     });
-    controleur.avancerUnCycle();
+    await controleur.avancerUnCycle();
     const agents = controleur.obtenirAgents();
     const ids = new Set(agents.map((a) => a.identite.identifiant));
     expect(ids.size).toBe(3);
@@ -215,28 +215,28 @@ describe("Xway v0.1", () => {
     }
   });
 
-  it("H — déterminisme expérience avec Xway", () => {
-    const run = () => {
+  it("H — déterminisme expérience avec Xway", async () => {
+    const run = async () => {
       const c = ControleurExperience.ouvrir({
         configuration: configAvecXway(),
         registre: creerRegistreEvenementsMemoire(),
         dateCreationFixe: "2020-01-01T00:00:00.000Z",
         datesEvenementsFixes: "2020-01-01T00:00:00.000Z",
       });
-      for (let i = 0; i < 20; i += 1) c.avancerUnCycle();
+      for (let i = 0; i < 20; i += 1) await c.avancerUnCycle();
       return c.capturerEmpreinteEconomique();
     };
     expect(run()).toEqual(run());
   });
 
-  it("I — coût Xway cumulé == DEPENSE_COMPUTE cumulée", () => {
+  it("I — coût Xway cumulé == DEPENSE_COMPUTE cumulée", async () => {
     const controleur = ControleurExperience.ouvrir({
       configuration: configAvecXway(),
       registre: creerRegistreEvenementsMemoire(),
       dateCreationFixe: "2020-01-01T00:00:00.000Z",
       datesEvenementsFixes: "2020-01-01T00:00:00.000Z",
     });
-    for (let i = 0; i < 12; i += 1) controleur.avancerUnCycle();
+    for (let i = 0; i < 12; i += 1) await controleur.avancerUnCycle();
     const projection = controleur.projeterXway();
     const totalComputeAgents = controleur
       .obtenirAgents()
@@ -246,7 +246,7 @@ describe("Xway v0.1", () => {
     );
   });
 
-  it("J — reprise sans dupliquer historique Xway", () => {
+  it("J — reprise sans dupliquer historique Xway", async () => {
     const repertoire = mkdtempSync(join(tmpdir(), "esp-xway-"));
     repertoires.push(repertoire);
     const cheminSqlite = join(repertoire, "esp.sqlite");
@@ -258,7 +258,7 @@ describe("Xway v0.1", () => {
       dateCreationFixe: "2020-01-01T00:00:00.000Z",
       datesEvenementsFixes: "2020-01-01T00:00:00.000Z",
     });
-    for (let i = 0; i < 8; i += 1) premier.avancerUnCycle();
+    for (let i = 0; i < 8; i += 1) await premier.avancerUnCycle();
     const avant = premier.projeterXway();
     const empreinte = premier.capturerEmpreinteEconomique();
     premier.fermer();
@@ -272,7 +272,7 @@ describe("Xway v0.1", () => {
       avant.inferencesExecutees,
     );
     expect(second.projeterXway().coutComputeCumule).toEqual(avant.coutComputeCumule);
-    second.avancerUnCycle();
+    await second.avancerUnCycle();
     expect(second.obtenirNumeroCycleCourant()).toBe(9);
     expect(second.capturerEmpreinteEconomique().agents).not.toEqual([]);
     // Pas de régression d'historique : le cycle 9 s'ajoute, pas de duplication cycle 1-8
@@ -290,7 +290,7 @@ describe("Xway v0.1", () => {
       dateCreationFixe: "2020-01-01T00:00:00.000Z",
       datesEvenementsFixes: "2020-01-01T00:00:00.000Z",
     });
-    for (let i = 0; i < 6; i += 1) controleur.avancerUnCycle();
+    for (let i = 0; i < 6; i += 1) await controleur.avancerUnCycle();
     const serveur = await demarrerServeurApi({
       controleur,
       hote: "127.0.0.1",
@@ -310,13 +310,13 @@ describe("Xway v0.1", () => {
     }
   });
 
-  it("L — modèle trop cher : refus propre sans coût", () => {
+  it("L — modèle trop cher : refus propre sans coût", async () => {
     const passerelle = creerPasserelleXway({
       configuration: creerConfigurationXwayDemonstration({
         plafondComputeParCycleMicroUsdc: 50_000n,
       }),
     });
-    const resultat = passerelle.executer(
+    const resultat = await passerelle.executer(
       demandeBase({
         modeleDemande: "modele_premium",
         limiteDepenseAutoriseeMicroUsdc: 20_000n,

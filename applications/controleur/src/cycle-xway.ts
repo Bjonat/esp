@@ -23,6 +23,11 @@ import { deciderPolitiqueCognitiveDeveloppement } from "./politique-cognitive-de
 
 export type ResultatCycleXwayAgent = {
   readonly coutComputeXwayMicroUsdc: MicroUsdc;
+  /** Attributions causales pour le débit DEPENSE_COMPUTE agrégé du cycle. */
+  readonly attributionsComputeXway: readonly {
+    readonly identifiantDemande: string;
+    readonly montantMicroUsdc: MicroUsdc;
+  }[];
   readonly evenements: EntreeEvenementXway[];
   readonly limiteDepenseAutoriseeMicroUsdc: MicroUsdc;
 };
@@ -38,7 +43,7 @@ export type ResultatCycleXwayAgent = {
  *
  * Le coût final sera agrégé en DEPENSE_COMPUTE par le noyau (une seule fois).
  */
-export function executerCycleCognitifAgent(options: {
+export async function executerCycleCognitifAgent(options: {
   readonly configurationXway: ConfigurationXway;
   readonly passerelle: PasserelleXway;
   readonly agent: AgentExperience;
@@ -56,7 +61,7 @@ export function executerCycleCognitifAgent(options: {
   ) => void;
   /** Si fourni, la demande est signée avant présentation à Xway. */
   readonly signataire?: SignataireAgent;
-}): ResultatCycleXwayAgent {
+}): Promise<ResultatCycleXwayAgent> {
   const limite = calculerLimiteDepenseCognitive({
     etat: options.agent.etatEconomique,
     plafondComputeParCycleMicroUsdc:
@@ -72,6 +77,7 @@ export function executerCycleCognitifAgent(options: {
   if (decision.action === "aucun") {
     return {
       coutComputeXwayMicroUsdc: 0n,
+      attributionsComputeXway: [],
       evenements: [],
       limiteDepenseAutoriseeMicroUsdc: limite,
     };
@@ -144,6 +150,7 @@ export function executerCycleCognitifAgent(options: {
       options.enregistrerImmediatement?.(evenements);
       return {
         coutComputeXwayMicroUsdc: 0n,
+        attributionsComputeXway: [],
         evenements,
         limiteDepenseAutoriseeMicroUsdc: limite,
       };
@@ -183,6 +190,7 @@ export function executerCycleCognitifAgent(options: {
     options.enregistrerImmediatement?.(evenements);
     return {
       coutComputeXwayMicroUsdc: 0n,
+      attributionsComputeXway: [],
       evenements,
       limiteDepenseAutoriseeMicroUsdc: limite,
     };
@@ -207,7 +215,7 @@ export function executerCycleCognitifAgent(options: {
   // Persister l'autorisation (réservation) AVANT l'appel fournisseur.
   options.enregistrerImmediatement?.(evenements);
 
-  const resultat = options.passerelle.executer(presentation);
+  const resultat = await options.passerelle.executer(presentation);
   const evenementsFinaux: EntreeEvenementXway[] = [];
 
   if (resultat.statut === "refusee") {
@@ -235,6 +243,7 @@ export function executerCycleCognitifAgent(options: {
     options.enregistrerImmediatement?.(evenementsFinaux);
     return {
       coutComputeXwayMicroUsdc: 0n,
+      attributionsComputeXway: [],
       evenements: [...evenements, ...evenementsFinaux],
       limiteDepenseAutoriseeMicroUsdc: limite,
     };
@@ -266,11 +275,13 @@ export function executerCycleCognitifAgent(options: {
     options.enregistrerImmediatement?.(evenementsFinaux);
     return {
       coutComputeXwayMicroUsdc: 0n,
+      attributionsComputeXway: [],
       evenements: [...evenements, ...evenementsFinaux],
       limiteDepenseAutoriseeMicroUsdc: limite,
     };
   }
 
+  const prop = resultat.reponse.propositionStructuree;
   evenementsFinaux.push(
     creerEntreeInferenceExecutee({
       identifiantExperience: options.identifiantExperience,
@@ -284,12 +295,59 @@ export function executerCycleCognitifAgent(options: {
       fournisseur: options.configurationXway.fournisseur.identifiant,
       indiceUnicite: options.prochaineSequence(),
       ...dateOpts,
+      ...(resultat.coutFournisseurEstimeMicroUsd !== undefined
+        ? {
+            coutFournisseurEstimeMicroUsd:
+              resultat.coutFournisseurEstimeMicroUsd.toString(10),
+          }
+        : {}),
+      ...(resultat.reponse.usageFournisseur?.identifiantReponseFournisseur !==
+      undefined
+        ? {
+            identifiantReponseFournisseur:
+              resultat.reponse.usageFournisseur.identifiantReponseFournisseur,
+          }
+        : {}),
+      ...(resultat.reponse.usage.jetonsEntreeCache !== undefined
+        ? { jetonsEntreeCache: resultat.reponse.usage.jetonsEntreeCache }
+        : {}),
+      ...(resultat.reponse.latenceMs !== undefined
+        ? { latenceMs: resultat.reponse.latenceMs }
+        : {}),
+      ...(prop !== undefined
+        ? {
+            propositionResume: prop.resume,
+            propositionAction: prop.actionProposee,
+            propositionConfiance: prop.confiance,
+            propositionValide: prop.valide,
+          }
+        : {}),
+      ...(resultat.reponse.etatResultatFournisseur !== undefined
+        ? {
+            etatResultatFournisseur: resultat.reponse.etatResultatFournisseur,
+          }
+        : {}),
+      ...(resultat.reponse.metadonneesFournisseur?.statut !== undefined
+        ? {
+            statutFournisseurBrut:
+              resultat.reponse.metadonneesFournisseur.statut,
+          }
+        : {}),
     }),
   );
   options.enregistrerImmediatement?.(evenementsFinaux);
 
   return {
     coutComputeXwayMicroUsdc: resultat.coutFinalMicroUsdc,
+    attributionsComputeXway:
+      resultat.coutFinalMicroUsdc > 0n
+        ? [
+            {
+              identifiantDemande,
+              montantMicroUsdc: resultat.coutFinalMicroUsdc,
+            },
+          ]
+        : [],
     evenements: [...evenements, ...evenementsFinaux],
     limiteDepenseAutoriseeMicroUsdc: limite,
   };

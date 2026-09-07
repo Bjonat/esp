@@ -10,6 +10,8 @@ import type {
 import {
   AgentMortInactifErreur,
   attribuerCapitalInitial,
+  assertDemandesXwayNonDejaAttribuees,
+  construireChargeDepenseCompute,
   creerAgent,
   creerEntreeControleExperience,
   creerEntreeCycleExperienceAvance,
@@ -21,6 +23,7 @@ import {
   parserSnapshotCreationExperience,
   reconstruireStatutExperience,
   serialiserMicroUsdc,
+  trouverAttributionsPourDemande,
 } from "@esp/protocole";
 import type { RegistreEvenements } from "@esp/registre-evenements";
 import {
@@ -78,7 +81,12 @@ import {
   VERSION_SIMULATEUR_DEVELOPPEMENT,
   simulerActiviteCycle,
 } from "./simulateur-developpement.js";
-import type { ConfigurationXway, EtatPersistantDemandeXway, PasserelleXway } from "@esp/xway";
+import type {
+  ConfigurationXway,
+  EtatPersistantDemandeXway,
+  FournisseurInference,
+  PasserelleXway,
+} from "@esp/xway";
 import {
   creerPasserelleXway,
   parserConfigurationXway,
@@ -86,6 +94,15 @@ import {
   type ConfigurationXwayJson,
 } from "@esp/xway";
 import { executerCycleCognitifAgent } from "./cycle-xway.js";
+import { fabriquerFournisseurInference } from "./fabriquer-fournisseur.js";
+import {
+  executerInferenceTestVolontaire,
+  calculerApercuInferenceTest,
+  montantDepenseComputeDepuisTest,
+  type ApercuInferenceTest,
+  type AuditRegistreInferenceTest,
+  type ResultatInferenceTest,
+} from "./inference-test.js";
 import type {
   ProjectionXwayAgent,
   ProjectionXwayGlobale,
@@ -95,6 +112,11 @@ import {
   projeterXwayGlobal,
   reconstruireEtatsDemandesDepuisRegistre,
 } from "./projections-xway.js";
+import {
+  projeterCoutsInfrastructureExterne,
+  reconstruireEtatPlafondFournisseur,
+  type ProjectionCoutsInfrastructureExterne,
+} from "./projections-infrastructure-externe.js";
 
 export type OptionsControleurExperience = {
   /**
@@ -114,6 +136,8 @@ export type OptionsControleurExperience = {
   /** Horodatage fixe pour tests déterministes (sinon ISO wall-clock informatif). */
   readonly dateCreationFixe?: string;
   readonly datesEvenementsFixes?: string;
+  /** Injection tests — faux fournisseur (aucun réseau). */
+  readonly fournisseurInjecte?: FournisseurInference;
 };
 
 export class ControleurExperienceErreur extends Error {
@@ -143,6 +167,7 @@ export class ControleurExperience {
   private registreSqlite: RegistreEvenementsSqlite | undefined;
   private snapshotSimulateur: SnapshotCreationExperience["simulateur"];
   private passerelleXway: PasserelleXway | undefined;
+  private readonly fournisseurInjecte: FournisseurInference | undefined;
 
   private constructor(options: {
     configuration: ConfigurationExperience;
@@ -159,6 +184,7 @@ export class ControleurExperience {
     snapshotSimulateur: SnapshotCreationExperience["simulateur"];
     registreSqlite?: RegistreEvenementsSqlite;
     passerelleXway?: PasserelleXway;
+    fournisseurInjecte?: FournisseurInference;
   }) {
     this.configuration = options.configuration;
     this.registre = options.registre;
@@ -174,6 +200,7 @@ export class ControleurExperience {
     this.snapshotSimulateur = options.snapshotSimulateur;
     this.registreSqlite = options.registreSqlite;
     this.passerelleXway = options.passerelleXway;
+    this.fournisseurInjecte = options.fournisseurInjecte;
   }
 
   static ouvrir(options: OptionsControleurExperience): ControleurExperience {
@@ -213,6 +240,9 @@ export class ControleurExperience {
         ...(options.datesEvenementsFixes !== undefined
           ? { datesEvenementsFixes: options.datesEvenementsFixes }
           : {}),
+        ...(options.fournisseurInjecte !== undefined
+          ? { fournisseurInjecte: options.fournisseurInjecte }
+          : {}),
       });
     }
 
@@ -222,6 +252,9 @@ export class ControleurExperience {
       ...(registreSqlite !== undefined ? { registreSqlite } : {}),
       ...(options.datesEvenementsFixes !== undefined
         ? { datesEvenementsFixes: options.datesEvenementsFixes }
+        : {}),
+      ...(options.fournisseurInjecte !== undefined
+        ? { fournisseurInjecte: options.fournisseurInjecte }
         : {}),
     });
   }
@@ -255,6 +288,7 @@ export class ControleurExperience {
     cheminConfiguration: string;
     cheminSqlite: string;
     cheminKeystoreIdentites?: string;
+    fournisseurInjecte?: FournisseurInference;
   }): ControleurExperience {
     const configuration = chargerConfigurationExperience(
       options.cheminConfiguration,
@@ -264,6 +298,9 @@ export class ControleurExperience {
       cheminSqlite: options.cheminSqlite,
       ...(options.cheminKeystoreIdentites !== undefined
         ? { cheminKeystoreIdentites: options.cheminKeystoreIdentites }
+        : {}),
+      ...(options.fournisseurInjecte !== undefined
+        ? { fournisseurInjecte: options.fournisseurInjecte }
         : {}),
     });
   }
@@ -276,6 +313,7 @@ export class ControleurExperience {
       cheminKeystoreIdentites: string;
       dateCreationFixe?: string;
       datesEvenementsFixes?: string;
+      fournisseurInjecte?: FournisseurInference;
     },
   ): ControleurExperience {
     const dateCreation =
@@ -318,6 +356,9 @@ export class ControleurExperience {
     const passerelleXway = fabriquerPasserelle(configuration.xway, new Map(), {
       authentificationRequise: configuration.identite?.active === true,
       clesPubliquesParAgent: new Map(),
+      ...(options.fournisseurInjecte !== undefined
+        ? { fournisseurInjecte: options.fournisseurInjecte }
+        : {}),
     });
 
     const controleur = new ControleurExperience({
@@ -338,6 +379,9 @@ export class ControleurExperience {
         : {}),
       ...(options.registreSqlite !== undefined
         ? { registreSqlite: options.registreSqlite }
+        : {}),
+      ...(options.fournisseurInjecte !== undefined
+        ? { fournisseurInjecte: options.fournisseurInjecte }
         : {}),
     });
 
@@ -362,6 +406,7 @@ export class ControleurExperience {
       registreSqlite?: RegistreEvenementsSqlite;
       cheminKeystoreIdentites: string;
       datesEvenementsFixes?: string;
+      fournisseurInjecte?: FournisseurInference;
     },
   ): ControleurExperience {
     const creation = evenements.find((e) => e.type === "EXPERIENCE_CREEE");
@@ -405,6 +450,10 @@ export class ControleurExperience {
     const passerelleXway = fabriquerPasserelle(xway, etatsDemandes, {
       authentificationRequise: identite?.active === true,
       clesPubliquesParAgent: carteClesPubliques(identitesPubliques),
+      etatPlafondFournisseur: reconstruireEtatPlafondFournisseur(evenements),
+      ...(options.fournisseurInjecte !== undefined
+        ? { fournisseurInjecte: options.fournisseurInjecte }
+        : {}),
     });
 
     return new ControleurExperience({
@@ -425,6 +474,9 @@ export class ControleurExperience {
         : {}),
       ...(options.registreSqlite !== undefined
         ? { registreSqlite: options.registreSqlite }
+        : {}),
+      ...(options.fournisseurInjecte !== undefined
+        ? { fournisseurInjecte: options.fournisseurInjecte }
         : {}),
     });
   }
@@ -530,12 +582,15 @@ export class ControleurExperience {
   /**
    * Avance l'expérience d'un cycle expérimental.
    * L'horloge wall-clock n'influence aucune règle économique.
+   *
+   * Si fournisseur=openai : aucune inférence réelle automatique
+   * (commande volontaire /inference-test uniquement).
    */
-  avancerUnCycle(): {
+  async avancerUnCycle(): Promise<{
     numeroCycle: number;
     population: ProjectionPopulation;
     experience: ProjectionExperience;
-  } {
+  }> {
     if (this.statut === "terminee") {
       throw new ControleurExperienceErreur(
         "Expérience terminée — aucun cycle supplémentaire",
@@ -565,6 +620,10 @@ export class ControleurExperience {
 
     const agentsApres: AgentExperience[] = [];
     let tresorerie = this.tresorerie;
+    const xwayAutoActif =
+      this.configuration.xway?.active === true &&
+      this.passerelleXway !== undefined &&
+      this.configuration.xway.fournisseur.selecteur !== "openai";
 
     for (const agent of this.agents) {
       if (agent.etatEconomique.etatSurvie === "mort") {
@@ -579,11 +638,12 @@ export class ControleurExperience {
       });
 
       let coutComputeXway = 0n;
-      if (
-        this.configuration.xway?.active === true &&
-        this.passerelleXway !== undefined
-      ) {
-        const resultatXway = executerCycleCognitifAgent({
+      let attributionsXway: {
+        readonly identifiantDemande: string;
+        readonly montantMicroUsdc: bigint;
+      }[] = [];
+      if (xwayAutoActif && this.passerelleXway !== undefined && this.configuration.xway) {
+        const resultatXway = await executerCycleCognitifAgent({
           configurationXway: this.configuration.xway,
           passerelle: this.passerelleXway,
           agent,
@@ -606,17 +666,30 @@ export class ControleurExperience {
               }
             : {}),
         });
-        // Les événements Xway sont déjà persistés (autorisation avant fournisseur).
         coutComputeXway = resultatXway.coutComputeXwayMicroUsdc;
+        attributionsXway = [...resultatXway.attributionsComputeXway];
+        this.assertAttributionsXwayInedites(attributionsXway);
       }
 
       const activite = {
         ...activiteEco,
         depenseCompute:
-          this.configuration.xway?.active === true
+          this.configuration.xway?.active === true && xwayAutoActif
             ? coutComputeXway
             : activiteEco.depenseCompute,
       };
+
+      const provenanceDepenseCompute =
+        activite.depenseCompute > 0n
+          ? xwayAutoActif && attributionsXway.length > 0
+            ? {
+                origine: "xway_inference" as const,
+                attributionsXway,
+              }
+            : xwayAutoActif
+              ? undefined
+              : { origine: "simulation_developpement" as const }
+          : undefined;
 
       let resultat;
       try {
@@ -629,6 +702,9 @@ export class ControleurExperience {
           tresorerie,
           activite,
           prefixeIdentifiant: `${agent.identite.identifiant}-`,
+          ...(provenanceDepenseCompute !== undefined
+            ? { provenanceDepenseCompute }
+            : {}),
           ...(this.datesEvenementsFixes !== undefined
             ? { dateEnregistrement: this.datesEvenementsFixes }
             : {}),
@@ -736,6 +812,7 @@ export class ControleurExperience {
         clesPubliquesParAgent: carteClesPubliques(
           reconstruireIdentitesPubliques(evenements),
         ),
+        etatPlafondFournisseur: reconstruireEtatPlafondFournisseur(evenements),
       },
     );
   }
@@ -864,6 +941,11 @@ export class ControleurExperience {
       ),
       numeroCycleCourant: this.numeroCycleCourant,
       active: this.configuration.xway?.active === true,
+      selecteurFournisseur:
+        this.configuration.xway?.fournisseur.selecteur ?? "simule",
+      identifiantFournisseur:
+        this.configuration.xway?.fournisseur.identifiant ??
+        "fournisseur-inference-simule",
     });
   }
 
@@ -879,7 +961,236 @@ export class ControleurExperience {
         this.configuration.identifiantExperience,
       ),
       identifiantAgent: identifiant,
+      selecteurFournisseur:
+        this.configuration.xway?.fournisseur.selecteur ?? "simule",
+      identifiantFournisseur:
+        this.configuration.xway?.fournisseur.identifiant ??
+        "fournisseur-inference-simule",
     });
+  }
+
+  projeterCoutsInfrastructureExterne(): ProjectionCoutsInfrastructureExterne {
+    return projeterCoutsInfrastructureExterne({
+      evenements: this.registre.listerParExperience(
+        this.configuration.identifiantExperience,
+      ),
+      fournisseurActif:
+        this.configuration.xway?.fournisseur.identifiant ??
+        "fournisseur-inference-simule",
+    });
+  }
+
+  /**
+   * Aperçu dry-run d'une inférence-test — aucun réseau, aucune réservation.
+   */
+  apercevoirInferenceTest(identifiantAgent: string): ApercuInferenceTest {
+    if (this.configuration.xway?.active !== true || this.passerelleXway === undefined) {
+      throw new ControleurExperienceErreur("Xway inactif");
+    }
+    if (this.configuration.xway.fournisseur.selecteur !== "openai") {
+      throw new ControleurExperienceErreur(
+        "inference-test réservé au fournisseur openai (opt-in)",
+      );
+    }
+    const agent = this.agents.find(
+      (a) => a.identite.identifiant === identifiantAgent,
+    );
+    if (agent === undefined) {
+      throw new ControleurExperienceErreur(`Agent introuvable : ${identifiantAgent}`);
+    }
+    if (agent.etatEconomique.etatSurvie === "mort") {
+      throw new ControleurExperienceErreur("Agent mort — aucune inférence");
+    }
+    return calculerApercuInferenceTest({
+      configurationXway: this.configuration.xway,
+      passerelle: this.passerelleXway,
+      agent,
+      identifiantExperience: this.configuration.identifiantExperience,
+      numeroCycle: Math.max(1, this.numeroCycleCourant),
+      ...(this.configuration.identite?.active === true
+        ? { signataire: this.obtenirSignataire(identifiantAgent) }
+        : {}),
+    });
+  }
+
+  /**
+   * Inférence réelle volontaire — 1 agent, 1 requête.
+   * Refuse si l'aperçu métier n'est pas autorisable (aucun réseau).
+   * Applique DEPENSE_COMPUTE immédiatement (un seul débit).
+   */
+  async executerInferenceTest(
+    identifiantAgent: string,
+    options: { readonly inclureTexteBrutDiagnostic?: boolean } = {},
+  ): Promise<ResultatInferenceTest> {
+    const apercu = this.apercevoirInferenceTest(identifiantAgent);
+    if (!apercu.autorisable) {
+      return {
+        apercu,
+        statut: "refusee",
+        coutImputeAgentMicroUsdc: null,
+        coutFournisseurEstimeMicroUsd: null,
+        proposition: null,
+        detail: apercu.detailRefus ?? "autorisation refusee",
+      };
+    }
+
+    if (this.configuration.xway?.active !== true || this.passerelleXway === undefined) {
+      throw new ControleurExperienceErreur("Xway inactif");
+    }
+    const agent = this.agents.find(
+      (a) => a.identite.identifiant === identifiantAgent,
+    );
+    if (agent === undefined) {
+      throw new ControleurExperienceErreur(`Agent introuvable : ${identifiantAgent}`);
+    }
+
+    const resultat = await executerInferenceTestVolontaire({
+      configurationXway: this.configuration.xway,
+      passerelle: this.passerelleXway,
+      agent,
+      identifiantExperience: this.configuration.identifiantExperience,
+      numeroCycle: Math.max(1, this.numeroCycleCourant),
+      prochaineSequence: () =>
+        this.registre.consulterProchaineSequence(
+          this.configuration.identifiantExperience,
+        ),
+      enregistrerImmediatement: (evenements) => {
+        this.enregistrerEvenements(evenements);
+      },
+      ...(this.configuration.identite?.active === true
+        ? { signataire: this.obtenirSignataire(identifiantAgent) }
+        : {}),
+      ...(this.datesEvenementsFixes !== undefined
+        ? { dateEnregistrement: this.datesEvenementsFixes }
+        : {}),
+      ...(options.inclureTexteBrutDiagnostic === true
+        ? { inclureTexteBrutDiagnostic: true }
+        : {}),
+    });
+
+    const cout = montantDepenseComputeDepuisTest(resultat.coutImputeAgentMicroUsdc);
+    if (cout > 0n) {
+      const identifiantDemande = resultat.identifiantDemande;
+      if (identifiantDemande === undefined) {
+        throw new ControleurExperienceErreur(
+          "INFERENCE_EXECUTEE sans identifiantDemande — attribution impossible",
+        );
+      }
+      this.assertAttributionsXwayInedites([
+        { identifiantDemande, montantMicroUsdc: cout },
+      ]);
+
+      const etat = {
+        ...agent.etatEconomique,
+        capitalLiquide: agent.etatEconomique.capitalLiquide - cout,
+        totalDepensesCompute: agent.etatEconomique.totalDepensesCompute + cout,
+      };
+      const charge = construireChargeDepenseCompute({
+        montantMicroUsdc: cout,
+        origine: "xway_inference",
+        attributionsXway: [
+          { identifiantDemande, montantMicroUsdc: cout },
+        ],
+      });
+      this.enregistrerEvenements([
+        {
+          identifiant: `DEPENSE_COMPUTE-${identifiantAgent}-inf-test-${String(this.registre.consulterProchaineSequence(this.configuration.identifiantExperience))}`,
+          versionSchema: 1,
+          type: "DEPENSE_COMPUTE",
+          identifiantExperience: this.configuration.identifiantExperience,
+          identifiantAgent,
+          numeroCycle: Math.max(1, this.numeroCycleCourant),
+          chargeUtile: charge,
+          ...(this.datesEvenementsFixes !== undefined
+            ? { dateEnregistrement: this.datesEvenementsFixes }
+            : {}),
+        },
+      ]);
+      this.agents = this.agents.map((a) =>
+        a.identite.identifiant === identifiantAgent
+          ? { identite: a.identite, etatEconomique: etat }
+          : a,
+      );
+    }
+
+    const identifiantDemande = resultat.identifiantDemande;
+    if (identifiantDemande === undefined) {
+      return resultat;
+    }
+    return {
+      ...resultat,
+      auditRegistre: this.auditerRegistreInferenceTest(identifiantDemande),
+    };
+  }
+
+  /**
+   * Refuse une double attribution économique du même identifiantDemande.
+   */
+  private assertAttributionsXwayInedites(
+    attributions: readonly {
+      readonly identifiantDemande: string;
+      readonly montantMicroUsdc: bigint;
+    }[],
+  ): void {
+    try {
+      assertDemandesXwayNonDejaAttribuees(
+        this.registre.listerParExperience(
+          this.configuration.identifiantExperience,
+        ),
+        attributions,
+      );
+    } catch (erreur) {
+      if (erreur instanceof Error) {
+        throw new ControleurExperienceErreur(erreur.message);
+      }
+      throw erreur;
+    }
+  }
+
+  /**
+   * Audit causal pour une demande : attributions via identifiantDemande uniquement.
+   */
+  auditerRegistreInferenceTest(
+    identifiantDemande: string,
+  ): AuditRegistreInferenceTest {
+    const evenements = this.registre.listerParExperience(
+      this.configuration.identifiantExperience,
+    );
+    const inferences = evenements.filter(
+      (e) =>
+        e.type === "INFERENCE_EXECUTEE" &&
+        (e.chargeUtile as { identifiantDemande?: string } | undefined)
+          ?.identifiantDemande === identifiantDemande,
+    );
+    const coutImpute =
+      inferences.length === 1
+        ? String(
+            (inferences[0]?.chargeUtile as { coutFinalMicroUsdc?: string })
+              ?.coutFinalMicroUsdc ?? "",
+          )
+        : null;
+    const attributions = trouverAttributionsPourDemande(
+      evenements,
+      identifiantDemande,
+    );
+    const montantAttribue = attributions.reduce(
+      (acc, a) => acc + a.montantMicroUsdc,
+      0n,
+    );
+    const montantAttribueMicroUsdc = montantAttribue.toString(10);
+    const correspondanceMontant =
+      coutImpute !== null &&
+      coutImpute.length > 0 &&
+      montantAttribueMicroUsdc === coutImpute;
+    return {
+      identifiantDemande,
+      nombreInferenceExecutee: inferences.length,
+      nombreAttributionsDepenseCompute: attributions.length,
+      montantAttribueMicroUsdc,
+      coutImputeAgentMicroUsdc: coutImpute !== null && coutImpute.length > 0 ? coutImpute : null,
+      correspondanceMontant,
+      attributionUnique: attributions.length === 1,
+    };
   }
 
   capturerEmpreinteEconomique(): {
@@ -1002,6 +1313,10 @@ export class ControleurExperience {
         clesPubliquesParAgent: carteClesPubliques(
           reconstruireIdentitesPubliques(evenements),
         ),
+        etatPlafondFournisseur: reconstruireEtatPlafondFournisseur(evenements),
+        ...(this.fournisseurInjecte !== undefined
+          ? { fournisseurInjecte: this.fournisseurInjecte }
+          : {}),
       },
     );
   }
@@ -1068,19 +1383,33 @@ function fabriquerPasserelle(
   options?: {
     authentificationRequise?: boolean;
     clesPubliquesParAgent?: ReadonlyMap<string, string>;
+    fournisseurInjecte?: FournisseurInference;
+    etatPlafondFournisseur?: {
+      readonly cumuleMicroUsd: bigint;
+      readonly nombreAppels: number;
+    };
   },
 ): PasserelleXway | undefined {
   if (configuration === undefined || !configuration.active) {
     return undefined;
   }
+  const fournisseur = fabriquerFournisseurInference(configuration, {
+    ...(options?.fournisseurInjecte !== undefined
+      ? { fournisseurInjecte: options.fournisseurInjecte }
+      : {}),
+  });
   return creerPasserelleXway({
     configuration,
+    fournisseur,
     etatsDemandes,
     ...(options?.authentificationRequise === true
       ? { authentificationRequise: true }
       : {}),
     ...(options?.clesPubliquesParAgent !== undefined
       ? { clesPubliquesParAgent: options.clesPubliquesParAgent }
+      : {}),
+    ...(options?.etatPlafondFournisseur !== undefined
+      ? { etatPlafondFournisseur: options.etatPlafondFournisseur }
       : {}),
   });
 }

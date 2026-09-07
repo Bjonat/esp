@@ -1,0 +1,62 @@
+{
+  "_commentaire": [
+    "EXEMPLE — NE PAS ACTIVER AUTOMATIQUEMENT",
+    "VALEURS DE DÉMONSTRATION",
+    "Requiert OPENAI_API_KEY dans l'environnement processus",
+    "Copier vers une config locale hors Git si besoin",
+    "Le bouton Avancer d'un cycle N'appelle PAS OpenAI automatiquement",
+    "Utiliser pnpm test:inference-reelle ou POST /api/agents/:id/inference-test"
+  ],
+  "identifiantExperience": "exp-dev-openai-v01",
+  "versionProtocole": "0.1.0",
+  "mode": "simulation",
+  "graineSimulation": 12345,
+  "taillePopulationInitiale": 2,
+  "capitalInitialParAgentMicroUsdc": "10000000",
+  "parametresEconomiques": {
+    "version": "demo-dev-openai-v01",
+    "loyerInfrastructureMicroUsdc": "100000",
+    "periodeLoyerEnCycles": 5,
+    "tauxRedevanceProprietairePointsDeBase": "1000",
+    "coutOperationnelMinimalParCycleMicroUsdc": "50000",
+    "seuilRunwaySainEnCycles": 20,
+    "seuilRunwayContraintEnCycles": 5,
+    "cyclesDormanceAvantMort": 3
+  },
+  "xway": {
+    "active": true,
+    "plafondComputeParCycleMicroUsdc": "50000",
+    "fournisseur": "openai",
+    "timeoutInferenceMs": 30000,
+    "plafondDepenseFournisseurReelleMicroUsd": "100000",
+    "baremeCoutInference": {
+      "fournisseur": "fournisseur-inference-openai",
+      "modeleLogique": "luna_reel_v01",
+      "modeleExterne": "gpt-5.6-luna",
+      "versionBareme": "openai-luna-v01-2026-09",
+      "deviseReference": "USD",
+      "coutParMillionJetonsEntreeMicroUsd": "200000",
+      "coutParMillionJetonsSortieMicroUsd": "1200000",
+      "coutParMillionJetonsEntreeCacheMicroUsd": "20000",
+      "dateReference": "2026-09-01"
+    },
+    "modeles": [
+      {
+        "identifiant": "luna_reel_v01",
+        "libelle": "Luna réel v0.1 (imputation ESP)",
+        "coutParMillionJetonsEntreeMicroUsdc": "2000000",
+        "coutParMillionJetonsSortieMicroUsdc": "6000000",
+        "nombreMaxJetonsSortie": 128
+      }
+    ],
+    "politiqueCognitive": {
+      "identifiant": "politique-cognitive-developpement",
+      "version": "0.1.0"
+    }
+  },
+  "identite": {
+    "active": true,
+    "algorithme": "ed25519",
+    "version": "0.1.0"
+  }
+}

@@ -1,5 +1,5 @@
 {
-  "name": "@esp/controleur",
+  "name": "@esp/adaptateur-openai",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -14,17 +14,11 @@
   "files": ["dist"],
   "scripts": {
     "build": "tsc -b",
-    "typecheck": "tsc -b --pretty false",
-    "dev": "tsx src/serveur.ts"
+    "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
-    "@esp/adaptateur-openai": "workspace:*",
-    "@esp/moteur-agent": "workspace:*",
     "@esp/protocole": "workspace:*",
-    "@esp/registre-evenements": "workspace:*",
-    "@esp/xway": "workspace:*"
-  },
-  "devDependencies": {
-    "tsx": "^4.20.5"
+    "@esp/xway": "workspace:*",
+    "openai": "^5.12.2"
   }
 }

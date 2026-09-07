@@ -12,6 +12,7 @@
     "lint": "eslint .",
     "typecheck": "tsc -b --pretty false && pnpm --filter @esp/tableau-de-bord typecheck",
     "test": "vitest run",
+    "test:inference-reelle": "tsx scripts/inference-reelle.ts",
     "build": "pnpm -r --sort run build",
     "dev:controleur": "pnpm --filter @esp/controleur dev",
     "dev:tableau-de-bord": "pnpm --filter @esp/tableau-de-bord dev",
@@ -19,9 +20,11 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.35.0",
+    "@esp/controleur": "workspace:*",
     "@types/node": "^24.3.1",
     "eslint": "^9.35.0",
     "globals": "^16.3.0",
+    "tsx": "^4.23.13",
     "typescript": "^5.9.2",
     "typescript-eslint": "^8.42.0",
     "vitest": "^3.2.4"
