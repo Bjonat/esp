@@ -9,6 +9,7 @@
     { "path": "./adaptateurs/replay" },
     { "path": "./adaptateurs/solana" },
     { "path": "./adaptateurs/openai" },
-    { "path": "./applications/controleur" }
+    { "path": "./applications/controleur" },
+    { "path": "./applications/campagne-evolution" }
   ]
 }

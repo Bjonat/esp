@@ -15,6 +15,7 @@
     "test:inference-reelle": "tsx scripts/inference-reelle.ts",
     "test:decision-reelle": "tsx scripts/decision-reelle.ts",
     "build": "pnpm -r --sort run build",
+    "experience:evolution": "tsx applications/campagne-evolution/src/cli.ts",
     "dev:controleur": "pnpm --filter @esp/controleur dev",
     "dev:tableau-de-bord": "pnpm --filter @esp/tableau-de-bord dev",
     "dev": "node scripts/dev.mjs"

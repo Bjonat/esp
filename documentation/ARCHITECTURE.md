@@ -29,6 +29,7 @@ explicite (`xway.fournisseur: openai`) + `OPENAI_API_KEY` + commande manuelle
 esp/
 ├── applications/
 │   ├── controleur/          # Orchestrateur + API + simulateurs de développement
+│   ├── campagne-evolution/  # Runner protocole expérimental multi-génération v0.1
 │   └── tableau-de-bord/     # Observateur (Vite + React)
 ├── paquets/
 │   ├── protocole/           # Invariants, noyau économique, taxonomies d'événements
@@ -42,6 +43,7 @@ esp/
 │   └── solana/
 ├── documentation/
 │   ├── ARCHITECTURE.md
+│   ├── PROTOCOLE_EXPERIMENTAL_EVOLUTION.md
 │   ├── NOYAU_ECONOMIQUE.md
 │   ├── CONTROLEUR_EXPERIENCE.md
 │   ├── DASHBOARD.md
@@ -53,6 +55,7 @@ esp/
 │   ├── IDENTITE_AGENT.md
 │   └── FOURNISSEUR_IA_REEL.md
 ├── experiences/
+│   └── protocoles/          # Protocoles campagne évolution (pilote / évaluation)
 └── data/                    # Hors Git (SQLite + keystore identités)
 ```
 
@@ -137,3 +140,5 @@ Voir [`REPRODUCTION.md`](./REPRODUCTION.md) pour la naissance mécanique v0.1.
 Voir [`REPRODUCTION_AUTONOME.md`](./REPRODUCTION_AUTONOME.md) pour la phase autonome v0.1.
 Voir [`HERITAGE_MUTATION.md`](./HERITAGE_MUTATION.md) pour l'héritage / mutation v0.1.
 Voir [`CONTROLEUR_EXPERIENCE.md`](./CONTROLEUR_EXPERIENCE.md) pour l'orchestration.
+Voir [`PROTOCOLE_EXPERIMENTAL_EVOLUTION.md`](./PROTOCOLE_EXPERIMENTAL_EVOLUTION.md)
+pour la campagne multi-génération (matrice A/B/C/D, seeds appariées, runner).

@@ -161,6 +161,22 @@ importers:
         specifier: workspace:*
         version: link:../../paquets/environnement
 
+  applications/campagne-evolution:
+    dependencies:
+      '@esp/controleur':
+        specifier: workspace:*
+        version: link:../controleur
+      '@esp/protocole':
+        specifier: workspace:*
+        version: link:../../paquets/protocole
+      '@esp/registre-evenements':
+        specifier: workspace:*
+        version: link:../../paquets/registre-evenements
+    devDependencies:
+      tsx:
+        specifier: ^4.20.5
+        version: 4.23.13
+
   applications/controleur:
     dependencies:
       '@esp/adaptateur-openai':

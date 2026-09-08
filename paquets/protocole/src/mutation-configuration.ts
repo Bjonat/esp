@@ -173,6 +173,14 @@ export function appliquerMutationConfigurationHeritable(options: {
   if (!options.parametresMutation.active) {
     return { configurationEnfant: copie, mutations: [] };
   }
+  /**
+   * Sham expérimental (condition C) : taux=0 doit être un no-op strict
+   * par rapport à mutation inactive (condition B) — pas de matérialisation
+   * de défauts catalogue qui changerait le phénotype.
+   */
+  if (options.parametresMutation.tauxMutationParGeneBps === 0) {
+    return { configurationEnfant: copie, mutations: [] };
+  }
 
   const parametres: Record<string, string | number | boolean> = {
     ...copie.parametres,
