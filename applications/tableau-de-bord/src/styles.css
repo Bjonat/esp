@@ -622,10 +622,38 @@ body {
   grid-column: 1 / -1;
 }
 
-.fitness-agent h3 {
+.diversite-heritable {
+  grid-column: 1 / -1;
+}
+
+.diversite-heritable h3,
+.fitness-agent h3,
+.heritage-agent h3 {
   margin: 1rem 0 0.4rem;
   font-size: 0.95rem;
   font-weight: 600;
+}
+
+.liste-genes {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.ligne-gene {
+  display: grid;
+  grid-template-columns: minmax(10rem, 1.4fr) 1fr;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--bordure, #2a3340);
+}
+
+.ligne-gene .cle-gene {
+  color: var(--texte-muted);
 }
 
 @keyframes pulse {

@@ -14,6 +14,7 @@ type Onglet =
   | "xway"
   | "decisions"
   | "fitness"
+  | "heritage"
   | "recherche"
   | "portefeuille"
   | "descendance";
@@ -37,6 +38,7 @@ const ONGLET_LIBELLES: Record<Onglet, string> = {
   xway: "Cognition / Xway",
   decisions: "Décisions",
   fitness: "Performance",
+  heritage: "Héritage / variation",
   recherche: "Recherche",
   portefeuille: "Portefeuille",
   descendance: "Descendance",
@@ -460,6 +462,103 @@ export function FicheAgent(props: Props) {
                   montant={props.fitness.contribution.contributionProprietaireTotale.usdc}
                 />
               </dl>
+            </>
+          )}
+        </div>
+      )}
+
+      {props.onglet === "heritage" && (
+        <div className="heritage-agent">
+          <p className="rappel">
+            GÉNOTYPE COMPORTEMENTAL — paramètres expérimentaux
+          </p>
+          <p className="banniere-fitness">
+            Configuration héritable descriptive — aucune sélection active
+          </p>
+          {agent.heritageVariation === undefined ? (
+            <p className="rappel">Aucune projection d&apos;héritage pour cet agent.</p>
+          ) : (
+            <>
+              <dl className="metriques-compactes">
+                <div>
+                  <dt>Empreinte configuration</dt>
+                  <dd className="mono">
+                    {agent.heritageVariation.empreinteConfiguration}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Parent</dt>
+                  <dd className="mono">
+                    {agent.heritageVariation.identifiantParent ?? "— (Genesis)"}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Version configuration</dt>
+                  <dd>
+                    {agent.heritageVariation.configurationHeritable.version}
+                  </dd>
+                </div>
+              </dl>
+
+              <h3>Configuration héritable (paramètres)</h3>
+              <dl className="metriques-compactes">
+                {Object.entries(
+                  agent.heritageVariation.configurationHeritable.parametres,
+                ).length === 0 ? (
+                  <div>
+                    <dt>Paramètres</dt>
+                    <dd>—</dd>
+                  </div>
+                ) : (
+                  Object.entries(
+                    agent.heritageVariation.configurationHeritable.parametres,
+                  ).map(([cle, valeur]) => (
+                    <div key={cle}>
+                      <dt className="mono">{cle}</dt>
+                      <dd className="mono">{String(valeur)}</dd>
+                    </div>
+                  ))
+                )}
+              </dl>
+
+              <h3>Différences avec parent</h3>
+              {agent.heritageVariation.differencesAvecParent === null ? (
+                <p className="rappel">Agent Genesis — pas de parent.</p>
+              ) : agent.heritageVariation.differencesAvecParent.length === 0 ? (
+                <p className="rappel">Aucune différence de paramètre avec le parent.</p>
+              ) : (
+                <ul className="timeline">
+                  {agent.heritageVariation.differencesAvecParent.map((diff) => (
+                    <li key={diff.cle} className="ligne-evt">
+                      <span className="type mono">{diff.cle}</span>
+                      <span className="resume mono">
+                        {diff.parent} → {diff.enfant}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              <h3>Mutations à la naissance</h3>
+              {agent.heritageVariation.mutationsALaNaissance.length === 0 ? (
+                <p className="rappel">Aucune mutation enregistrée à la naissance.</p>
+              ) : (
+                <ul className="timeline">
+                  {agent.heritageVariation.mutationsALaNaissance.map((mut, index) => (
+                    <li
+                      key={`${mut.identifiantReproduction}-${mut.cleGene}-${String(index)}`}
+                      className="ligne-evt"
+                    >
+                      <span className="type mono">{mut.cleGene}</span>
+                      <span className="resume mono">
+                        {String(mut.valeurParent)} → {String(mut.valeurEnfant)}
+                        {" · "}
+                        {mut.operateur}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </>
           )}
         </div>

@@ -1,11 +1,14 @@
 import { readFileSync } from "node:fs";
 import type {
   ParametresEconomiquesExperience,
+  ParametresMutationExperience,
+  ParametresMutationExperienceJson,
   ParametresReproductionExperience,
   ParametresReproductionExperienceJson,
 } from "@esp/protocole";
 import {
   parserMicroUsdc,
+  parserParametresMutation,
   parserParametresReproduction,
   validerParametresEconomiques,
 } from "@esp/protocole";
@@ -69,6 +72,8 @@ export interface ConfigurationExperienceJson {
   readonly politiqueBudgetCognitif?: ConfigurationPolitiqueBudgetCognitifJson;
   /** Reproduction mécanique — absente = inactive (opt-in). */
   readonly reproduction?: ParametresReproductionExperienceJson;
+  /** Mutation héritable — absente = inactive (opt-in). */
+  readonly mutation?: ParametresMutationExperienceJson;
 }
 
 export interface ConfigurationExperience {
@@ -85,6 +90,8 @@ export interface ConfigurationExperience {
   readonly politiqueBudgetCognitif?: ConfigurationPolitiqueBudgetCognitif;
   /** Reproduction mécanique — absente = inactive (opt-in). */
   readonly reproduction?: ParametresReproductionExperience;
+  /** Mutation héritable — absente = inactive (opt-in). */
+  readonly mutation?: ParametresMutationExperience;
 }
 
 export class ConfigurationExperienceInvalideErreur extends Error {
@@ -179,6 +186,10 @@ export function parserConfigurationExperience(
     brut.reproduction !== undefined
       ? parserParametresReproduction(brut.reproduction)
       : undefined;
+  const mutation =
+    brut.mutation !== undefined
+      ? parserParametresMutation(brut.mutation)
+      : undefined;
 
   return {
     identifiantExperience: brut.identifiantExperience,
@@ -201,6 +212,7 @@ export function parserConfigurationExperience(
       ? { politiqueBudgetCognitif }
       : {}),
     ...(reproduction !== undefined ? { reproduction } : {}),
+    ...(mutation !== undefined ? { mutation } : {}),
   };
 }
 

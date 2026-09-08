@@ -272,6 +272,69 @@ export {
 } from "./reproduction.js";
 
 export type {
+  CleGeneMutable,
+  ComportementSansInferenceGene,
+  DefinitionGeneMutable,
+  GeneCategoriel,
+  GeneEntierBps,
+  GeneEntierMicroUsdc,
+} from "./genes-mutables.js";
+export {
+  CATALOGUE_GENES_MUTABLES_V01,
+  VALEURS_COMPORTEMENT_SANS_INFERENCE,
+  VERSION_CATALOGUE_GENES,
+  clesGenesMutablesTriees,
+  estCleGeneMutable,
+  trouverDefinitionGene,
+} from "./genes-mutables.js";
+
+export {
+  fabriquerHashGene,
+  hacherDomaines,
+  tirerBit,
+  tirerBps,
+  tirerEntierModulo,
+} from "./tirage-deterministe.js";
+
+export type {
+  ParametresMutationExperience,
+  ParametresMutationExperienceJson,
+} from "./parametres-mutation.js";
+export {
+  VERSION_PARAMETRES_MUTATION,
+  ParametresMutationInvalidesErreur,
+  creerParametresMutationInactifs,
+  parserParametresMutation,
+  serialiserParametresMutation,
+} from "./parametres-mutation.js";
+
+export type {
+  MutationEffective,
+  ResultatMutationConfiguration,
+} from "./mutation-configuration.js";
+export {
+  appliquerMutationConfigurationHeritable,
+  configurationHeritableDepuisPolitiqueBase,
+  differencesConfigurationsHeritables,
+  empreinteConfigurationHeritable,
+} from "./mutation-configuration.js";
+
+export type { PolitiqueBudgetCognitifBase } from "./phenotype-heritable.js";
+export { resoudrePolitiqueDepuisConfigurationHeritable } from "./phenotype-heritable.js";
+
+export type {
+  EntreeEvenementMutation,
+  TypeEvenementMutation,
+} from "./evenements-mutation.js";
+export {
+  TYPES_EVENEMENT_MUTATION,
+  VERSION_SCHEMA_EVENEMENT_MUTATION,
+  creerEntreeConfigurationHeritee,
+  creerEntreeMutationAppliquee,
+  estTypeEvenementMutation,
+} from "./evenements-mutation.js";
+
+export type {
   ActionDecisionExAnte,
   ParametresValeurAttendueAgir,
   ValeurAttendueExacte,

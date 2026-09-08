@@ -551,6 +551,8 @@ export type OptionsAttributionCapital = {
     identifiantParent?: string;
     /** Lignée fondatrice — pour Genesis : identifiant de l'agent lui-même. */
     identifiantLignee?: string;
+    /** Snapshot configuration héritable (Genesis ou naissance explicite). */
+    configurationHeritable?: Readonly<Record<string, unknown>>;
   };
 };
 
@@ -594,6 +596,9 @@ export function attribuerCapitalInitial(
       : {}),
     ...(options.naissance?.identifiantLignee !== undefined
       ? { identifiantLignee: options.naissance.identifiantLignee }
+      : {}),
+    ...(options.naissance?.configurationHeritable !== undefined
+      ? { configurationHeritable: options.naissance.configurationHeritable }
       : {}),
   };
 

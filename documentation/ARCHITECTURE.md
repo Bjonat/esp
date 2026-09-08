@@ -108,12 +108,18 @@ Bannière Xway : **FOURNISSEUR : SIMULÉ** ou **OPENAI RÉEL**
 
 ## Hors périmètre actuel
 
-Anthropic / Gemini / multi-provider ; wallets Solana ; Jupiter ; reproduction /
-héritage / mutation / sélection ; score de fitness unique ; tool calling ;
-rotation de clés ; HSM / Vault ; service réseau Xway indépendant.
+Anthropic / Gemini / multi-provider ; wallets Solana ; Jupiter ; sélection par
+fitness / ranking / tournoi ; score de fitness unique ; tool calling ;
+rotation de clés ; HSM / Vault ; service réseau Xway indépendant ;
+héritage de mémoire / KnowledgeUnits.
+
+En place (v0.1) : reproduction mécanique, héritage de configuration comportementale
+et mutation déterministe bornée — voir [`REPRODUCTION.md`](./REPRODUCTION.md) et
+[`HERITAGE_MUTATION.md`](./HERITAGE_MUTATION.md).
 
 Voir [`FOURNISSEUR_IA_REEL.md`](./FOURNISSEUR_IA_REEL.md) pour l'adaptateur OpenAI v0.1.
 Voir [`MOTEUR_DECISION_AGENT.md`](./MOTEUR_DECISION_AGENT.md) pour la boucle décisionnelle.
 Voir [`ATOMICITE_CYCLE_ECONOMIQUE.md`](./ATOMICITE_CYCLE_ECONOMIQUE.md) pour la reprise exactly-once.
 Voir [`FITNESS_DESCRIPTIVE.md`](./FITNESS_DESCRIPTIVE.md) pour les mesures v0.1.
 Voir [`REPRODUCTION.md`](./REPRODUCTION.md) pour la naissance mécanique v0.1.
+Voir [`HERITAGE_MUTATION.md`](./HERITAGE_MUTATION.md) pour l'héritage / mutation v0.1.

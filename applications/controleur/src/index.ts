@@ -117,6 +117,27 @@ export {
 } from "./projections-fitness.js";
 
 export type {
+  ProjectionDifferenceGene,
+  ProjectionDiversiteHeritablePopulation,
+  ProjectionGeneCategoriel,
+  ProjectionGeneDiversite,
+  ProjectionGeneNumeriqueBps,
+  ProjectionGeneNumeriqueMicroUsdc,
+  ProjectionHeritageVariationAgent,
+  ProjectionMutationNaissance,
+} from "./projections-mutation.js";
+export {
+  AVERTISSEMENT_DIVERSITE_HERITABLE,
+  compterMutationsNaissanceParAgent,
+  configurationHeritableEffective,
+  empreinteConfigurationAgent,
+  enrichirNoeudsArbreGenealogiqueMutation,
+  indexerMutationsNaissance,
+  projeterDiversiteHeritablePopulation,
+  projeterHeritageVariationAgent,
+} from "./projections-mutation.js";
+
+export type {
   ApercuInferenceTest,
   AuditRegistreInferenceTest,
   DiagnosticExecutionInferenceTest,

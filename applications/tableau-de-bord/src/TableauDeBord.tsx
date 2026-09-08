@@ -23,6 +23,7 @@ import {
 } from "./api-client.js";
 import { FicheAgent } from "./FicheAgent.js";
 import { CartePopulation } from "./CartePopulation.js";
+import { DiversiteHeritablePopulation } from "./DiversiteHeritablePopulation.js";
 import { HistoriqueVen } from "./HistoriqueVen.js";
 import { TableauFitnessPopulation } from "./TableauFitnessPopulation.js";
 
@@ -36,6 +37,7 @@ type OngletFiche =
   | "xway"
   | "decisions"
   | "fitness"
+  | "heritage"
   | "recherche"
   | "portefeuille"
   | "descendance";
@@ -486,6 +488,12 @@ export function TableauDeBord() {
                 setAgentSelectionne(id);
                 setOnglet("fitness");
               }}
+            />
+          )}
+
+          {instantane.population.diversiteHeritable !== undefined && (
+            <DiversiteHeritablePopulation
+              diversite={instantane.population.diversiteHeritable}
             />
           )}
 

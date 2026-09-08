@@ -34,8 +34,18 @@ import {
   type ConfigurationHeritableAgent,
 } from "./configuration-heritable.js";
 import { preparerTransfertInterne } from "./cycle-economique.js";
+import {
+  creerEntreeConfigurationHeritee,
+  creerEntreeMutationAppliquee,
+} from "./evenements-mutation.js";
 import { ajusterHighWaterMarkTransfert } from "./high-water-mark.js";
 import { assertMicroUsdcNonNegatif } from "./monnaie.js";
+import {
+  appliquerMutationConfigurationHeritable,
+  empreinteConfigurationHeritable,
+  type MutationEffective,
+} from "./mutation-configuration.js";
+import type { ParametresMutationExperience } from "./parametres-mutation.js";
 import type { ParametresReproductionExperience } from "./parametres-reproduction.js";
 import type { TresorerieProprietaire } from "./tresorerie-proprietaire.js";
 import { enregistrerCoutReproductionEncaisse } from "./tresorerie-proprietaire.js";
@@ -191,6 +201,10 @@ export type OptionsPreparationReproduction = {
   readonly nombreEnfantsParent: number;
   readonly reproductionsDejaCeCycle: number;
   readonly cycleDerniereNaissanceParent: number | null;
+  /** Mutation v0.1 — absente ou inactive = copie exacte. */
+  readonly parametresMutation?: ParametresMutationExperience;
+  /** Graine d'expérience pour tirages déterministes de mutation. */
+  readonly graineExperience?: number;
   readonly prefixeIdentifiant?: string;
   readonly dateEnregistrement?: string;
   readonly evenementsExistants?: readonly {
@@ -219,6 +233,8 @@ export type ResultatPreparationReproduction =
       readonly etatEnfant: EtatEconomiqueAgent;
       readonly tresorerie: TresorerieProprietaire;
       readonly configurationHeritableEnfant: ConfigurationHeritableAgent;
+      readonly mutations: readonly MutationEffective[];
+      readonly empreinteConfigurationEnfant: string;
       readonly identifiantEnfant: string;
       readonly identifiantLignee: string;
       readonly numeroGeneration: number;
@@ -310,8 +326,37 @@ export function preparerReproduction(
   assertMicroUsdcNonNegatif(cout, "coutReproduction");
 
   const numeroGeneration = options.numeroGenerationParent + 1;
-  const configurationHeritableEnfant = copierConfigurationHeritable(
-    options.configurationHeritableParent,
+
+  // Parent JAMAIS muté en place — copie puis mutation optionnelle.
+  let configurationHeritableEnfant: ConfigurationHeritableAgent;
+  let mutations: readonly MutationEffective[];
+  if (
+    options.parametresMutation !== undefined &&
+    options.parametresMutation.active
+  ) {
+    if (options.graineExperience === undefined) {
+      throw new Error(
+        "graineExperience requise lorsque parametresMutation.active",
+      );
+    }
+    const resultatMutation = appliquerMutationConfigurationHeritable({
+      configurationParent: options.configurationHeritableParent,
+      parametresMutation: options.parametresMutation,
+      graineExperience: options.graineExperience,
+      identifiantReproduction: options.identifiantReproduction,
+      identifiantParent: options.identifiantParent,
+      identifiantEnfant: options.identifiantEnfant,
+    });
+    configurationHeritableEnfant = resultatMutation.configurationEnfant;
+    mutations = resultatMutation.mutations;
+  } else {
+    configurationHeritableEnfant = copierConfigurationHeritable(
+      options.configurationHeritableParent,
+    );
+    mutations = [];
+  }
+  const empreinteConfigurationEnfant = empreinteConfigurationHeritable(
+    configurationHeritableEnfant,
   );
 
   const autoriseeEvt: EntreeEvenementReproduction = {
@@ -410,6 +455,39 @@ export function preparerReproduction(
     etatSurvie: "sain",
   });
 
+  const evenementsHeritageMutation: EntreeEvenementEsp[] = [
+    creerEntreeConfigurationHeritee({
+      identifiantExperience: options.identifiantExperience,
+      identifiantEnfant: options.identifiantEnfant,
+      identifiantParent: options.identifiantParent,
+      identifiantReproduction: options.identifiantReproduction,
+      numeroCycle: options.numeroCycle,
+      configurationHeritable: serialiserConfigurationHeritable(
+        configurationHeritableEnfant,
+      ),
+      empreinteConfiguration: empreinteConfigurationEnfant,
+      prefixeIdentifiant: prefixe,
+      ...dateOpts,
+    }),
+    ...mutations.map((mutation, indice) =>
+      creerEntreeMutationAppliquee({
+        identifiantExperience: options.identifiantExperience,
+        identifiantEnfant: options.identifiantEnfant,
+        identifiantParent: options.identifiantParent,
+        identifiantReproduction: options.identifiantReproduction,
+        numeroCycle: options.numeroCycle,
+        cleGene: mutation.cleGene,
+        valeurParent: mutation.valeurParent,
+        valeurEnfant: mutation.valeurEnfant,
+        operateur: mutation.operateur,
+        versionMutation: mutation.versionMutation,
+        indice,
+        prefixeIdentifiant: prefixe,
+        ...dateOpts,
+      }),
+    ),
+  ];
+
   const terminee: EntreeEvenementReproduction = {
     identifiant: `${prefixe}REPRODUCTION_TERMINEE-${options.identifiantReproduction}`,
     versionSchema: VERSION_SCHEMA_EVENEMENT,
@@ -433,12 +511,15 @@ export function preparerReproduction(
       agentCree,
       ...transfertsAnnotes,
       ...evenementsCout,
+      ...evenementsHeritageMutation,
       terminee,
     ],
     etatParent: figerEtatEconomique(etatParentBrouillon),
     etatEnfant,
     tresorerie,
     configurationHeritableEnfant,
+    mutations,
+    empreinteConfigurationEnfant,
     identifiantEnfant: options.identifiantEnfant,
     identifiantLignee: options.identifiantLignee,
     numeroGeneration,

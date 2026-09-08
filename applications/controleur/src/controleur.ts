@@ -8,6 +8,7 @@ import type {
   EvenementEsp,
   MotifRefusReproduction,
   ObservationOpportunite,
+  ParametresMutationExperienceJson,
   ParametresReproductionExperienceJson,
   SnapshotCreationExperience,
   TresorerieProprietaire,
@@ -20,6 +21,7 @@ import {
   assertDemandesXwayNonDejaAttribuees,
   calculerRunwayEnCycles,
   calculerValeurEconomiqueNette,
+  configurationHeritableDepuisPolitiqueBase,
   construireChargeDepenseCompute,
   creerAgent,
   creerConfigurationHeritableVide,
@@ -34,11 +36,15 @@ import {
   fabriquerIdentifiantExecutionEconomique,
   fabriquerIdentifiantReproduction,
   filtrerEvenementsEconomiques,
+  parserParametresMutation,
   parserParametresReproduction,
   parserSnapshotCreationExperience,
   preparerReproduction,
   reconstruireStatutExperience,
+  resoudrePolitiqueDepuisConfigurationHeritable,
+  serialiserConfigurationHeritable,
   serialiserMicroUsdc,
+  serialiserParametresMutation,
   serialiserParametresReproduction,
   trouverAttributionsPourDemande,
 } from "@esp/protocole";
@@ -148,6 +154,11 @@ import {
   calculerEtProjeterFitnessAgent,
   projeterFitnessPopulation,
 } from "./projections-fitness.js";
+import {
+  enrichirNoeudsArbreGenealogiqueMutation,
+  projeterDiversiteHeritablePopulation,
+  projeterHeritageVariationAgent,
+} from "./projections-mutation.js";
 import type { FenetreEvaluation } from "@esp/protocole";
 import type {
   ProjectionXwayAgent,
@@ -444,6 +455,10 @@ export class ControleurExperience {
       configuration.reproduction !== undefined
         ? serialiserParametresReproduction(configuration.reproduction)
         : undefined;
+    const mutationSerialisee =
+      configuration.mutation !== undefined
+        ? serialiserParametresMutation(configuration.mutation)
+        : undefined;
     const snapshot: SnapshotCreationExperience = {
       identifiantExperience: configuration.identifiantExperience,
       versionProtocole: configuration.versionProtocole,
@@ -484,6 +499,14 @@ export class ControleurExperience {
         ? {
             reproduction:
               reproductionSerialisee as unknown as Readonly<
+                Record<string, unknown>
+              >,
+          }
+        : {}),
+      ...(mutationSerialisee !== undefined
+        ? {
+            mutation:
+              mutationSerialisee as unknown as Readonly<
                 Record<string, unknown>
               >,
           }
@@ -593,6 +616,12 @@ export class ControleurExperience {
             snapshot.reproduction as unknown as ParametresReproductionExperienceJson,
           )
         : undefined;
+    const mutation =
+      snapshot.mutation !== undefined
+        ? parserParametresMutation(
+            snapshot.mutation as unknown as ParametresMutationExperienceJson,
+          )
+        : undefined;
     const configuration: ConfigurationExperience = {
       identifiantExperience: snapshot.identifiantExperience,
       versionProtocole: snapshot.versionProtocole,
@@ -610,6 +639,7 @@ export class ControleurExperience {
         ? { politiqueBudgetCognitif }
         : {}),
       ...(reproduction !== undefined ? { reproduction } : {}),
+      ...(mutation !== undefined ? { mutation } : {}),
     };
 
     const economiques = filtrerEvenementsEconomiques(evenements);
@@ -1070,6 +1100,12 @@ export class ControleurExperience {
             snapshot.reproduction as unknown as ParametresReproductionExperienceJson,
           )
         : undefined;
+    const mutation =
+      snapshot.mutation !== undefined
+        ? parserParametresMutation(
+            snapshot.mutation as unknown as ParametresMutationExperienceJson,
+          )
+        : undefined;
     this.configuration = {
       identifiantExperience: snapshot.identifiantExperience,
       versionProtocole: snapshot.versionProtocole,
@@ -1087,6 +1123,7 @@ export class ControleurExperience {
         ? { politiqueBudgetCognitif }
         : {}),
       ...(reproduction !== undefined ? { reproduction } : {}),
+      ...(mutation !== undefined ? { mutation } : {}),
     };
     this.environnementDecision =
       environnementDecisionConfig !== undefined
@@ -1204,14 +1241,26 @@ export class ControleurExperience {
   }
 
   projeterPopulation(): ProjectionPopulation {
-    return projeterPopulation(
+    const evenements = this.registre.listerParExperience(
+      this.configuration.identifiantExperience,
+    );
+    const base = projeterPopulation(
       this.agents,
       this.numeroCycleCourant,
       this.tresorerie,
-      this.registre.listerParExperience(
-        this.configuration.identifiantExperience,
-      ),
+      evenements,
     );
+    return {
+      ...base,
+      diversiteHeritable: projeterDiversiteHeritablePopulation({
+        agents: this.agents,
+        evenements,
+        cycleCourant: this.numeroCycleCourant,
+        ...(this.politiqueBudgetCognitif !== undefined
+          ? { politiqueBase: this.politiqueBudgetCognitif }
+          : {}),
+      }),
+    };
   }
 
   projeterAgents(): ProjectionAgent[] {
@@ -1245,14 +1294,23 @@ export class ControleurExperience {
     );
     const identifiantsEnfants =
       enfants.get(agent.identite.identifiant) ?? [];
+    const evenements = this.registre.listerParExperience(
+      this.configuration.identifiantExperience,
+    );
     return {
       ...base,
       reproduction: projeterStatistiquesReproductionAgent({
         identifiantParent: agent.identite.identifiant,
-        evenements: this.registre.listerParExperience(
-          this.configuration.identifiantExperience,
-        ),
+        evenements,
         identifiantsEnfants,
+      }),
+      heritageVariation: projeterHeritageVariationAgent({
+        agent,
+        agents: this.agents,
+        evenements,
+        ...(this.politiqueBudgetCognitif !== undefined
+          ? { politiqueBase: this.politiqueBudgetCognitif }
+          : {}),
       }),
     };
   }
@@ -1296,9 +1354,17 @@ export class ControleurExperience {
     const population = reconstruirePopulationDepuisEvenements(
       filtrerEvenementsEconomiques(evenements),
     );
+    const metaMutation = enrichirNoeudsArbreGenealogiqueMutation({
+      agents: population,
+      evenements,
+      ...(this.politiqueBudgetCognitif !== undefined
+        ? { politiqueBase: this.politiqueBudgetCognitif }
+        : {}),
+    });
     return projeterArbreGenealogique(
       population,
       this.configuration.reproduction?.active === true,
+      metaMutation,
     );
   }
 
@@ -1423,6 +1489,10 @@ export class ControleurExperience {
       reproductionsDejaCeCycle,
       cycleDerniereNaissanceParent,
       evenementsExistants: evenements,
+      ...(this.configuration.mutation !== undefined
+        ? { parametresMutation: this.configuration.mutation }
+        : {}),
+      graineExperience: this.configuration.graineSimulation,
       ...(this.datesEvenementsFixes !== undefined
         ? { dateEnregistrement: this.datesEvenementsFixes }
         : {}),
@@ -1565,6 +1635,25 @@ export class ControleurExperience {
     const heritables =
       reconstruireConfigurationsHeritablesDepuisEvenements(evenements);
     return heritables.get(identifiantAgent);
+  }
+
+  /**
+   * Politique cognitive effective = base d'expérience ⊕ configuration héritable agent.
+   */
+  private resoudrePolitiqueAgent(
+    agent: AgentExperience,
+  ): ConfigurationPolitiqueBudgetCognitif {
+    if (this.politiqueBudgetCognitif === undefined) {
+      throw new ControleurExperienceErreur(
+        "politiqueBudgetCognitif absente — impossible de résoudre le phénotype",
+      );
+    }
+    return resoudrePolitiqueDepuisConfigurationHeritable({
+      politiqueBase: this.politiqueBudgetCognitif,
+      ...(agent.configurationHeritable !== undefined
+        ? { configurationHeritable: agent.configurationHeritable }
+        : {}),
+    });
   }
 
   projeterHistorique(): readonly PointHistoriqueVen[] {
@@ -1866,6 +1955,18 @@ export class ControleurExperience {
       this.dateCreation ??
       "1970-01-01T00:00:00.000Z";
 
+    const politique = this.configuration.politiqueBudgetCognitif;
+    const configurationHeritableGenesis =
+      politique !== undefined
+        ? configurationHeritableDepuisPolitiqueBase({
+            seuilEnjeuPourInferenceMicroUsdc:
+              politique.seuilEnjeuPourInferenceMicroUsdc,
+            partMaxVenParCycleBps: politique.partMaxVenParCycleBps,
+            plafondCognitifMicroUsdc: politique.plafondCognitifMicroUsdc,
+            comportementSansInference: politique.comportementSansInference,
+          })
+        : creerConfigurationHeritableVide();
+
     for (let index = 0; index < n; index += 1) {
       const identifiant = fabriquerIdentifiantAgent(
         this.configuration.identifiantExperience,
@@ -1890,6 +1991,9 @@ export class ControleurExperience {
           indexPopulation: index,
           dateNaissance,
           identifiantLignee: identifiant,
+          configurationHeritable: serialiserConfigurationHeritable(
+            configurationHeritableGenesis,
+          ),
         },
         ...(this.datesEvenementsFixes !== undefined
           ? { dateEnregistrement: this.datesEvenementsFixes }
@@ -1933,7 +2037,7 @@ export class ControleurExperience {
           identifiantLignee: identifiant,
         },
         etatEconomique: etat,
-        configurationHeritable: creerConfigurationHeritableVide(),
+        configurationHeritable: configurationHeritableGenesis,
       });
     }
 
@@ -2008,6 +2112,7 @@ export class ControleurExperience {
     });
     const ven = calculerValeurEconomiqueNette(agent.etatEconomique);
     const enjeu = calculerEnjeuOpportunite(observation);
+    const politiqueEffective = this.resoudrePolitiqueAgent(agent);
     const choix = deciderBudgetCognitif({
       etatEconomique: agent.etatEconomique,
       runway: calculerRunwayEnCycles(
@@ -2016,7 +2121,7 @@ export class ControleurExperience {
           .coutOperationnelMinimalParCycleMicroUsdc,
       ),
       observation,
-      configuration: this.politiqueBudgetCognitif,
+      configuration: politiqueEffective,
       ...(this.configuration.xway !== undefined
         ? {
             plafondXwayMicroUsdc:
@@ -2114,7 +2219,7 @@ export class ControleurExperience {
 
     const resultat = await executerCycleDecisionAgent({
       environnement: this.environnementDecision,
-      politique: this.politiqueBudgetCognitif,
+      politique: this.resoudrePolitiqueAgent(agent),
       agent: {
         identifiant: agent.identite.identifiant,
         etatEconomique: agent.etatEconomique,
@@ -2317,7 +2422,7 @@ export class ControleurExperience {
 
     const resultat = await executerCycleDecisionAgent({
       environnement: this.environnementDecision,
-      politique: this.politiqueBudgetCognitif,
+      politique: this.resoudrePolitiqueAgent(agent),
       agent: {
         identifiant: agent.identite.identifiant,
         etatEconomique: agent.etatEconomique,

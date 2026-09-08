@@ -22,6 +22,44 @@ export interface ProjectionExperience {
   readonly taillePopulationInitiale: number;
 }
 
+export interface ProjectionGeneNumeriqueMicroUsdc {
+  readonly cle: string;
+  readonly type: "micro_usdc";
+  readonly min: string | null;
+  readonly mediane: string | null;
+  readonly max: string | null;
+}
+
+export interface ProjectionGeneNumeriqueBps {
+  readonly cle: string;
+  readonly type: "bps";
+  readonly min: number | null;
+  readonly mediane: number | null;
+  readonly max: number | null;
+}
+
+export interface ProjectionGeneCategoriel {
+  readonly cle: string;
+  readonly type: "categoriel";
+  readonly comptesParValeur: Readonly<Record<string, number>>;
+}
+
+export type ProjectionGeneDiversite =
+  | ProjectionGeneNumeriqueMicroUsdc
+  | ProjectionGeneNumeriqueBps
+  | ProjectionGeneCategoriel;
+
+export interface ProjectionDiversiteHeritablePopulation {
+  readonly avertissement: string;
+  readonly versionCatalogueGenes: string;
+  readonly cycleCourant: number;
+  readonly nombreConfigurationsHeritablesDistinctes: number;
+  readonly nombreMutationsCumulees: number;
+  readonly nombreMutationsCycle: number;
+  readonly nombreAgentsAvecAuMoinsUneMutationDepuisParent: number;
+  readonly genes: readonly ProjectionGeneDiversite[];
+}
+
 export interface ProjectionPopulation {
   readonly populationTotale: number;
   readonly agentsSain: number;
@@ -45,6 +83,7 @@ export interface ProjectionPopulation {
   readonly dotationsInternesCumulees?: MontantApi;
   readonly coutsReproductifsCumules?: MontantApi;
   readonly generationsPresentes?: readonly number[];
+  readonly diversiteHeritable?: ProjectionDiversiteHeritablePopulation;
 }
 
 export interface ProjectionAgent {
@@ -86,6 +125,8 @@ export interface ProjectionAgent {
     readonly nombreEnfants: number;
     readonly refusParMotif: Readonly<Record<string, number>>;
   };
+  /** Héritage / variation — descriptif, aucune sélection. */
+  readonly heritageVariation?: ProjectionHeritageVariationAgent;
   /** Identité cryptographique publique — jamais de clé privée. */
   readonly identite?: {
     readonly algorithme: "ed25519" | null;
@@ -95,6 +136,33 @@ export interface ProjectionAgent {
     readonly statut: "disponible" | "cle_privee_indisponible" | "non_configuree";
     readonly versionIdentite: string | null;
   };
+}
+
+export interface ProjectionMutationNaissance {
+  readonly cleGene: string;
+  readonly valeurParent: string | number | boolean;
+  readonly valeurEnfant: string | number | boolean;
+  readonly operateur: string;
+  readonly versionMutation: string;
+  readonly identifiantReproduction: string;
+}
+
+export interface ProjectionDifferenceGene {
+  readonly cle: string;
+  readonly parent: string;
+  readonly enfant: string;
+}
+
+export interface ProjectionHeritageVariationAgent {
+  readonly avertissement: string;
+  readonly identifiantParent: string | null;
+  readonly empreinteConfiguration: string;
+  readonly configurationHeritable: {
+    readonly version: string;
+    readonly parametres: Readonly<Record<string, string | number | boolean>>;
+  };
+  readonly differencesAvecParent: readonly ProjectionDifferenceGene[] | null;
+  readonly mutationsALaNaissance: readonly ProjectionMutationNaissance[];
 }
 
 export interface ProjectionEvenement {
@@ -125,6 +193,8 @@ export interface ProjectionArbre {
     readonly identifiantLignee?: string;
     readonly etatSurvie: string;
     readonly valeurEconomiqueNette: MontantApi;
+    readonly nombreMutationsNaissance: number;
+    readonly empreinteConfiguration: string;
   }[];
   readonly relations: readonly {
     readonly identifiantParent: string;

@@ -8,6 +8,13 @@ type Props = {
   readonly onSelection: (identifiant: string) => void;
 };
 
+function tronquerEmpreinte(empreinte: string, max = 6): string {
+  if (empreinte.length <= max) {
+    return empreinte;
+  }
+  return `${empreinte.slice(0, max)}…`;
+}
+
 /**
  * Carte / arbre de population — relations parent→enfant depuis le registre.
  */
@@ -16,6 +23,10 @@ export function CartePopulation(props: Props) {
     const ven = BigInt(agent.economie.valeurEconomiqueNette.microUsdc);
     return ven > max ? ven : max;
   }, 0n);
+
+  const noeudsParId = new Map(
+    props.arbre.noeuds.map((noeud) => [noeud.identifiant, noeud]),
+  );
 
   const enfantsParParent = new Map<string, string[]>();
   for (const relation of props.arbre.relations) {
@@ -29,6 +40,11 @@ export function CartePopulation(props: Props) {
     if (agent === undefined) {
       return null;
     }
+    const noeud = noeudsParId.get(identifiant);
+    const mutationsNaissance = noeud?.nombreMutationsNaissance ?? 0;
+    const empreinteCourte = tronquerEmpreinte(
+      noeud?.empreinteConfiguration ?? "",
+    );
     const ven = BigInt(agent.economie.valeurEconomiqueNette.microUsdc);
     const ratio = venMax > 0n ? Number((ven * 100n) / venMax) / 100 : 0.4;
     const taille = 2.0 + ratio * 1.4;
@@ -48,13 +64,15 @@ export function CartePopulation(props: Props) {
           onClick={() => {
             props.onSelection(identifiant);
           }}
-          title={`${identifiant} — gen ${String(agent.generation)} — VEN ${agent.economie.valeurEconomiqueNette.usdc}`}
+          title={`${identifiant} — gen ${String(agent.generation)} — μ${String(mutationsNaissance)} — ${noeud?.empreinteConfiguration ?? "—"} — VEN ${agent.economie.valeurEconomiqueNette.usdc}`}
         >
           <span className="id-court">
             {identifiant.split("-").slice(-1)[0] ?? identifiant}
           </span>
           <span className="ven-mini">
-            g{String(agent.generation)} · {agent.economie.valeurEconomiqueNette.usdc}
+            g{String(agent.generation)}
+            {mutationsNaissance > 0 ? ` · μ${String(mutationsNaissance)}` : ""}
+            {empreinteCourte !== "" ? ` · ${empreinteCourte}` : ""}
           </span>
         </button>
         {enfants.map((enfantId) => renduNoeud(enfantId, profondeur + 1))}

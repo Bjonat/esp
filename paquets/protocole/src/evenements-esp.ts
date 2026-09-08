@@ -20,6 +20,11 @@ import type {
 } from "./evenements-identite.js";
 import { estTypeEvenementIdentite } from "./evenements-identite.js";
 import type {
+  EntreeEvenementMutation,
+  TypeEvenementMutation,
+} from "./evenements-mutation.js";
+import { estTypeEvenementMutation } from "./evenements-mutation.js";
+import type {
   EntreeEvenementReproduction,
   TypeEvenementReproduction,
 } from "./evenements-reproduction.js";
@@ -39,7 +44,8 @@ export type TypeEvenementEsp =
   | TypeEvenementXway
   | TypeEvenementIdentite
   | TypeEvenementDecision
-  | TypeEvenementReproduction;
+  | TypeEvenementReproduction
+  | TypeEvenementMutation;
 
 export type EntreeEvenementEsp =
   | EntreeEvenementEconomique
@@ -47,7 +53,8 @@ export type EntreeEvenementEsp =
   | EntreeEvenementXway
   | EntreeEvenementIdentite
   | EntreeEvenementDecision
-  | EntreeEvenementReproduction;
+  | EntreeEvenementReproduction
+  | EntreeEvenementMutation;
 
 export type EvenementEsp = Omit<EvenementEconomique, "type"> & {
   readonly type: TypeEvenementEsp;
@@ -62,7 +69,8 @@ export function estTypeEvenementEsp(
     estTypeEvenementXway(valeur) ||
     estTypeEvenementIdentite(valeur) ||
     estTypeEvenementDecision(valeur) ||
-    estTypeEvenementReproduction(valeur)
+    estTypeEvenementReproduction(valeur) ||
+    estTypeEvenementMutation(valeur)
   );
 }
 

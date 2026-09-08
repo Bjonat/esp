@@ -64,6 +64,13 @@ Décide **sans LLM** s'il faut payer une inférence (évite la récursion) :
 Chemin sans inférence : `comportementSansInference`
 (`attendre` | `agir_si_favorable`) — coût cognitif **0**.
 
+Lorsque l'expérience définit une `politiqueBudgetCognitif` et qu'un agent porte
+une `ConfigurationHeritableAgent`, le contrôleur résout la politique **effective**
+via `resoudrePolitiqueDepuisConfigurationHeritable` (base ⊕ génotype héritable).
+Les gènes mutables du catalogue v0.1 alimentent précisément ces champs — voir
+[`HERITAGE_MUTATION.md`](./HERITAGE_MUTATION.md). `modeleLogique` reste celui de
+la base (non mutable en v0.1).
+
 ## Coûts
 
 | Nature | Effet |
