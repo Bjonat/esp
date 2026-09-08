@@ -139,7 +139,7 @@ export interface ProjectionExperience {
   readonly numeroCycleCourant: number;
   readonly dateCreation: string | null;
   readonly mode: ModeExperience;
-  readonly libelleMode: "SIMULATION DÉTERMINISTE";
+  readonly libelleMode: "SIMULATION DÉTERMINISTE" | "DÉCISION SIMULÉE";
   readonly graineSimulation: number;
   readonly taillePopulationInitiale: number;
   readonly parametresEconomiques: {

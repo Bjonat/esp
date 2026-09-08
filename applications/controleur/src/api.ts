@@ -137,6 +137,20 @@ async function gererRequete(
         return;
       }
 
+      if (segments[1] === "decisions") {
+        const agent = controleur.projeterAgent(identifiant);
+        if (agent === undefined) {
+          repondreJson(reponse, 404, { erreur: "Agent introuvable" });
+          return;
+        }
+        repondreJson(reponse, 200, {
+          identifiant,
+          decisions: controleur.projeterDecisionsAgent(identifiant),
+          resume: controleur.projeterResumeDecisionAgent(identifiant),
+        });
+        return;
+      }
+
       if (segments.length === 1) {
         const agent = controleur.projeterAgent(identifiant);
         if (agent === undefined) {
@@ -163,6 +177,11 @@ async function gererRequete(
 
     if (methode === "GET" && chemin === "/api/xway") {
       repondreJson(reponse, 200, controleur.projeterXway());
+      return;
+    }
+
+    if (methode === "GET" && chemin === "/api/activite-decisionnelle") {
+      repondreJson(reponse, 200, controleur.projeterActiviteDecisionnelle());
       return;
     }
 

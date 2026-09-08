@@ -1,9 +1,11 @@
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import type {
+  DecisionAgent,
   EntreeEvenementEsp,
   EtatEconomiqueAgent,
   EvenementEsp,
+  ObservationOpportunite,
   SnapshotCreationExperience,
   TresorerieProprietaire,
 } from "@esp/protocole";
@@ -11,6 +13,8 @@ import {
   AgentMortInactifErreur,
   attribuerCapitalInitial,
   assertDemandesXwayNonDejaAttribuees,
+  calculerRunwayEnCycles,
+  calculerValeurEconomiqueNette,
   construireChargeDepenseCompute,
   creerAgent,
   creerEntreeControleExperience,
@@ -35,7 +39,13 @@ import {
   CHEMIN_KEYSTORE_IDENTITES_DEFAUT,
   KeystoreIdentitesLocal,
   SignataireAgentLocal,
+  calculerEnjeuOpportunite,
+  deciderBudgetCognitif,
   genererPaireIdentiteEd25519,
+  parserConfigurationPolitiqueBudgetCognitif,
+  serialiserConfigurationPolitiqueBudgetCognitif,
+  type ConfigurationPolitiqueBudgetCognitif,
+  type ConfigurationPolitiqueBudgetCognitifJson,
 } from "@esp/moteur-agent";
 import type {
   ConfigurationExperience,
@@ -103,6 +113,18 @@ import {
   type AuditRegistreInferenceTest,
   type ResultatInferenceTest,
 } from "./inference-test.js";
+import { executerCycleDecisionAgent } from "./cycle-decision.js";
+import { reconstruireEtatRepriseCycleDecision } from "./reprise-cycle-decision.js";
+import type {
+  ProjectionActiviteDecisionnelle,
+  ProjectionDecisionAgent,
+  ProjectionDecisionAgentResume,
+} from "./projections-decision.js";
+import {
+  projeterActiviteDecisionnelle as calculerActiviteDecisionnelle,
+  projeterDecisionsDepuisRegistre,
+  projeterResumeDecisionAgent as calculerResumeDecisionAgent,
+} from "./projections-decision.js";
 import type {
   ProjectionXwayAgent,
   ProjectionXwayGlobale,
@@ -117,6 +139,15 @@ import {
   reconstruireEtatPlafondFournisseur,
   type ProjectionCoutsInfrastructureExterne,
 } from "./projections-infrastructure-externe.js";
+import type { EnvironnementOpportunitesSimulees } from "@esp/environnement";
+import {
+  IDENTIFIANT_ENVIRONNEMENT_OPPORTUNITES_SIMULEES,
+  VERSION_ENVIRONNEMENT_OPPORTUNITES_SIMULEES,
+  creerEnvironnementOpportunitesSimulees,
+  parserConfigurationEnvironnementOpportunites,
+  serialiserConfigurationEnvironnementOpportunites,
+  type ConfigurationEnvironnementOpportunitesJson,
+} from "@esp/environnement";
 
 export type OptionsControleurExperience = {
   /**
@@ -168,6 +199,10 @@ export class ControleurExperience {
   private snapshotSimulateur: SnapshotCreationExperience["simulateur"];
   private passerelleXway: PasserelleXway | undefined;
   private readonly fournisseurInjecte: FournisseurInference | undefined;
+  private environnementDecision: EnvironnementOpportunitesSimulees | undefined;
+  private politiqueBudgetCognitif:
+    | ConfigurationPolitiqueBudgetCognitif
+    | undefined;
 
   private constructor(options: {
     configuration: ConfigurationExperience;
@@ -185,6 +220,8 @@ export class ControleurExperience {
     registreSqlite?: RegistreEvenementsSqlite;
     passerelleXway?: PasserelleXway;
     fournisseurInjecte?: FournisseurInference;
+    environnementDecision?: EnvironnementOpportunitesSimulees;
+    politiqueBudgetCognitif?: ConfigurationPolitiqueBudgetCognitif;
   }) {
     this.configuration = options.configuration;
     this.registre = options.registre;
@@ -201,6 +238,8 @@ export class ControleurExperience {
     this.registreSqlite = options.registreSqlite;
     this.passerelleXway = options.passerelleXway;
     this.fournisseurInjecte = options.fournisseurInjecte;
+    this.environnementDecision = options.environnementDecision;
+    this.politiqueBudgetCognitif = options.politiqueBudgetCognitif;
   }
 
   static ouvrir(options: OptionsControleurExperience): ControleurExperience {
@@ -318,10 +357,16 @@ export class ControleurExperience {
   ): ControleurExperience {
     const dateCreation =
       options.dateCreationFixe ?? new Date().toISOString();
-    const snapshotSimulateur = {
-      identifiant: IDENTIFIANT_SIMULATEUR_DEVELOPPEMENT,
-      version: VERSION_SIMULATEUR_DEVELOPPEMENT,
-    };
+    const snapshotSimulateur =
+      configuration.mode === "decision_simulee"
+        ? {
+            identifiant: IDENTIFIANT_ENVIRONNEMENT_OPPORTUNITES_SIMULEES,
+            version: VERSION_ENVIRONNEMENT_OPPORTUNITES_SIMULEES,
+          }
+        : {
+            identifiant: IDENTIFIANT_SIMULATEUR_DEVELOPPEMENT,
+            version: VERSION_SIMULATEUR_DEVELOPPEMENT,
+          };
     const xwaySerialise =
       configuration.xway !== undefined
         ? serialiserConfigurationXway(configuration.xway)
@@ -329,6 +374,18 @@ export class ControleurExperience {
     const identiteSerialisee =
       configuration.identite !== undefined
         ? serialiserConfigurationIdentite(configuration.identite)
+        : undefined;
+    const environnementSerialise =
+      configuration.environnementDecision !== undefined
+        ? serialiserConfigurationEnvironnementOpportunites(
+            configuration.environnementDecision,
+          )
+        : undefined;
+    const politiqueSerialisee =
+      configuration.politiqueBudgetCognitif !== undefined
+        ? serialiserConfigurationPolitiqueBudgetCognitif(
+            configuration.politiqueBudgetCognitif,
+          )
         : undefined;
     const snapshot: SnapshotCreationExperience = {
       identifiantExperience: configuration.identifiantExperience,
@@ -350,6 +407,22 @@ export class ControleurExperience {
               identiteSerialisee as unknown as Readonly<Record<string, unknown>>,
           }
         : {}),
+      ...(environnementSerialise !== undefined
+        ? {
+            environnementDecision:
+              environnementSerialise as unknown as Readonly<
+                Record<string, unknown>
+              >,
+          }
+        : {}),
+      ...(politiqueSerialisee !== undefined
+        ? {
+            politiqueBudgetCognitif:
+              politiqueSerialisee as unknown as Readonly<
+                Record<string, unknown>
+              >,
+          }
+        : {}),
     };
 
     const keystore = new KeystoreIdentitesLocal(options.cheminKeystoreIdentites);
@@ -360,6 +433,13 @@ export class ControleurExperience {
         ? { fournisseurInjecte: options.fournisseurInjecte }
         : {}),
     });
+    const environnementDecision =
+      configuration.environnementDecision !== undefined
+        ? creerEnvironnementOpportunitesSimulees(
+            configuration.environnementDecision,
+            configuration.graineSimulation,
+          )
+        : undefined;
 
     const controleur = new ControleurExperience({
       configuration,
@@ -374,6 +454,10 @@ export class ControleurExperience {
       historique: [],
       snapshotSimulateur,
       ...(passerelleXway !== undefined ? { passerelleXway } : {}),
+      ...(environnementDecision !== undefined ? { environnementDecision } : {}),
+      ...(configuration.politiqueBudgetCognitif !== undefined
+        ? { politiqueBudgetCognitif: configuration.politiqueBudgetCognitif }
+        : {}),
       ...(options.datesEvenementsFixes !== undefined
         ? { datesEvenementsFixes: options.datesEvenementsFixes }
         : {}),
@@ -426,6 +510,18 @@ export class ControleurExperience {
             snapshot.identite as unknown as ConfigurationIdentiteJson,
           )
         : undefined;
+    const environnementDecisionConfig =
+      snapshot.environnementDecision !== undefined
+        ? parserConfigurationEnvironnementOpportunites(
+            snapshot.environnementDecision as unknown as ConfigurationEnvironnementOpportunitesJson,
+          )
+        : undefined;
+    const politiqueBudgetCognitif =
+      snapshot.politiqueBudgetCognitif !== undefined
+        ? parserConfigurationPolitiqueBudgetCognitif(
+            snapshot.politiqueBudgetCognitif as unknown as ConfigurationPolitiqueBudgetCognitifJson,
+          )
+        : undefined;
     const configuration: ConfigurationExperience = {
       identifiantExperience: snapshot.identifiantExperience,
       versionProtocole: snapshot.versionProtocole,
@@ -436,6 +532,12 @@ export class ControleurExperience {
       parametresEconomiques: snapshot.parametresEconomiques,
       ...(xway !== undefined ? { xway } : {}),
       ...(identite !== undefined ? { identite } : {}),
+      ...(environnementDecisionConfig !== undefined
+        ? { environnementDecision: environnementDecisionConfig }
+        : {}),
+      ...(politiqueBudgetCognitif !== undefined
+        ? { politiqueBudgetCognitif }
+        : {}),
     };
 
     const economiques = filtrerEvenementsEconomiques(evenements);
@@ -469,6 +571,17 @@ export class ControleurExperience {
       historique,
       snapshotSimulateur: snapshot.simulateur,
       ...(passerelleXway !== undefined ? { passerelleXway } : {}),
+      ...(environnementDecisionConfig !== undefined
+        ? {
+            environnementDecision: creerEnvironnementOpportunitesSimulees(
+              environnementDecisionConfig,
+              snapshot.graineSimulation,
+            ),
+          }
+        : {}),
+      ...(politiqueBudgetCognitif !== undefined
+        ? { politiqueBudgetCognitif }
+        : {}),
       ...(options.datesEvenementsFixes !== undefined
         ? { datesEvenementsFixes: options.datesEvenementsFixes }
         : {}),
@@ -631,65 +744,93 @@ export class ControleurExperience {
         continue;
       }
 
-      const activiteEco = simulerActiviteCycle({
-        graineSimulation: this.configuration.graineSimulation,
-        identifiantAgent: agent.identite.identifiant,
-        numeroCycle,
-      });
-
-      let coutComputeXway = 0n;
+      let activite;
       let attributionsXway: {
         readonly identifiantDemande: string;
         readonly montantMicroUsdc: bigint;
       }[] = [];
-      if (xwayAutoActif && this.passerelleXway !== undefined && this.configuration.xway) {
-        const resultatXway = await executerCycleCognitifAgent({
-          configurationXway: this.configuration.xway,
-          passerelle: this.passerelleXway,
-          agent,
-          identifiantExperience: this.configuration.identifiantExperience,
-          numeroCycle,
-          graineSimulation: this.configuration.graineSimulation,
-          prochaineSequence: () =>
-            this.registre.consulterProchaineSequence(
-              this.configuration.identifiantExperience,
-            ),
-          enregistrerImmediatement: (evenementsXway) => {
-            this.enregistrerEvenements(evenementsXway);
-          },
-          ...(this.datesEvenementsFixes !== undefined
-            ? { dateEnregistrement: this.datesEvenementsFixes }
-            : {}),
-          ...(this.configuration.identite?.active === true
-            ? {
-                signataire: this.obtenirSignataire(agent.identite.identifiant),
-              }
-            : {}),
-        });
-        coutComputeXway = resultatXway.coutComputeXwayMicroUsdc;
-        attributionsXway = [...resultatXway.attributionsComputeXway];
-        this.assertAttributionsXwayInedites(attributionsXway);
-      }
+      let provenanceDepenseCompute:
+        | {
+            readonly origine: "xway_inference" | "simulation_developpement";
+            readonly attributionsXway?: readonly {
+              readonly identifiantDemande: string;
+              readonly montantMicroUsdc: bigint;
+            }[];
+          }
+        | undefined;
 
-      const activite = {
-        ...activiteEco,
-        depenseCompute:
-          this.configuration.xway?.active === true && xwayAutoActif
-            ? coutComputeXway
-            : activiteEco.depenseCompute,
-      };
-
-      const provenanceDepenseCompute =
-        activite.depenseCompute > 0n
-          ? xwayAutoActif && attributionsXway.length > 0
+      if (this.configuration.mode === "decision_simulee") {
+        const branche = await this.executerBrancheDecision(agent, numeroCycle);
+        if (branche === null) {
+          agentsApres.push(agent);
+          continue;
+        }
+        activite = branche.activite;
+        attributionsXway = [...branche.attributionsXway];
+        provenanceDepenseCompute =
+          activite.depenseCompute > 0n && attributionsXway.length > 0
             ? {
                 origine: "xway_inference" as const,
                 attributionsXway,
               }
-            : xwayAutoActif
-              ? undefined
-              : { origine: "simulation_developpement" as const }
-          : undefined;
+            : undefined;
+      } else {
+        const activiteEco = simulerActiviteCycle({
+          graineSimulation: this.configuration.graineSimulation,
+          identifiantAgent: agent.identite.identifiant,
+          numeroCycle,
+        });
+
+        let coutComputeXway = 0n;
+        if (xwayAutoActif && this.passerelleXway !== undefined && this.configuration.xway) {
+          const resultatXway = await executerCycleCognitifAgent({
+            configurationXway: this.configuration.xway,
+            passerelle: this.passerelleXway,
+            agent,
+            identifiantExperience: this.configuration.identifiantExperience,
+            numeroCycle,
+            graineSimulation: this.configuration.graineSimulation,
+            prochaineSequence: () =>
+              this.registre.consulterProchaineSequence(
+                this.configuration.identifiantExperience,
+              ),
+            enregistrerImmediatement: (evenementsXway) => {
+              this.enregistrerEvenements(evenementsXway);
+            },
+            ...(this.datesEvenementsFixes !== undefined
+              ? { dateEnregistrement: this.datesEvenementsFixes }
+              : {}),
+            ...(this.configuration.identite?.active === true
+              ? {
+                  signataire: this.obtenirSignataire(agent.identite.identifiant),
+                }
+              : {}),
+          });
+          coutComputeXway = resultatXway.coutComputeXwayMicroUsdc;
+          attributionsXway = [...resultatXway.attributionsComputeXway];
+          this.assertAttributionsXwayInedites(attributionsXway);
+        }
+
+        activite = {
+          ...activiteEco,
+          depenseCompute:
+            this.configuration.xway?.active === true && xwayAutoActif
+              ? coutComputeXway
+              : activiteEco.depenseCompute,
+        };
+
+        provenanceDepenseCompute =
+          activite.depenseCompute > 0n
+            ? xwayAutoActif && attributionsXway.length > 0
+              ? {
+                  origine: "xway_inference" as const,
+                  attributionsXway,
+                }
+              : xwayAutoActif
+                ? undefined
+                : { origine: "simulation_developpement" as const }
+            : undefined;
+      }
 
       let resultat;
       try {
@@ -793,6 +934,18 @@ export class ControleurExperience {
             snapshot.identite as unknown as ConfigurationIdentiteJson,
           )
         : undefined;
+    const environnementDecisionConfig =
+      snapshot.environnementDecision !== undefined
+        ? parserConfigurationEnvironnementOpportunites(
+            snapshot.environnementDecision as unknown as ConfigurationEnvironnementOpportunitesJson,
+          )
+        : undefined;
+    const politiqueBudgetCognitif =
+      snapshot.politiqueBudgetCognitif !== undefined
+        ? parserConfigurationPolitiqueBudgetCognitif(
+            snapshot.politiqueBudgetCognitif as unknown as ConfigurationPolitiqueBudgetCognitifJson,
+          )
+        : undefined;
     this.configuration = {
       identifiantExperience: snapshot.identifiantExperience,
       versionProtocole: snapshot.versionProtocole,
@@ -803,7 +956,21 @@ export class ControleurExperience {
       parametresEconomiques: snapshot.parametresEconomiques,
       ...(xway !== undefined ? { xway } : {}),
       ...(identite !== undefined ? { identite } : {}),
+      ...(environnementDecisionConfig !== undefined
+        ? { environnementDecision: environnementDecisionConfig }
+        : {}),
+      ...(politiqueBudgetCognitif !== undefined
+        ? { politiqueBudgetCognitif }
+        : {}),
     };
+    this.environnementDecision =
+      environnementDecisionConfig !== undefined
+        ? creerEnvironnementOpportunitesSimulees(
+            environnementDecisionConfig,
+            snapshot.graineSimulation,
+          )
+        : undefined;
+    this.politiqueBudgetCognitif = politiqueBudgetCognitif;
     this.passerelleXway = fabriquerPasserelle(
       xway,
       reconstruireEtatsDemandesDepuisRegistre(evenements),
@@ -813,6 +980,9 @@ export class ControleurExperience {
           reconstruireIdentitesPubliques(evenements),
         ),
         etatPlafondFournisseur: reconstruireEtatPlafondFournisseur(evenements),
+        ...(this.fournisseurInjecte !== undefined
+          ? { fournisseurInjecte: this.fournisseurInjecte }
+          : {}),
       },
     );
   }
@@ -830,7 +1000,10 @@ export class ControleurExperience {
       numeroCycleCourant: this.numeroCycleCourant,
       dateCreation: this.dateCreation,
       mode: this.configuration.mode,
-      libelleMode: "SIMULATION DÉTERMINISTE",
+      libelleMode:
+        this.configuration.mode === "decision_simulee"
+          ? "DÉCISION SIMULÉE"
+          : "SIMULATION DÉTERMINISTE",
       graineSimulation: this.configuration.graineSimulation,
       taillePopulationInitiale: this.configuration.taillePopulationInitiale,
       parametresEconomiques: {
@@ -850,6 +1023,27 @@ export class ControleurExperience {
         cyclesDormanceAvantMort: p.cyclesDormanceAvantMort,
       },
     };
+  }
+
+  projeterDecisionsAgent(identifiant: string): ProjectionDecisionAgent[] {
+    const evenements = this.registre.listerParExperience(
+      this.configuration.identifiantExperience,
+    );
+    return projeterDecisionsDepuisRegistre(evenements, identifiant);
+  }
+
+  projeterResumeDecisionAgent(
+    identifiant: string,
+  ): ProjectionDecisionAgentResume {
+    return calculerResumeDecisionAgent(this.projeterDecisionsAgent(identifiant));
+  }
+
+  projeterActiviteDecisionnelle(): ProjectionActiviteDecisionnelle {
+    const evenements = this.registre.listerParExperience(
+      this.configuration.identifiantExperience,
+    );
+    const decisions = projeterDecisionsDepuisRegistre(evenements);
+    return calculerActiviteDecisionnelle(decisions, this.numeroCycleCourant);
   }
 
   projeterPopulation(): ProjectionPopulation {
@@ -1319,6 +1513,373 @@ export class ControleurExperience {
           : {}),
       },
     );
+  }
+
+  /**
+   * Aperçu d'une décision réelle manuelle (1 agent × 1 observation).
+   * Aucun réseau. Utilise l'adaptateur OpenAI uniquement si --executer ensuite.
+   */
+  apercevoirDecisionReelleManuelle(identifiantAgent?: string): {
+    readonly identifiantAgent: string;
+    readonly numeroCycle: number;
+    readonly observation: ObservationOpportunite;
+    readonly venMicroUsdc: string;
+    readonly enjeuMicroUsdc: string;
+    readonly utiliserInference: boolean;
+    readonly modeleLogique: string | null;
+    readonly limiteDepenseAutoriseeMicroUsdc: string;
+    readonly plafondComputeParCycleMicroUsdc: string | null;
+    readonly plafondFournisseurRestantMicroUsd: string | null;
+    readonly actionsAutorisees: readonly string[];
+    readonly selecteurFournisseur: string | null;
+    readonly nombreAppelsReseauMaximum: 1;
+  } {
+    if (this.configuration.mode !== "decision_simulee") {
+      throw new ControleurExperienceErreur(
+        "apercevoirDecisionReelleManuelle exige mode decision_simulee",
+      );
+    }
+    if (
+      this.environnementDecision === undefined ||
+      this.politiqueBudgetCognitif === undefined
+    ) {
+      throw new ControleurExperienceErreur(
+        "Environnement/politique de décision absents",
+      );
+    }
+    const agent =
+      identifiantAgent !== undefined
+        ? this.agents.find((a) => a.identite.identifiant === identifiantAgent)
+        : this.agents.find((a) => a.etatEconomique.etatSurvie !== "mort");
+    if (agent === undefined) {
+      throw new ControleurExperienceErreur("Aucun agent vivant disponible");
+    }
+    const numeroCycle = this.numeroCycleCourant + 1;
+    const observation = this.environnementDecision.produireObservation({
+      identifiantAgent: agent.identite.identifiant,
+      numeroCycle,
+    });
+    const ven = calculerValeurEconomiqueNette(agent.etatEconomique);
+    const enjeu = calculerEnjeuOpportunite(observation);
+    const choix = deciderBudgetCognitif({
+      etatEconomique: agent.etatEconomique,
+      runway: calculerRunwayEnCycles(
+        agent.etatEconomique,
+        this.configuration.parametresEconomiques
+          .coutOperationnelMinimalParCycleMicroUsdc,
+      ),
+      observation,
+      configuration: this.politiqueBudgetCognitif,
+      ...(this.configuration.xway !== undefined
+        ? {
+            plafondXwayMicroUsdc:
+              this.configuration.xway.plafondComputeParCycleMicroUsdc,
+          }
+        : {}),
+    });
+    return {
+      identifiantAgent: agent.identite.identifiant,
+      numeroCycle,
+      observation,
+      venMicroUsdc: ven.toString(10),
+      enjeuMicroUsdc: enjeu.toString(10),
+      utiliserInference: choix.utiliserInference,
+      modeleLogique: choix.modeleLogique,
+      limiteDepenseAutoriseeMicroUsdc:
+        choix.limiteDepenseAutoriseeMicroUsdc.toString(10),
+      plafondComputeParCycleMicroUsdc:
+        this.configuration.xway?.plafondComputeParCycleMicroUsdc.toString(10) ??
+        null,
+      plafondFournisseurRestantMicroUsd:
+        this.configuration.xway?.plafondDepenseFournisseurReelleMicroUsd?.toString(
+          10,
+        ) ?? null,
+      actionsAutorisees: observation.actionsAutorisees,
+      selecteurFournisseur:
+        this.configuration.xway?.fournisseur.selecteur ?? null,
+      nombreAppelsReseauMaximum: 1,
+    };
+  }
+
+  /**
+   * Exécute UNE décision réelle manuelle :
+   * 1 agent × 1 observation × 1 inférence (OpenAI via FournisseurInference) × 1 action simulée.
+   * Opt-in strict — jamais appelé par avancerUnCycle.
+   */
+  async executerDecisionReelleManuelle(options?: {
+    readonly identifiantAgent?: string;
+  }): Promise<{
+    readonly observation: ObservationOpportunite;
+    readonly decision: DecisionAgent;
+    readonly action: string;
+    readonly issue: string;
+    readonly coutCognitifMicroUsdc: string;
+    readonly attributionsXway: readonly {
+      readonly identifiantDemande: string;
+      readonly montantMicroUsdc: string;
+    }[];
+  }> {
+    if (this.configuration.mode !== "decision_simulee") {
+      throw new ControleurExperienceErreur(
+        "executerDecisionReelleManuelle exige mode decision_simulee",
+      );
+    }
+    if (
+      this.environnementDecision === undefined ||
+      this.politiqueBudgetCognitif === undefined
+    ) {
+      throw new ControleurExperienceErreur(
+        "Environnement/politique de décision absents",
+      );
+    }
+    if (this.configuration.xway?.fournisseur.selecteur !== "openai") {
+      throw new ControleurExperienceErreur(
+        "executerDecisionReelleManuelle exige fournisseur selecteur=openai",
+      );
+    }
+
+    const apercu = this.apercevoirDecisionReelleManuelle(
+      options?.identifiantAgent,
+    );
+    const agent = this.agents.find(
+      (a) => a.identite.identifiant === apercu.identifiantAgent,
+    );
+    if (agent === undefined) {
+      throw new ControleurExperienceErreur("Agent introuvable");
+    }
+
+    // Matérialise le cycle d'expérience comme avancer, mais borné à 1 agent.
+    if (this.statut === "en_pause") {
+      this.enregistrerControle("EXPERIENCE_REPRISE");
+    } else if (this.statut === "prete") {
+      this.enregistrerControle("EXPERIENCE_DEMARREE");
+    }
+    const numeroCycle = apercu.numeroCycle;
+    this.enregistrerEvenements([
+      creerEntreeCycleExperienceAvance({
+        identifiantExperience: this.configuration.identifiantExperience,
+        numeroCycle,
+        ...(this.datesEvenementsFixes !== undefined
+          ? { dateEnregistrement: this.datesEvenementsFixes }
+          : {}),
+      }),
+    ]);
+
+    const resultat = await executerCycleDecisionAgent({
+      environnement: this.environnementDecision,
+      politique: this.politiqueBudgetCognitif,
+      agent: {
+        identifiant: agent.identite.identifiant,
+        etatEconomique: agent.etatEconomique,
+      },
+      identifiantExperience: this.configuration.identifiantExperience,
+      numeroCycle,
+      coutOperationnelMinimalParCycleMicroUsdc:
+        this.configuration.parametresEconomiques
+          .coutOperationnelMinimalParCycleMicroUsdc,
+      autoriserFournisseurReel: true,
+      prochaineSequence: () =>
+        this.registre.consulterProchaineSequence(
+          this.configuration.identifiantExperience,
+        ),
+      enregistrerImmediatement: (evts) => {
+        this.enregistrerEvenements(evts);
+      },
+      ...(this.configuration.xway !== undefined
+        ? { configurationXway: this.configuration.xway }
+        : {}),
+      ...(this.passerelleXway !== undefined
+        ? { passerelle: this.passerelleXway }
+        : {}),
+      ...(this.configuration.identite?.active === true
+        ? { signataire: this.obtenirSignataire(agent.identite.identifiant) }
+        : {}),
+      ...(this.datesEvenementsFixes !== undefined
+        ? { dateEnregistrement: this.datesEvenementsFixes }
+        : {}),
+    });
+
+    this.assertAttributionsXwayInedites(resultat.attributionsComputeXway);
+
+    const provenanceDepenseCompute =
+      resultat.activite.depenseCompute > 0n &&
+      resultat.attributionsComputeXway.length > 0
+        ? {
+            origine: "xway_inference" as const,
+            attributionsXway: resultat.attributionsComputeXway,
+          }
+        : undefined;
+
+    const agentsApres: AgentExperience[] = [];
+    let tresorerie = this.tresorerie;
+    for (const a of this.agents) {
+      if (a.identite.identifiant !== agent.identite.identifiant) {
+        agentsApres.push(a);
+        continue;
+      }
+      if (a.etatEconomique.etatSurvie === "mort") {
+        agentsApres.push(a);
+        continue;
+      }
+      const eco = executerCycleEconomique({
+        identifiantExperience: this.configuration.identifiantExperience,
+        identifiantAgent: a.identite.identifiant,
+        numeroCycle,
+        parametres: this.configuration.parametresEconomiques,
+        etat: a.etatEconomique,
+        tresorerie,
+        activite: resultat.activite,
+        prefixeIdentifiant: `${a.identite.identifiant}-`,
+        ...(provenanceDepenseCompute !== undefined
+          ? { provenanceDepenseCompute }
+          : {}),
+        ...(this.datesEvenementsFixes !== undefined
+          ? { dateEnregistrement: this.datesEvenementsFixes }
+          : {}),
+      });
+      this.enregistrerEvenements(eco.evenements);
+      tresorerie = eco.tresorerie;
+      agentsApres.push({
+        identite: a.identite,
+        etatEconomique: eco.etat,
+      });
+    }
+    this.agents = agentsApres;
+    this.tresorerie = tresorerie;
+    this.numeroCycleCourant = numeroCycle;
+    this.statut = "en_cours";
+    this.historique = reconstruireHistoriqueParCycle(
+      filtrerEvenementsEconomiques(
+        this.registre.listerParExperience(
+          this.configuration.identifiantExperience,
+        ),
+      ),
+      this.agents,
+    );
+
+    return {
+      observation: resultat.observation,
+      decision: resultat.resultatMoteur.decision,
+      action: resultat.resultatAction.action,
+      issue: resultat.resultatAction.issue,
+      coutCognitifMicroUsdc:
+        resultat.resultatMoteur.coutCognitifMicroUsdc.toString(10),
+      attributionsXway: resultat.attributionsComputeXway.map((a) => ({
+        identifiantDemande: a.identifiantDemande,
+        montantMicroUsdc: a.montantMicroUsdc.toString(10),
+      })),
+    };
+  }
+
+  /**
+   * Branche decision_simulee : observation → décision → action → activité.
+   * Retourne null si le cycle économique est déjà exécuté (reprise).
+   * N'injecte PAS autoriserFournisseurReel — OpenAI uniquement hors avancer.
+   */
+  private async executerBrancheDecision(
+    agent: AgentExperience,
+    numeroCycle: number,
+  ): Promise<{
+    readonly activite: {
+      readonly revenuActivite: bigint;
+      readonly perteActivite: bigint;
+      readonly depenseCompute: bigint;
+      readonly depenseDonnees: bigint;
+      readonly fraisExecution: bigint;
+    };
+    readonly attributionsXway: readonly {
+      readonly identifiantDemande: string;
+      readonly montantMicroUsdc: bigint;
+    }[];
+  } | null> {
+    if (
+      this.environnementDecision === undefined ||
+      this.politiqueBudgetCognitif === undefined
+    ) {
+      throw new ControleurExperienceErreur(
+        "Mode decision_simulee sans environnement/politique figés",
+      );
+    }
+
+    const evenements = this.registre.listerParExperience(
+      this.configuration.identifiantExperience,
+    );
+    const reprise = reconstruireEtatRepriseCycleDecision({
+      evenements,
+      identifiantAgent: agent.identite.identifiant,
+      numeroCycle,
+    });
+
+    if (reprise?.cycleEconomiqueDejaExecute === true) {
+      return null;
+    }
+
+    if (
+      reprise?.resultatAction !== undefined &&
+      reprise.resultatMoteur !== undefined
+    ) {
+      const attributionsXway =
+        reprise.resultatMoteur.identifiantDemandeXway !== null &&
+        reprise.resultatMoteur.coutCognitifMicroUsdc > 0n
+          ? [
+              {
+                identifiantDemande: reprise.resultatMoteur.identifiantDemandeXway,
+                montantMicroUsdc: reprise.resultatMoteur.coutCognitifMicroUsdc,
+              },
+            ]
+          : [];
+      this.assertAttributionsXwayInedites(attributionsXway);
+      return {
+        activite: {
+          revenuActivite: reprise.resultatAction.activite.revenuActivite,
+          perteActivite: reprise.resultatAction.activite.perteActivite,
+          depenseCompute: reprise.resultatMoteur.coutCognitifMicroUsdc,
+          depenseDonnees: 0n,
+          fraisExecution: reprise.resultatAction.activite.fraisExecution,
+        },
+        attributionsXway,
+      };
+    }
+
+    const resultat = await executerCycleDecisionAgent({
+      environnement: this.environnementDecision,
+      politique: this.politiqueBudgetCognitif,
+      agent: {
+        identifiant: agent.identite.identifiant,
+        etatEconomique: agent.etatEconomique,
+      },
+      identifiantExperience: this.configuration.identifiantExperience,
+      numeroCycle,
+      coutOperationnelMinimalParCycleMicroUsdc:
+        this.configuration.parametresEconomiques
+          .coutOperationnelMinimalParCycleMicroUsdc,
+      prochaineSequence: () =>
+        this.registre.consulterProchaineSequence(
+          this.configuration.identifiantExperience,
+        ),
+      enregistrerImmediatement: (evts) => {
+        this.enregistrerEvenements(evts);
+      },
+      ...(this.configuration.xway !== undefined
+        ? { configurationXway: this.configuration.xway }
+        : {}),
+      ...(this.passerelleXway !== undefined
+        ? { passerelle: this.passerelleXway }
+        : {}),
+      ...(this.configuration.identite?.active === true
+        ? { signataire: this.obtenirSignataire(agent.identite.identifiant) }
+        : {}),
+      ...(this.datesEvenementsFixes !== undefined
+        ? { dateEnregistrement: this.datesEvenementsFixes }
+        : {}),
+      ...(reprise !== undefined ? { etatReprise: reprise } : {}),
+    });
+
+    this.assertAttributionsXwayInedites(resultat.attributionsComputeXway);
+    return {
+      activite: resultat.activite,
+      attributionsXway: resultat.attributionsComputeXway,
+    };
   }
 
   private enregistrerEvenements(

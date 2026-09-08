@@ -13,6 +13,7 @@
     "typecheck": "tsc -b --pretty false && pnpm --filter @esp/tableau-de-bord typecheck",
     "test": "vitest run",
     "test:inference-reelle": "tsx scripts/inference-reelle.ts",
+    "test:decision-reelle": "tsx scripts/decision-reelle.ts",
     "build": "pnpm -r --sort run build",
     "dev:controleur": "pnpm --filter @esp/controleur dev",
     "dev:tableau-de-bord": "pnpm --filter @esp/tableau-de-bord dev",

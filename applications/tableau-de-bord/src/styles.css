@@ -241,6 +241,26 @@ body {
   letter-spacing: 0.02em;
 }
 
+.activite-decisionnelle {
+  grid-column: 1 / -1;
+}
+
+.liste-decisions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.carte-decision {
+  border-top: 1px solid var(--bordure, #333);
+  padding-top: 0.65rem;
+}
+
+.carte-decision h3 {
+  margin: 0 0 0.35rem;
+  font-size: 0.95rem;
+}
+
 .historique {
   grid-column: 1 / span 5;
 }

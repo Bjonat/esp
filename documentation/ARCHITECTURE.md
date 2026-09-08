@@ -11,10 +11,13 @@ Phases livrées :
 - population / contrôleur / dashboard v0.1 ;
 - **Xway v0.1** — ressources cognitives (simulées + adaptateur OpenAI opt-in) ;
 - **Identité agent v0.1** — Ed25519, distincte de tout wallet ;
-- **Fournisseur IA réel v0.1** — OpenAI Responses, économie toujours simulée.
+- **Fournisseur IA réel v0.1** — OpenAI Responses, économie toujours simulée ;
+- **Moteur de décision agent v0.1** — observation → décision → action simulée → noyau.
 
 Aucune transaction réelle, aucun wallet Solana. IA réelle uniquement via opt-in
-explicite (`xway.fournisseur: openai`) + `OPENAI_API_KEY`.
+explicite (`xway.fournisseur: openai`) + `OPENAI_API_KEY` + commande manuelle
+(`pnpm test:inference-reelle` ou `pnpm test:decision-reelle -- --executer`).
+`avancer` / CI ne déclenchent jamais OpenAI.
 
 ## Organisation du monorepo
 
@@ -107,3 +110,4 @@ héritage / mutation ; tool calling ; rotation de clés ; HSM / Vault ;
 service réseau Xway indépendant.
 
 Voir [`FOURNISSEUR_IA_REEL.md`](./FOURNISSEUR_IA_REEL.md) pour l'adaptateur OpenAI v0.1.
+Voir [`MOTEUR_DECISION_AGENT.md`](./MOTEUR_DECISION_AGENT.md) pour la boucle décisionnelle.

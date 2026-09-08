@@ -10,6 +10,7 @@
     { "path": "../../paquets/registre-evenements" },
     { "path": "../../paquets/moteur-agent" },
     { "path": "../../paquets/xway" },
+    { "path": "../../paquets/environnement" },
     { "path": "../../adaptateurs/openai" }
   ]
 }

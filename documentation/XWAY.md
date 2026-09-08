@@ -187,3 +187,10 @@ Section `xway` dans `experiences/*.json`, figée dans `EXPERIENCE_CREEE`.
 Le contrat d'autorisation et le chemin `DEPENSE_COMPUTE` restent inchangés.
 Aucune clé API dans le protocole.
 Réconciliation explicite requise en cas de `resultat_indetermine`.
+
+Le moteur de décision agent consomme Xway via le même `FournisseurInference`
+(simulé en automatique ; OpenAI réel en commande manuelle
+`pnpm test:decision-reelle -- --executer`). Voir
+[`MOTEUR_DECISION_AGENT.md`](./MOTEUR_DECISION_AGENT.md).
+Chaque `INFERENCE_EXECUTEE` facturable conserve une attribution causale
+`identifiantDemande` → `DEPENSE_COMPUTE`.

@@ -47,6 +47,7 @@ Aucune absence de données n'est comblée par des mocks.
 - KPIs population / VEN / trésorerie / loyers / redevances
 - Carte de population (racines Genesis, états colorés, taille ~ VEN)
 - Activité récente (vrais événements du registre)
+- Section **Activité décisionnelle** (si mode `decision_simulee`)
 - Contrôle : Avancer d'un cycle / Démarrer / Pause
 - Trésorerie propriétaire
 - Mini historique VEN
@@ -62,7 +63,7 @@ Onglets :
 | Économie | Capital, obligations, VEN, HWM, totaux |
 | Activité | Chronologie registre |
 | Cognition / Xway | Demandes, modèles, jetons, coût imputé ESP, estimation fournisseur, proposition — SIMULÉ ou OPENAI RÉEL |
-| Décisions | « Moteur de décision non connecté » |
+| Décisions | Chaîne Observation → Choix cognitif → Proposition → Action → Résultat → Coût (registre) |
 | Recherche | « Aucune source de données ou recherche connectée » |
 | Portefeuille | « Aucun environnement financier connecté » |
 | Descendance | « Reproduction non activée » |

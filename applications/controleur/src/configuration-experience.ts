@@ -5,16 +5,27 @@ import type { MicroUsdc } from "@esp/protocole";
 import type { ConfigurationXway, ConfigurationXwayJson } from "@esp/xway";
 import { parserConfigurationXway } from "@esp/xway";
 import type {
+  ConfigurationEnvironnementOpportunites,
+  ConfigurationEnvironnementOpportunitesJson,
+} from "@esp/environnement";
+import { parserConfigurationEnvironnementOpportunites } from "@esp/environnement";
+import type {
+  ConfigurationPolitiqueBudgetCognitif,
+  ConfigurationPolitiqueBudgetCognitifJson,
+} from "@esp/moteur-agent";
+import { parserConfigurationPolitiqueBudgetCognitif } from "@esp/moteur-agent";
+import type {
   ConfigurationIdentite,
   ConfigurationIdentiteJson,
 } from "./configuration-identite.js";
 import { parserConfigurationIdentite } from "./configuration-identite.js";
 
 /**
- * Mode d'expérience v0.1 — simulation déterministe uniquement.
- * Replay / Shadow / Live restent des concepts futurs.
+ * Modes d'expérience v0.1.
+ * - simulation : simulateur de développement historique
+ * - decision_simulee : activité issue des décisions agent
  */
-export type ModeExperience = "simulation";
+export type ModeExperience = "simulation" | "decision_simulee";
 
 export type StatutExperience =
   | "configuree"
@@ -46,6 +57,8 @@ export interface ConfigurationExperienceJson {
   };
   readonly xway?: ConfigurationXwayJson;
   readonly identite?: ConfigurationIdentiteJson;
+  readonly environnementDecision?: ConfigurationEnvironnementOpportunitesJson;
+  readonly politiqueBudgetCognitif?: ConfigurationPolitiqueBudgetCognitifJson;
 }
 
 export interface ConfigurationExperience {
@@ -58,6 +71,8 @@ export interface ConfigurationExperience {
   readonly parametresEconomiques: ParametresEconomiquesExperience;
   readonly xway?: ConfigurationXway;
   readonly identite?: ConfigurationIdentite;
+  readonly environnementDecision?: ConfigurationEnvironnementOpportunites;
+  readonly politiqueBudgetCognitif?: ConfigurationPolitiqueBudgetCognitif;
 }
 
 export class ConfigurationExperienceInvalideErreur extends Error {
@@ -89,7 +104,7 @@ export function parserConfigurationExperience(
   if (brut.versionProtocole.trim() === "") {
     throw new ConfigurationExperienceInvalideErreur("versionProtocole requise");
   }
-  if (brut.mode !== "simulation") {
+  if (brut.mode !== "simulation" && brut.mode !== "decision_simulee") {
     throw new ConfigurationExperienceInvalideErreur(
       `mode non supporté en v0.1 : ${String(brut.mode)}`,
     );
@@ -126,6 +141,28 @@ export function parserConfigurationExperience(
 
   validerParametresEconomiques(parametres);
 
+  const environnementDecision =
+    brut.environnementDecision !== undefined
+      ? parserConfigurationEnvironnementOpportunites(brut.environnementDecision)
+      : undefined;
+  const politiqueBudgetCognitif =
+    brut.politiqueBudgetCognitif !== undefined
+      ? parserConfigurationPolitiqueBudgetCognitif(brut.politiqueBudgetCognitif)
+      : undefined;
+
+  if (brut.mode === "decision_simulee") {
+    if (environnementDecision === undefined) {
+      throw new ConfigurationExperienceInvalideErreur(
+        "mode decision_simulee exige environnementDecision",
+      );
+    }
+    if (politiqueBudgetCognitif === undefined) {
+      throw new ConfigurationExperienceInvalideErreur(
+        "mode decision_simulee exige politiqueBudgetCognitif",
+      );
+    }
+  }
+
   return {
     identifiantExperience: brut.identifiantExperience,
     versionProtocole: brut.versionProtocole,
@@ -141,6 +178,10 @@ export function parserConfigurationExperience(
       : {}),
     ...(brut.identite !== undefined
       ? { identite: parserConfigurationIdentite(brut.identite) }
+      : {}),
+    ...(environnementDecision !== undefined ? { environnementDecision } : {}),
+    ...(politiqueBudgetCognitif !== undefined
+      ? { politiqueBudgetCognitif }
       : {}),
   };
 }

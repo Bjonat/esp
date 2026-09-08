@@ -12,10 +12,12 @@ Il orchestre :
 3. création ou reprise de l'expérience ;
 4. population Genesis ;
 5. avance cycle par cycle ;
-6. simulation d'activité (développement) ;
+6. activité économique :
+   - mode `simulation` : simulateur de développement historique ;
+   - mode `decision_simulee` : observation → décision → action → résultat ;
 7. exécution du noyau économique ;
 8. enregistrement des événements ;
-9. projections de lecture ;
+9. projections de lecture (population, Xway, **décisions**) ;
 10. API HTTP locale.
 
 ## Source de vérité
@@ -55,9 +57,11 @@ seconde comptabilité de cycle incompatible avec les événements économiques.
 
 Fichiers dans `experiences/`.
 
-Profil de développement actuel :
+Profils de développement :
 
-`experiences/developpement-population-v01.json`
+- `experiences/developpement-population-v01.json` — mode `simulation`
+- `experiences/developpement-decision-v01.json` — mode `decision_simulee`
+- `experiences/developpement-decision-openai-v01.exemple.json` — exemple opt-in (jamais par défaut)
 
 Ces valeurs sont documentées comme :
 
@@ -94,6 +98,8 @@ Identifié clairement comme **SIMULATEUR DE DÉVELOPPEMENT**.
 
 ## Cycle
 
+### Mode `simulation`
+
 Pour chaque agent non mort :
 
 1. (si Xway actif) politique cognitive de développement → demandes Xway ;
@@ -104,7 +110,22 @@ Pour chaque agent non mort :
 6. enregistrement append-only ;
 7. mise à jour trésorerie propriétaire.
 
-Voir aussi [`XWAY.md`](./XWAY.md).
+### Mode `decision_simulee`
+
+Pour chaque agent non mort :
+
+1. observation d'opportunité (environnement simulé) ;
+2. choix cognitif (politique budget — sans LLM) ;
+3. inférence Xway **uniquement** si fournisseur simulé branché ;
+4. validation de proposition → `DecisionAgent` (repli `attendre` sinon) ;
+5. action environnementale → résultat ;
+6. consolidation `ResultatActiviteCycle` (+ compute cognitif) ;
+7. `executerCycleEconomique` (noyau) ;
+8. persistance immédiate pour reprise sans double action.
+
+Voir [`MOTEUR_DECISION_AGENT.md`](./MOTEUR_DECISION_AGENT.md),
+[`ENVIRONNEMENT_DECISION_SIMULE.md`](./ENVIRONNEMENT_DECISION_SIMULE.md),
+[`XWAY.md`](./XWAY.md).
 
 Un agent mort :
 

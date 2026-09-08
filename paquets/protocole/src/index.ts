@@ -78,14 +78,46 @@ export type {
   TypeEvenementEsp,
 } from "./evenements-esp.js";
 export {
+  estEvenementDecision,
   estEvenementEconomique,
   estEvenementIdentite,
   estEvenementXway,
   estTypeEvenementEsp,
+  filtrerEvenementsDecision,
   filtrerEvenementsEconomiques,
   filtrerEvenementsIdentite,
   filtrerEvenementsXway,
 } from "./evenements-esp.js";
+
+export type {
+  EntreeEvenementDecision,
+  TypeEvenementDecision,
+} from "./evenements-decision.js";
+export {
+  TYPES_EVENEMENT_DECISION,
+  creerEntreeActionEnvironnementExecutee,
+  creerEntreeChoixCognitifEffectue,
+  creerEntreeDecisionAgentRefusee,
+  creerEntreeDecisionAgentValidee,
+  creerEntreeObservationAgentRecue,
+  creerEntreePropositionDecisionProduite,
+  creerEntreeResultatActionObserve,
+  estTypeEvenementDecision,
+} from "./evenements-decision.js";
+
+export type {
+  ActionEnvironnementDecision,
+  ObservationAgent,
+  ObservationOpportunite,
+} from "./observation-agent.js";
+export { observationOpportuniteVersObservationAgent } from "./observation-agent.js";
+
+export type {
+  ChoixCognitifAgent,
+  DecisionAgent,
+  PropositionDecision,
+  SourceDecisionAgent,
+} from "./decision-agent.js";
 
 export type {
   ChargeDemandeInference,

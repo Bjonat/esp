@@ -28,3 +28,34 @@ export type {
   SignataireAgent,
   StatutSignataireAgent,
 } from "./signataire-agent.js";
+
+export type {
+  ComportementSansInference,
+  ConfigurationPolitiqueBudgetCognitif,
+  ConfigurationPolitiqueBudgetCognitifJson,
+  EntreePolitiqueBudgetCognitif,
+} from "./politique-budget-cognitif.js";
+export {
+  calculerEnjeuOpportunite,
+  deciderBudgetCognitif,
+  deciderSansInference,
+  parserConfigurationPolitiqueBudgetCognitif,
+  serialiserConfigurationPolitiqueBudgetCognitif,
+} from "./politique-budget-cognitif.js";
+
+export type {
+  EntreeValidationDecision,
+  ResultatValidationDecision,
+} from "./validateur-decision.js";
+export {
+  parserPropositionDepuisTexte,
+  validerPropositionDecision,
+} from "./validateur-decision.js";
+
+export type {
+  ExecuteurInferenceDecision,
+  OptionsMoteurDecision,
+  ResultatInferenceDecision,
+  ResultatMoteurDecision,
+} from "./moteur-decision.js";
+export { executerMoteurDecision } from "./moteur-decision.js";

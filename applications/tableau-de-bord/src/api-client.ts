@@ -179,6 +179,75 @@ export interface ProjectionXwayAgent {
   readonly budgetCognitifDernierCycle: MontantApi | null;
 }
 
+export interface ProjectionDecisionAgent {
+  readonly identifiantDecision: string;
+  readonly identifiantObservation: string;
+  readonly identifiantAgent: string;
+  readonly numeroCycle: number;
+  readonly observation: {
+    readonly typeObservation: string;
+    readonly probabiliteSuccesBps: number | null;
+    readonly gainSiSucces: MontantApi | null;
+    readonly perteSiEchec: MontantApi | null;
+    readonly fraisAction: MontantApi | null;
+    readonly description: string | null;
+    readonly actionsAutorisees: readonly string[];
+  };
+  readonly choixCognitif: {
+    readonly utiliserInference: boolean;
+    readonly modeleLogique: string | null;
+    readonly limiteDepense: MontantApi | null;
+    readonly motif: string | null;
+  } | null;
+  readonly proposition: {
+    readonly action: string;
+    readonly confianceBps: number;
+    readonly resume: string;
+  } | null;
+  readonly decision: {
+    readonly action: string;
+    readonly confianceBps: number;
+    readonly resume: string;
+    readonly sourceDecision: string;
+    readonly modeleLogique: string | null;
+    readonly statutValidation: string;
+  } | null;
+  readonly action: string | null;
+  readonly resultat: {
+    readonly issue: string;
+    readonly revenuActivite: MontantApi;
+    readonly perteActivite: MontantApi;
+    readonly fraisExecution: MontantApi;
+  } | null;
+  readonly coutCognitif: MontantApi;
+  readonly identifiantDemandeXway: string | null;
+  readonly identifiantAction: string | null;
+}
+
+export interface ProjectionActiviteDecisionnelle {
+  readonly decisions: number;
+  readonly decisionsAvecInference: number;
+  readonly decisionsSansInference: number;
+  readonly actionsAgir: number;
+  readonly actionsAttendre: number;
+  readonly succes: number;
+  readonly echecs: number;
+  readonly computeCognitif: MontantApi;
+  readonly revenusActivite: MontantApi;
+  readonly pertesActivite: MontantApi;
+  readonly coutCognitifParDecision: MontantApi | null;
+  readonly resultatActiviteSurCoutCognitif: string | null;
+  readonly cycleCourant: {
+    readonly decisions: number;
+    readonly pourcentAvecInference: number | null;
+    readonly coutCognitif: MontantApi;
+    readonly actionsAgir: number;
+    readonly actionsAttendre: number;
+    readonly succes: number;
+    readonly echecs: number;
+  };
+}
+
 export interface InstantaneEsp {
   readonly experience: ProjectionExperience;
   readonly population: ProjectionPopulation;
@@ -188,6 +257,7 @@ export interface InstantaneEsp {
   readonly activite: readonly ProjectionEvenement[];
   readonly historique: readonly PointHistorique[];
   readonly xway: ProjectionXwayGlobale;
+  readonly activiteDecisionnelle: ProjectionActiviteDecisionnelle;
 }
 
 async function lireJson<T>(chemin: string, init?: RequestInit): Promise<T> {
@@ -232,6 +302,7 @@ export async function chargerInstantane(): Promise<InstantaneEsp> {
     activiteCorps,
     historiqueCorps,
     xway,
+    activiteDecisionnelle,
   ] = await Promise.all([
     lireJson<ProjectionExperience>("/api/experience"),
     lireJson<ProjectionPopulation>("/api/population"),
@@ -241,6 +312,7 @@ export async function chargerInstantane(): Promise<InstantaneEsp> {
     lireJson<{ evenements: ProjectionEvenement[] }>("/api/activite-recente"),
     lireJson<{ points: PointHistorique[] }>("/api/historique"),
     lireJson<ProjectionXwayGlobale>("/api/xway"),
+    lireJson<ProjectionActiviteDecisionnelle>("/api/activite-decisionnelle"),
   ]);
 
   return {
@@ -252,6 +324,7 @@ export async function chargerInstantane(): Promise<InstantaneEsp> {
     activite: activiteCorps.evenements,
     historique: historiqueCorps.points,
     xway,
+    activiteDecisionnelle,
   };
 }
 
@@ -282,4 +355,13 @@ export async function chargerXwayAgent(
   return lireJson<ProjectionXwayAgent>(
     `/api/agents/${encodeURIComponent(identifiant)}/xway`,
   );
+}
+
+export async function chargerDecisionsAgent(
+  identifiant: string,
+): Promise<readonly ProjectionDecisionAgent[]> {
+  const corps = await lireJson<{
+    decisions: ProjectionDecisionAgent[];
+  }>(`/api/agents/${encodeURIComponent(identifiant)}/decisions`);
+  return corps.decisions;
 }

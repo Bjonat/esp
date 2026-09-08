@@ -1,0 +1,81 @@
+{
+  "_commentaire": [
+    "EXEMPLE OPT-IN — NE PAS ACTIVER AUTOMATIQUEMENT",
+    "VALEURS DE DÉMONSTRATION — NON CANONIQUES",
+    "Requiert OPENAI_API_KEY (env processus) + pnpm test:decision-reelle -- --executer",
+    "Un cycle normal (avancer) NE DOIT JAMAIS appeler OpenAI même avec ce fichier.",
+    "Utilise le VRAI adaptateur @esp/adaptateur-openai (gpt-5.6-luna / luna_reel_v01)."
+  ],
+  "identifiantExperience": "exp-dev-decision-openai-v01",
+  "versionProtocole": "0.1.0",
+  "mode": "decision_simulee",
+  "graineSimulation": 777777,
+  "taillePopulationInitiale": 1,
+  "capitalInitialParAgentMicroUsdc": "10000000",
+  "parametresEconomiques": {
+    "version": "demo-decision-openai-v01",
+    "loyerInfrastructureMicroUsdc": "50000",
+    "periodeLoyerEnCycles": 10,
+    "tauxRedevanceProprietairePointsDeBase": "500",
+    "coutOperationnelMinimalParCycleMicroUsdc": "30000",
+    "seuilRunwaySainEnCycles": 20,
+    "seuilRunwayContraintEnCycles": 5,
+    "cyclesDormanceAvantMort": 3
+  },
+  "environnementDecision": {
+    "identifiant": "environnement-opportunites-simulees",
+    "version": "0.1.0",
+    "probabiliteSuccesBaseBps": 6500,
+    "amplitudeProbabiliteBps": 500,
+    "gainSiSuccesMicroUsdc": "800000",
+    "perteSiEchecMicroUsdc": "400000",
+    "fraisActionMicroUsdc": "20000",
+    "fraisAttendreMicroUsdc": "0"
+  },
+  "politiqueBudgetCognitif": {
+    "identifiant": "politique-budget-cognitif-agent",
+    "version": "0.1.0",
+    "seuilEnjeuPourInferenceMicroUsdc": "1000",
+    "partMaxVenParCycleBps": 100,
+    "plafondCognitifMicroUsdc": "50000",
+    "modeleLogique": "luna_reel_v01",
+    "comportementSansInference": "attendre",
+    "refuserSiCritiqueOuDormant": true
+  },
+  "xway": {
+    "active": true,
+    "plafondComputeParCycleMicroUsdc": "50000",
+    "fournisseur": "openai",
+    "timeoutInferenceMs": 30000,
+    "plafondDepenseFournisseurReelleMicroUsd": "100000",
+    "baremeCoutInference": {
+      "fournisseur": "fournisseur-inference-openai",
+      "modeleLogique": "luna_reel_v01",
+      "modeleExterne": "gpt-5.6-luna",
+      "versionBareme": "openai-luna-v01-2026-09",
+      "deviseReference": "USD",
+      "coutParMillionJetonsEntreeMicroUsd": "200000",
+      "coutParMillionJetonsSortieMicroUsd": "1200000",
+      "coutParMillionJetonsEntreeCacheMicroUsd": "20000",
+      "dateReference": "2026-09-01"
+    },
+    "modeles": [
+      {
+        "identifiant": "luna_reel_v01",
+        "libelle": "Luna réel v0.1 (imputation ESP)",
+        "coutParMillionJetonsEntreeMicroUsdc": "2000000",
+        "coutParMillionJetonsSortieMicroUsdc": "6000000",
+        "nombreMaxJetonsSortie": 256
+      }
+    ],
+    "politiqueCognitive": {
+      "identifiant": "politique-budget-cognitif-agent",
+      "version": "0.1.0"
+    }
+  },
+  "identite": {
+    "active": true,
+    "algorithme": "ed25519",
+    "version": "0.1.0"
+  }
+}

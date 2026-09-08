@@ -216,6 +216,17 @@ unset ESP_SMOKE_OPENAI
 - Métriques : modèle, jetons, coût imputé ESP, estimation fournisseur, latence, proposition ;
 - Jamais « argent réel de l'agent ».
 
+## Moteur de décision
+
+Le moteur de décision agent v0.1 peut consommer ce même adaptateur OpenAI
+en opt-in manuel (`pnpm test:decision-reelle -- --executer`) :
+
+observation → politique cognitive → Xway → `FournisseurInferenceOpenAi`
+→ proposition → validation → action **environnement simulé** → noyau.
+
+Voir [`MOTEUR_DECISION_AGENT.md`](./MOTEUR_DECISION_AGENT.md).
+`avancer` ne déclenche jamais OpenAI.
+
 ## Limites v0.1
 
 - Un seul modèle réel ;
