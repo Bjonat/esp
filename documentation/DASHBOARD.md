@@ -68,7 +68,8 @@ Onglets :
 | Performance | Fitness descriptive multidimensionnelle — **aucune sélection active** |
 | Recherche | « Aucune source de données ou recherche connectée » |
 | Portefeuille | « Aucun environnement financier connecté » |
-| Descendance | « Reproduction non activée » |
+| Descendance | Lignée, parent, enfants, stats demandées/autorisées/refusées/terminées, dotations, coûts — aucune sélection |
+
 
 L'écran principal affiche aussi une section **Xway** globale
 (demandes / autorisations / refus / coûts / répartition modèles).

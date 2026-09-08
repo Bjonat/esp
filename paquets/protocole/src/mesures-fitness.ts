@@ -79,6 +79,16 @@ export type MesuresEconomieFitness = {
   readonly resultatActiviteBrutMicroUsdc: MicroUsdc;
   readonly resultatOperationnelAvantContratMicroUsdc: MicroUsdc;
   readonly resultatApresContratMicroUsdc: MicroUsdc;
+  /**
+   * Coûts de reproduction payés dans la fenêtre (COUT_REPRODUCTION_PAYE).
+   * Distinct du résultat opérationnel — jamais compté comme PERTE_ACTIVITE.
+   */
+  readonly coutsReproductionPayesMicroUsdc: MicroUsdc;
+  /**
+   * resultatApresContrat − coutsReproductionPayes.
+   * Coût reproductif = investissement distinct, non neutralisé comme exogène.
+   */
+  readonly resultatEconomiqueApresReproductionMicroUsdc: MicroUsdc;
 };
 
 export type MesuresDecisionFitness = {
@@ -296,6 +306,10 @@ function appliquerEvenementEconomique(
       }
       break;
     }
+    case "COUT_REPRODUCTION_PAYE": {
+      brouillon.capitalLiquide -= lireMontantSafe(charge, "montantMicroUsdc");
+      break;
+    }
     case "ETAT_SURVIE_MODIFIE": {
       const vers = charge.vers;
       if (
@@ -439,9 +453,14 @@ export function calculerMesuresFitnessAgent(options: {
     }
   }
   const cycleCourant = options.cycleCourant ?? cycleMax;
-  const fenetre: FenetreEvaluation = options.fenetre ?? {
+  const fenetreDemandee: FenetreEvaluation = options.fenetre ?? {
     cycleDebut: cycleNaissance,
     cycleFin: cycleCourant,
+  };
+  // Jamais de cycles antérieurs à la naissance de l'agent.
+  const fenetre: FenetreEvaluation = {
+    cycleDebut: Math.max(fenetreDemandee.cycleDebut, cycleNaissance),
+    cycleFin: fenetreDemandee.cycleFin,
   };
   if (fenetre.cycleDebut > fenetre.cycleFin) {
     throw new Error(
@@ -459,6 +478,7 @@ export function calculerMesuresFitnessAgent(options: {
   let capitalisationFenetre = 0n;
   let transfertsRecus = 0n;
   let transfertsEnvoyes = 0n;
+  let coutsReproductionFenetre = 0n;
 
   let picVen = 0n;
   let drawdownMax = 0n;
@@ -541,6 +561,10 @@ export function calculerMesuresFitnessAgent(options: {
         } else if (charge.sens === "sortie") {
           transfertsEnvoyes += m;
         }
+      }
+      if (evenement.type === "COUT_REPRODUCTION_PAYE") {
+        // Coût réel système — NON neutralisé comme flux exogène.
+        coutsReproductionFenetre += lireMontantSafe(charge, "montantMicroUsdc");
       }
       if (evenement.type === "DEMANDE_INFERENCE_RECUE") {
         demandesInference += 1;
@@ -718,8 +742,10 @@ export function calculerMesuresFitnessAgent(options: {
   const resultatOp = resultatBrut - compute - donnees - frais;
   const resultatApres = resultatOp - loyers - redevances;
   const variationVen = totFin.ven - totDebut.ven;
+  // Neutralise capitalisation + transferts ; CONSERVE loyer/redevance/coût repro.
   const variationNeutralisee =
     variationVen - capitalisationFenetre - transfertsRecus + transfertsEnvoyes;
+  const resultatApresReproduction = resultatApres - coutsReproductionFenetre;
 
   // Stats décisions
   let nombreDecisions = 0;
@@ -835,6 +861,8 @@ export function calculerMesuresFitnessAgent(options: {
       resultatActiviteBrutMicroUsdc: resultatBrut,
       resultatOperationnelAvantContratMicroUsdc: resultatOp,
       resultatApresContratMicroUsdc: resultatApres,
+      coutsReproductionPayesMicroUsdc: coutsReproductionFenetre,
+      resultatEconomiqueApresReproductionMicroUsdc: resultatApresReproduction,
     },
     decision: {
       nombreDecisions,

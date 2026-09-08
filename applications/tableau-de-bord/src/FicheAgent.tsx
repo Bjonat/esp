@@ -90,6 +90,10 @@ export function FicheAgent(props: Props) {
             <dd>{agent.identifiantParent ?? "— (Genesis)"}</dd>
           </div>
           <div>
+            <dt>Lignée</dt>
+            <dd className="mono">{agent.identifiantLignee ?? agent.identifiant}</dd>
+          </div>
+          <div>
             <dt>État</dt>
             <dd className={`etat-texte ${agent.etatSurvie}`}>{agent.etatSurvie}</dd>
           </div>
@@ -473,10 +477,63 @@ export function FicheAgent(props: Props) {
       )}
       {props.onglet === "descendance" && (
         <div>
-          <p className="placeholder-honnete">Reproduction non activée</p>
           <p className="rappel">
-            Enfants : {String(agent.identifiantsEnfants.length)}
+            Reproduction mécanique v0.1 — aucune sélection par fitness.
           </p>
+          <dl className="metriques-compactes">
+            <div>
+              <dt>Génération</dt>
+              <dd>{String(agent.generation)}</dd>
+            </div>
+            <div>
+              <dt>Parent</dt>
+              <dd className="mono">{agent.identifiantParent ?? "— (Genesis)"}</dd>
+            </div>
+            <div>
+              <dt>Lignée</dt>
+              <dd className="mono">{agent.identifiantLignee ?? agent.identifiant}</dd>
+            </div>
+            <div>
+              <dt>Cycle naissance</dt>
+              <dd>{String(agent.cycleNaissance)}</dd>
+            </div>
+            <div>
+              <dt>Enfants</dt>
+              <dd>{String(agent.identifiantsEnfants.length)}</dd>
+            </div>
+            <div>
+              <dt>Demandées / autorisées / refusées / terminées</dt>
+              <dd>
+                {String(agent.reproduction?.reproductionsDemandees ?? 0)} /{" "}
+                {String(agent.reproduction?.reproductionsAutorisees ?? 0)} /{" "}
+                {String(agent.reproduction?.reproductionsRefusees ?? 0)} /{" "}
+                {String(agent.reproduction?.reproductionsTerminees ?? 0)}
+              </dd>
+            </div>
+            <div>
+              <dt>Dotations cumulées</dt>
+              <dd>
+                {agent.reproduction?.dotationsCumulees.usdc ?? "0"} USDC
+              </dd>
+            </div>
+            <div>
+              <dt>Coûts reproductifs</dt>
+              <dd>
+                {agent.reproduction?.coutsReproductifsCumules.usdc ?? "0"} USDC
+              </dd>
+            </div>
+          </dl>
+          {agent.identifiantsEnfants.length > 0 ? (
+            <ul className="liste-enfants">
+              {agent.identifiantsEnfants.map((id) => (
+                <li key={id} className="mono">
+                  {id}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="rappel">Aucun enfant.</p>
+          )}
         </div>
       )}
     </section>

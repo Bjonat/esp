@@ -7,6 +7,7 @@ export {
   ControleurExperienceErreur,
   creerControleurExperience,
 } from "./controleur.js";
+export type { ResultatReproductionApi } from "./controleur.js";
 
 export type {
   ConfigurationExperience,
@@ -46,6 +47,7 @@ export {
   projeterArbreGenealogique,
   projeterPopulation,
   projeterTresorerie,
+  reconstruireConfigurationsHeritablesDepuisEvenements,
   reconstruirePopulationDepuisEvenements,
   reconstruireTresorerieProprietaire,
 } from "./projections.js";

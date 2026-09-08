@@ -1,8 +1,10 @@
 import type {
   Agent,
+  ConfigurationHeritableAgent,
   EtatEconomiqueAgent,
   EtatSurvie,
   EvenementEconomique,
+  EvenementEsp,
   MicroUsdc,
   TresorerieProprietaire,
 } from "@esp/protocole";
@@ -11,10 +13,12 @@ import {
   calculerSoldeNetTresorerie,
   calculerValeurEconomiqueNette,
   creerTresorerieProprietaire,
+  enregistrerCoutReproductionEncaisse,
   enregistrerDepenseInfrastructureProprietaire,
   enregistrerLoyerEncaisse,
   enregistrerRedevanceEncaissee,
   lireMontantChargeUtile,
+  parserConfigurationHeritable,
   reconstruireEtatEconomique,
 } from "@esp/protocole";
 import type { ParametresEconomiquesExperience } from "@esp/protocole";
@@ -22,12 +26,17 @@ import type { MontantApi } from "./serialisation-api.js";
 import { serialiserMontantApi } from "./serialisation-api.js";
 import type { ModeExperience, StatutExperience } from "./configuration-experience.js";
 import type { ProjectionIdentiteAgent } from "./projections-identite.js";
+import type { ProjectionStatistiquesReproductionAgent } from "./projections-reproduction.js";
 
 /** Identité d'agent enrichie pour l'observation (généalogie prête). */
 export interface IdentiteAgentExperience {
   readonly identifiant: string;
   readonly generation: number;
   readonly identifiantParent?: string;
+  /**
+   * Lignée fondatrice. Fallback reconstruction : agent id si génération 0 / sans parent.
+   */
+  readonly identifiantLignee: string;
   readonly indexPopulation: number;
   readonly cycleNaissance: number;
   readonly dateNaissance: string;
@@ -36,6 +45,7 @@ export interface IdentiteAgentExperience {
 export interface AgentExperience {
   readonly identite: IdentiteAgentExperience;
   readonly etatEconomique: EtatEconomiqueAgent;
+  readonly configurationHeritable?: ConfigurationHeritableAgent;
 }
 
 export interface ProjectionMontantsAgent {
@@ -56,6 +66,7 @@ export interface ProjectionAgent {
   readonly identifiant: string;
   readonly generation: number;
   readonly identifiantParent: string | null;
+  readonly identifiantLignee: string;
   readonly cycleNaissance: number;
   readonly dateNaissance: string;
   readonly etatSurvie: EtatSurvie;
@@ -64,11 +75,17 @@ export interface ProjectionAgent {
   readonly dernierCycleActif: number;
   readonly economie: ProjectionMontantsAgent;
   readonly identifiantsEnfants: readonly string[];
+  /** Snapshot configuration héritable (jamais de secrets). */
+  readonly configurationHeritable?: ConfigurationHeritableAgent;
   /** Identité cryptographique publique — jamais de clé privée. */
   readonly identite?: ProjectionIdentiteAgent;
+  /** Stats reproductives (parent) — registre uniquement. */
+  readonly reproduction?: ProjectionStatistiquesReproductionAgent;
 }
 
 export interface ProjectionPopulation {
+  /** Alias explicite de populationTotale (taille actuelle, vivants + morts). */
+  readonly taillePopulationActuelle: number;
   readonly populationTotale: number;
   readonly agentsSain: number;
   readonly agentsContraints: number;
@@ -83,11 +100,29 @@ export interface ProjectionPopulation {
   readonly obligationsTotales: MontantApi;
   readonly loyersCumulesVerses: MontantApi;
   readonly redevancesCumulees: MontantApi;
+  /**
+   * Descendants non-Genesis (AGENT_CREE avec parent) depuis le début.
+   */
+  readonly naissancesCumulees: number;
+  /**
+   * AGENT_CREE reproductifs dont cycleNaissance == cycle observé.
+   * Genesis exclu.
+   */
+  readonly naissancesCycle: number;
+  /**
+   * Nombre de identifiantLignee distincts avec ≥1 agent non mort.
+   */
+  readonly nombreLigneesVivantes: number;
+  readonly ligneesVivantes: number;
+  readonly dotationsInternesCumulees: MontantApi;
+  readonly coutsReproductifsCumules: MontantApi;
+  readonly generationsPresentes: readonly number[];
 }
 
 export interface ProjectionTresorerie {
   readonly revenusLoyers: MontantApi;
   readonly revenusRedevances: MontantApi;
+  readonly revenusCoutsReproduction: MontantApi;
   readonly depensesInfrastructure: MontantApi;
   readonly soldeNet: MontantApi;
 }
@@ -96,6 +131,7 @@ export interface NoeudArbreGenealogique {
   readonly identifiant: string;
   readonly generation: number;
   readonly identifiantParent: string | null;
+  readonly identifiantLignee: string;
   readonly etatSurvie: EtatSurvie;
   readonly valeurEconomiqueNette: MontantApi;
 }
@@ -109,8 +145,8 @@ export interface ProjectionArbreGenealogique {
   readonly noeuds: readonly NoeudArbreGenealogique[];
   readonly relations: readonly RelationArbreGenealogique[];
   readonly racines: readonly string[];
-  readonly reproductionActivee: false;
-  readonly message: "Reproduction non activée";
+  readonly reproductionActivee: boolean;
+  readonly message: string;
 }
 
 export interface ProjectionEvenement {
@@ -181,6 +217,32 @@ function sommer(
   return total;
 }
 
+function calculerDotationsInternesCumulees(
+  evenements: readonly EvenementEsp[] | undefined,
+): MicroUsdc {
+  if (evenements === undefined) {
+    return 0n;
+  }
+  let total = 0n;
+  for (const evenement of evenements) {
+    if (evenement.type !== "TRANSFERT_INTERNE") {
+      continue;
+    }
+    if (evenement.chargeUtile.motif !== "dotation_naissance") {
+      continue;
+    }
+    if (evenement.chargeUtile.sens !== "sortie") {
+      continue;
+    }
+    try {
+      total += lireMontantChargeUtile(evenement.chargeUtile, "montantMicroUsdc");
+    } catch {
+      // charge malformée — ignore pour la projection
+    }
+  }
+  return total;
+}
+
 export function projeterMontantsAgent(
   etat: EtatEconomiqueAgent,
 ): ProjectionMontantsAgent {
@@ -215,6 +277,7 @@ export function projeterAgent(
     identifiant: agent.identite.identifiant,
     generation: agent.identite.generation,
     identifiantParent: agent.identite.identifiantParent ?? null,
+    identifiantLignee: agent.identite.identifiantLignee,
     cycleNaissance: agent.identite.cycleNaissance,
     dateNaissance: agent.identite.dateNaissance,
     etatSurvie: agent.etatEconomique.etatSurvie,
@@ -223,6 +286,9 @@ export function projeterAgent(
     dernierCycleActif: agent.etatEconomique.dernierNumeroCycle,
     economie: projeterMontantsAgent(agent.etatEconomique),
     identifiantsEnfants: enfantsParParent.get(agent.identite.identifiant) ?? [],
+    ...(agent.configurationHeritable !== undefined
+      ? { configurationHeritable: agent.configurationHeritable }
+      : {}),
     ...(projectionIdentite !== undefined
       ? { identite: projectionIdentite }
       : {}),
@@ -233,14 +299,30 @@ export function projeterPopulation(
   agents: readonly AgentExperience[],
   numeroCycleCourant: number,
   tresorerie: TresorerieProprietaire,
+  evenements?: readonly EvenementEsp[],
 ): ProjectionPopulation {
   const parEtat = compterParEtat(agents);
   const vivants =
     parEtat.sain + parEtat.contraint + parEtat.critique + parEtat.dormant;
   let generationMaximale = 0;
+  const generations = new Set<number>();
+  const ligneesVivantes = new Set<string>();
+  let naissancesCumulees = 0;
+  let naissancesCycle = 0;
+
   for (const agent of agents) {
     if (agent.identite.generation > generationMaximale) {
       generationMaximale = agent.identite.generation;
+    }
+    generations.add(agent.identite.generation);
+    if (agent.identite.identifiantParent !== undefined) {
+      naissancesCumulees += 1;
+      if (agent.identite.cycleNaissance === numeroCycleCourant) {
+        naissancesCycle += 1;
+      }
+    }
+    if (agent.etatEconomique.etatSurvie !== "mort") {
+      ligneesVivantes.add(agent.identite.identifiantLignee);
     }
   }
 
@@ -252,10 +334,10 @@ export function projeterPopulation(
     agents,
     (e) => e.totalRedevancesProprietairePayees,
   );
-
-  void tresorerie;
+  const dotationsInternesCumulees = calculerDotationsInternesCumulees(evenements);
 
   return {
+    taillePopulationActuelle: agents.length,
     populationTotale: agents.length,
     agentsSain: parEtat.sain,
     agentsContraints: parEtat.contraint,
@@ -270,6 +352,15 @@ export function projeterPopulation(
     obligationsTotales: serialiserMontantApi(obligationsTotales),
     loyersCumulesVerses: serialiserMontantApi(loyersCumulesVerses),
     redevancesCumulees: serialiserMontantApi(redevancesCumulees),
+    naissancesCumulees,
+    naissancesCycle,
+    nombreLigneesVivantes: ligneesVivantes.size,
+    ligneesVivantes: ligneesVivantes.size,
+    dotationsInternesCumulees: serialiserMontantApi(dotationsInternesCumulees),
+    coutsReproductifsCumules: serialiserMontantApi(
+      tresorerie.revenusCoutsReproduction,
+    ),
+    generationsPresentes: [...generations].sort((a, b) => a - b),
   };
 }
 
@@ -279,6 +370,9 @@ export function projeterTresorerie(
   return {
     revenusLoyers: serialiserMontantApi(tresorerie.revenusLoyers),
     revenusRedevances: serialiserMontantApi(tresorerie.revenusRedevances),
+    revenusCoutsReproduction: serialiserMontantApi(
+      tresorerie.revenusCoutsReproduction,
+    ),
     depensesInfrastructure: serialiserMontantApi(
       tresorerie.depensesInfrastructure,
     ),
@@ -288,11 +382,13 @@ export function projeterTresorerie(
 
 export function projeterArbreGenealogique(
   agents: readonly AgentExperience[],
+  reproductionActivee = false,
 ): ProjectionArbreGenealogique {
   const noeuds: NoeudArbreGenealogique[] = agents.map((agent) => ({
     identifiant: agent.identite.identifiant,
     generation: agent.identite.generation,
     identifiantParent: agent.identite.identifiantParent ?? null,
+    identifiantLignee: agent.identite.identifiantLignee,
     etatSurvie: agent.etatEconomique.etatSurvie,
     valeurEconomiqueNette: serialiserMontantApi(
       calculerValeurEconomiqueNette(agent.etatEconomique),
@@ -317,8 +413,10 @@ export function projeterArbreGenealogique(
     noeuds,
     relations,
     racines,
-    reproductionActivee: false,
-    message: "Reproduction non activée",
+    reproductionActivee,
+    message: reproductionActivee
+      ? "Reproduction mécanique active"
+      : "Reproduction non activée",
   };
 }
 
@@ -361,6 +459,12 @@ function resumerEvenement(evenement: {
   if (evenement.type === "IDENTITE_AGENT_ENREGISTREE") {
     const emp = evenement.chargeUtile.empreinteClePublique;
     return `ed25519 · ${typeof emp === "string" ? `${emp.slice(0, 12)}…` : "?"}`;
+  }
+  if (evenement.type === "REPRODUCTION_TERMINEE") {
+    return `enfant ${String(evenement.chargeUtile.identifiantEnfant ?? "?")}`;
+  }
+  if (evenement.type === "REPRODUCTION_REFUSEE") {
+    return String(evenement.chargeUtile.motif ?? "refus");
   }
   if (evenement.type === "INFERENCE_EXECUTEE") {
     const jetonsEntree = evenement.chargeUtile.jetonsEntree;
@@ -444,6 +548,12 @@ export function reconstruireTresorerieProprietaire(
         tresorerie,
         montant,
       );
+    } else if (evenement.type === "COUT_REPRODUCTION_PAYE") {
+      const montant = lireMontantChargeUtile(
+        evenement.chargeUtile,
+        "montantMicroUsdc",
+      );
+      tresorerie = enregistrerCoutReproductionEncaisse(tresorerie, montant);
     } else if (evenement.type === "DETTE_REGLEE") {
       const montant = lireMontantChargeUtile(
         evenement.chargeUtile,
@@ -459,6 +569,23 @@ export function reconstruireTresorerieProprietaire(
   }
 
   return tresorerie;
+}
+
+function resoudreIdentifiantLignee(options: {
+  readonly identifiantAgent: string;
+  readonly generation: number;
+  readonly identifiantParent?: string;
+  readonly ligneeCharge?: unknown;
+}): string {
+  if (typeof options.ligneeCharge === "string" && options.ligneeCharge !== "") {
+    return options.ligneeCharge;
+  }
+  // Fallback : fondateur Genesis (génération 0 / sans parent) = soi-même
+  if (options.generation === 0 || options.identifiantParent === undefined) {
+    return options.identifiantAgent;
+  }
+  // Descendant sans lignée explicite (legacy) : parent comme ancre
+  return options.identifiantParent;
 }
 
 export function reconstruireIdentitesDepuisEvenements(
@@ -482,6 +609,8 @@ export function reconstruireIdentitesDepuisEvenements(
       typeof evenement.chargeUtile.dateNaissance === "string"
         ? evenement.chargeUtile.dateNaissance
         : (evenement.dateEnregistrement ?? `cycle:${evenement.numeroCycle}`);
+    const identifiantParent =
+      typeof parentBrut === "string" ? parentBrut : undefined;
 
     const identite: IdentiteAgentExperience = {
       identifiant: evenement.identifiantAgent,
@@ -489,8 +618,14 @@ export function reconstruireIdentitesDepuisEvenements(
       indexPopulation,
       cycleNaissance: evenement.numeroCycle,
       dateNaissance,
-      ...(typeof parentBrut === "string"
-        ? { identifiantParent: parentBrut }
+      identifiantLignee: resoudreIdentifiantLignee({
+        identifiantAgent: evenement.identifiantAgent,
+        generation,
+        ...(identifiantParent !== undefined ? { identifiantParent } : {}),
+        ligneeCharge: evenement.chargeUtile.identifiantLignee,
+      }),
+      ...(identifiantParent !== undefined
+        ? { identifiantParent }
         : {}),
     };
     parAgent.set(evenement.identifiantAgent, identite);
@@ -501,17 +636,46 @@ export function reconstruireIdentitesDepuisEvenements(
   );
 }
 
+export function reconstruireConfigurationsHeritablesDepuisEvenements(
+  evenements: readonly EvenementEsp[],
+): Map<string, ConfigurationHeritableAgent> {
+  const carte = new Map<string, ConfigurationHeritableAgent>();
+  const ordonnes = [...evenements].sort((a, b) => a.sequence - b.sequence);
+  for (const evenement of ordonnes) {
+    if (
+      evenement.type !== "AGENT_CREE" ||
+      evenement.identifiantAgent === undefined
+    ) {
+      continue;
+    }
+    carte.set(
+      evenement.identifiantAgent,
+      parserConfigurationHeritable(evenement.chargeUtile.configurationHeritable),
+    );
+  }
+  return carte;
+}
+
 export function reconstruirePopulationDepuisEvenements(
   evenements: readonly EvenementEconomique[],
 ): AgentExperience[] {
   const identites = reconstruireIdentitesDepuisEvenements(evenements);
-  return identites.map((identite) => ({
-    identite,
-    etatEconomique: reconstruireEtatEconomique(
-      evenements,
-      identite.identifiant,
-    ),
-  }));
+  const heritables = reconstruireConfigurationsHeritablesDepuisEvenements(
+    evenements,
+  );
+  return identites.map((identite) => {
+    const configurationHeritable = heritables.get(identite.identifiant);
+    return {
+      identite,
+      etatEconomique: reconstruireEtatEconomique(
+        evenements,
+        identite.identifiant,
+      ),
+      ...(configurationHeritable !== undefined
+        ? { configurationHeritable }
+        : {}),
+    };
+  });
 }
 
 /**
@@ -567,6 +731,11 @@ export function agentVersIdentiteInitiale(
     indexPopulation,
     cycleNaissance,
     dateNaissance: agent.dateNaissance,
+    identifiantLignee:
+      agent.identifiantLignee ??
+      (agent.generation === 0 || agent.identifiantParent === undefined
+        ? agent.identifiant
+        : (agent.identifiantParent ?? agent.identifiant)),
     ...(agent.identifiantParent !== undefined
       ? { identifiantParent: agent.identifiantParent }
       : {}),

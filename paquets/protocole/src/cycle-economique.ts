@@ -549,6 +549,8 @@ export type OptionsAttributionCapital = {
     indexPopulation?: number;
     dateNaissance?: string;
     identifiantParent?: string;
+    /** Lignée fondatrice — pour Genesis : identifiant de l'agent lui-même. */
+    identifiantLignee?: string;
   };
 };
 
@@ -589,6 +591,9 @@ export function attribuerCapitalInitial(
     dateNaissance,
     ...(options.naissance?.identifiantParent !== undefined
       ? { identifiantParent: options.naissance.identifiantParent }
+      : {}),
+    ...(options.naissance?.identifiantLignee !== undefined
+      ? { identifiantLignee: options.naissance.identifiantLignee }
       : {}),
   };
 

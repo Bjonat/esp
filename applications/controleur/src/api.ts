@@ -180,6 +180,32 @@ async function gererRequete(
       return;
     }
 
+    if (methode === "POST" && chemin.startsWith("/api/agents/")) {
+      const reste = chemin.slice("/api/agents/".length);
+      const segments = reste.split("/").filter(Boolean);
+      const identifiant =
+        segments[0] !== undefined ? decodeURIComponent(segments[0]) : "";
+      if (identifiant === "") {
+        repondreJson(reponse, 400, { erreur: "identifiant agent manquant" });
+        return;
+      }
+
+      if (segments[1] === "reproduire" && segments.length === 2) {
+        const resultat = await controleur.demanderReproduction(identifiant);
+        repondreJson(reponse, 200, resultat);
+        return;
+      }
+
+      if (segments[1] === "inference-test" && segments.length === 2) {
+        const resultat = await controleur.executerInferenceTest(identifiant);
+        repondreJson(reponse, 200, resultat);
+        return;
+      }
+
+      repondreJson(reponse, 404, { erreur: "Route introuvable" });
+      return;
+    }
+
     if (methode === "GET" && chemin === "/api/arbre-genealogique") {
       repondreJson(reponse, 200, controleur.projeterArbre());
       return;
@@ -241,16 +267,6 @@ async function gererRequete(
 
     if (methode === "POST" && chemin === "/api/experience/pause") {
       repondreJson(reponse, 200, controleur.mettreEnPause());
-      return;
-    }
-
-    const matchInferenceTest = /^\/api\/agents\/([^/]+)\/inference-test$/.exec(
-      chemin,
-    );
-    if (methode === "POST" && matchInferenceTest !== null) {
-      const identifiant = decodeURIComponent(matchInferenceTest[1] ?? "");
-      const resultat = await controleur.executerInferenceTest(identifiant);
-      repondreJson(reponse, 200, resultat);
       return;
     }
 

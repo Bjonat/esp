@@ -251,6 +251,14 @@ export function TableauDeBord() {
           <section className="bandeau-kpi" aria-label="Indicateurs">
             <Kpi libelle="Population" valeur={String(instantane.population.populationTotale)} />
             <Kpi libelle="Vivants" valeur={String(instantane.population.agentsVivants)} />
+            <Kpi
+              libelle="Naissances"
+              valeur={String(instantane.population.naissancesCumulees ?? 0)}
+            />
+            <Kpi
+              libelle="Lignées"
+              valeur={String(instantane.population.nombreLigneesVivantes ?? 0)}
+            />
             <Kpi libelle="Dormants" valeur={String(instantane.population.agentsDormants)} />
             <Kpi libelle="Morts" valeur={String(instantane.population.agentsMorts)} />
             <Kpi libelle="Cycle" valeur={String(instantane.population.cycleCourant)} />

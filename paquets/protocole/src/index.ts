@@ -184,6 +184,7 @@ export type { TresorerieProprietaire } from "./tresorerie-proprietaire.js";
 export {
   calculerSoldeNetTresorerie,
   creerTresorerieProprietaire,
+  enregistrerCoutReproductionEncaisse,
   enregistrerDepenseInfrastructureProprietaire,
   enregistrerLoyerEncaisse,
   enregistrerRedevanceEncaissee,
@@ -219,6 +220,56 @@ export {
 } from "./execution-economique.js";
 
 export { reconstruireEtatEconomique } from "./reconstruction.js";
+
+export type {
+  ChargeReproductionAutorisee,
+  ChargeReproductionDemandee,
+  ChargeReproductionRefusee,
+  ChargeReproductionTerminee,
+  EntreeEvenementReproduction,
+  MotifRefusReproduction,
+  TypeEvenementReproduction,
+} from "./evenements-reproduction.js";
+export {
+  TYPES_EVENEMENT_REPRODUCTION,
+  VERSION_SCHEMA_EVENEMENT_REPRODUCTION,
+  estTypeEvenementReproduction,
+} from "./evenements-reproduction.js";
+
+export type { ConfigurationHeritableAgent } from "./configuration-heritable.js";
+export {
+  VERSION_CONFIGURATION_HERITABLE,
+  copierConfigurationHeritable,
+  creerConfigurationHeritableVide,
+  parserConfigurationHeritable,
+  serialiserConfigurationHeritable,
+} from "./configuration-heritable.js";
+
+export type {
+  ParametresReproductionExperience,
+  ParametresReproductionExperienceJson,
+} from "./parametres-reproduction.js";
+export {
+  VERSION_PARAMETRES_REPRODUCTION,
+  ParametresReproductionInvalidesErreur,
+  creerParametresReproductionInactifs,
+  parserParametresReproduction,
+  serialiserParametresReproduction,
+} from "./parametres-reproduction.js";
+
+export type {
+  AnalyseReproduction,
+  ContexteAutorisationReproduction,
+  OptionsPreparationReproduction,
+  ResultatPreparationReproduction,
+} from "./reproduction.js";
+export {
+  analyserReproduction,
+  evaluerAutorisationReproduction,
+  fabriquerIdentifiantEnfant,
+  fabriquerIdentifiantReproduction,
+  preparerReproduction,
+} from "./reproduction.js";
 
 export type {
   ActionDecisionExAnte,

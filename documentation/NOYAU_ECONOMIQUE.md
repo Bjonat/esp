@@ -233,4 +233,7 @@ Propriété attendue :
 ## Hors périmètre v0.1
 
 Wallet, Solana, Jupiter, marchés, OpenAI/Anthropic, Xway réel,
-Shadow/Live, reproduction, mutation, héritage, trading, positions SOL.
+Shadow/Live, mutation, héritage de connaissances, trading, positions SOL.
+
+Reproduction mécanique (naissance financée, sans sélection) :
+[`REPRODUCTION.md`](./REPRODUCTION.md).
