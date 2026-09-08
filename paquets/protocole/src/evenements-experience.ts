@@ -81,6 +81,16 @@ export type SnapshotCreationExperience = {
    * Absents = mutation inactive (legacy / opt-in).
    */
   readonly mutation?: Readonly<Record<string, unknown>>;
+  /**
+   * Politique de reproduction autonome figée à la création.
+   * Absente = reproduction autonome inactive (legacy / opt-in).
+   */
+  readonly reproductionAutonome?: Readonly<Record<string, unknown>>;
+  /**
+   * Critères d'arrêt expérimentaux figés à la création (contrôleur).
+   * Absents = aucun plafond de cycles.
+   */
+  readonly criteresArret?: Readonly<Record<string, unknown>>;
 };
 
 export type ChargeExperienceCreee = {
@@ -108,6 +118,8 @@ export type ChargeExperienceCreee = {
   readonly politiqueBudgetCognitif?: Readonly<Record<string, unknown>>;
   readonly reproduction?: Readonly<Record<string, unknown>>;
   readonly mutation?: Readonly<Record<string, unknown>>;
+  readonly reproductionAutonome?: Readonly<Record<string, unknown>>;
+  readonly criteresArret?: Readonly<Record<string, unknown>>;
 };
 
 export type ChargeCycleExperienceAvance = {
@@ -174,6 +186,12 @@ export function serialiserSnapshotCreationExperience(
       ? { reproduction: snapshot.reproduction }
       : {}),
     ...(snapshot.mutation !== undefined ? { mutation: snapshot.mutation } : {}),
+    ...(snapshot.reproductionAutonome !== undefined
+      ? { reproductionAutonome: snapshot.reproductionAutonome }
+      : {}),
+    ...(snapshot.criteresArret !== undefined
+      ? { criteresArret: snapshot.criteresArret }
+      : {}),
   };
 }
 
@@ -309,6 +327,25 @@ export function parserSnapshotCreationExperience(
     typeof chargeUtile.mutation === "object"
       ? {
           mutation: chargeUtile.mutation as Readonly<Record<string, unknown>>,
+        }
+      : {}),
+    ...(chargeUtile.reproductionAutonome !== undefined &&
+    chargeUtile.reproductionAutonome !== null &&
+    typeof chargeUtile.reproductionAutonome === "object"
+      ? {
+          reproductionAutonome:
+            chargeUtile.reproductionAutonome as Readonly<
+              Record<string, unknown>
+            >,
+        }
+      : {}),
+    ...(chargeUtile.criteresArret !== undefined &&
+    chargeUtile.criteresArret !== null &&
+    typeof chargeUtile.criteresArret === "object"
+      ? {
+          criteresArret: chargeUtile.criteresArret as Readonly<
+            Record<string, unknown>
+          >,
         }
       : {}),
   };

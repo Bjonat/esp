@@ -33,11 +33,39 @@ Il contient :
 
 `EXPERIENCE_CREEE` fige le snapshot exact :
 identifiant, versionProtocole, mode, graine, taille population, capital initial,
-paramètres économiques, version du simulateur.
+paramètres économiques, version du simulateur, et blocs optionnels figés
+(`reproduction`, `mutation`, `reproductionAutonome`, **`criteresArret`**, …).
 
 Le fichier JSON dans `experiences/` sert uniquement à **créer** une nouvelle
 expérience. Après création, une modification du JSON **ne modifie pas**
 rétroactivement l'expérience existante.
+
+## Critères d'arrêt (`criteres-arret-experience-v01`)
+
+Contrat **contrôleur** — distinct de toute politique reproductive :
+
+```json
+{
+  "version": "criteres-arret-experience-v01",
+  "cycleMaximum": 30
+}
+```
+
+| Champ | Rôle |
+|-------|------|
+| `cycleMaximum` | optionnel ; si `numeroCycle >= cycleMaximum` → `EXPERIENCE_TERMINEE` |
+
+Fonctionne **avec ou sans** reproduction autonome. Reconstruit depuis
+`EXPERIENCE_CREEE` au redémarrage SQLite (pas d'état RAM).
+
+Séparation :
+
+| Paramètre | Contrat | Nature |
+|-----------|---------|--------|
+| `cycleMaximum` | `criteresArret` | contrôle expérimental |
+| `populationMaximale` / `nombreMaxReproductionsParCycle` | `reproduction` | contraintes population / reproduction |
+| `nombreMaxNaissancesParCycle` | `reproductionAutonome` | garde-fou naissances retenues |
+| diversité génotypique | projections | **observable uniquement** — jamais contrainte v0.1 |
 
 Reconstruction après redémarrage :
 
@@ -61,6 +89,8 @@ Profils de développement :
 
 - `experiences/developpement-population-v01.json` — mode `simulation`
 - `experiences/developpement-decision-v01.json` — mode `decision_simulee`
+- `experiences/developpement-mutation-v01.json` — héritage + mutation (démo)
+- `experiences/developpement-evolution-v01.json` — reproduction autonome (démo)
 - `experiences/developpement-decision-openai-v01.exemple.json` — exemple opt-in (jamais par défaut)
 
 Ces valeurs sont documentées comme :
@@ -110,8 +140,14 @@ Pour chaque agent non mort :
 6. enregistrement **atomique** du lot (`ajouterPlusieurs` / transaction SQLite) ;
 7. mise à jour trésorerie propriétaire.
 
-Si le cycle N est incomplet (AVANCE sans `CYCLE_TERMINE` agent), reprise de N.
-Détail : [`ATOMICITE_CYCLE_ECONOMIQUE.md`](./ATOMICITE_CYCLE_ECONOMIQUE.md).
+Si le cycle N est incomplet (AVANCE sans `CYCLE_TERMINE` agent, **ou** phase
+reproduction autonome sans `PLANIFIEE`/`TERMINEE`), reprise de N.
+Détail : [`ATOMICITE_CYCLE_ECONOMIQUE.md`](./ATOMICITE_CYCLE_ECONOMIQUE.md),
+[`REPRODUCTION_AUTONOME.md`](./REPRODUCTION_AUTONOME.md).
+
+Après la boucle économique, si `reproductionAutonome.active` et
+`reproduction.active` : planification neutre puis naissances retenues
+(chemin mécanique partagé).
 
 ### Mode `decision_simulee`
 

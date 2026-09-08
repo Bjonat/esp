@@ -24,7 +24,10 @@ export type MotifRefusReproduction =
   | "nombre_enfants_max"
   | "reproductions_cycle_max"
   | "reproduction_desactivee"
-  | "identifiant_ambigu";
+  | "identifiant_ambigu"
+  | "etat_survie_non_eligible"
+  | "capacite_insuffisante"
+  | "naissance_meme_cycle";
 
 export type ChargeReproductionDemandee = {
   readonly identifiantReproduction: string;

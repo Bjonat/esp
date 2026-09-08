@@ -5,11 +5,14 @@ import type {
   ParametresMutationExperienceJson,
   ParametresReproductionExperience,
   ParametresReproductionExperienceJson,
+  PolitiqueReproductionAutonome,
+  PolitiqueReproductionAutonomeJson,
 } from "@esp/protocole";
 import {
   parserMicroUsdc,
   parserParametresMutation,
   parserParametresReproduction,
+  parserPolitiqueReproductionAutonome,
   validerParametresEconomiques,
 } from "@esp/protocole";
 import type { MicroUsdc } from "@esp/protocole";
@@ -30,6 +33,11 @@ import type {
   ConfigurationIdentiteJson,
 } from "./configuration-identite.js";
 import { parserConfigurationIdentite } from "./configuration-identite.js";
+import type {
+  CriteresArretExperience,
+  CriteresArretExperienceJson,
+} from "./criteres-arret-experience.js";
+import { parserCriteresArretExperience } from "./criteres-arret-experience.js";
 
 /**
  * Modes d'expérience v0.1.
@@ -74,6 +82,16 @@ export interface ConfigurationExperienceJson {
   readonly reproduction?: ParametresReproductionExperienceJson;
   /** Mutation héritable — absente = inactive (opt-in). */
   readonly mutation?: ParametresMutationExperienceJson;
+  /**
+   * Reproduction autonome — absente = inactive (défaut historique).
+   * Opt-in ; exige aussi `reproduction.active` pour s'exécuter dans avancerUnCycle.
+   */
+  readonly reproductionAutonome?: PolitiqueReproductionAutonomeJson;
+  /**
+   * Critères d'arrêt expérimentaux (contrôleur) — absents = pas de plafond.
+   * Distincts de la politique de reproduction.
+   */
+  readonly criteresArret?: CriteresArretExperienceJson;
 }
 
 export interface ConfigurationExperience {
@@ -92,6 +110,15 @@ export interface ConfigurationExperience {
   readonly reproduction?: ParametresReproductionExperience;
   /** Mutation héritable — absente = inactive (opt-in). */
   readonly mutation?: ParametresMutationExperience;
+  /**
+   * Reproduction autonome — absente = inactive (défaut historique).
+   * Opt-in ; exige aussi `reproduction.active` pour s'exécuter dans avancerUnCycle.
+   */
+  readonly reproductionAutonome?: PolitiqueReproductionAutonome;
+  /**
+   * Critères d'arrêt expérimentaux — absents = pas de plafond de cycles.
+   */
+  readonly criteresArret?: CriteresArretExperience;
 }
 
 export class ConfigurationExperienceInvalideErreur extends Error {
@@ -190,6 +217,14 @@ export function parserConfigurationExperience(
     brut.mutation !== undefined
       ? parserParametresMutation(brut.mutation)
       : undefined;
+  const reproductionAutonome =
+    brut.reproductionAutonome !== undefined
+      ? parserPolitiqueReproductionAutonome(brut.reproductionAutonome)
+      : undefined;
+  const criteresArret =
+    brut.criteresArret !== undefined
+      ? parserCriteresArretExperience(brut.criteresArret)
+      : undefined;
 
   return {
     identifiantExperience: brut.identifiantExperience,
@@ -213,6 +248,8 @@ export function parserConfigurationExperience(
       : {}),
     ...(reproduction !== undefined ? { reproduction } : {}),
     ...(mutation !== undefined ? { mutation } : {}),
+    ...(reproductionAutonome !== undefined ? { reproductionAutonome } : {}),
+    ...(criteresArret !== undefined ? { criteresArret } : {}),
   };
 }
 

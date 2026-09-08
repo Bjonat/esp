@@ -140,7 +140,8 @@ Deux objets équivalents d'ordre de clés différent → même empreinte.
 
 ## Atomicité & reprise
 
-La mutation voyage avec la reproduction mécanique :
+La mutation voyage avec la reproduction mécanique **et** la phase autonome
+(même `executerReproductionPreparee`) :
 
 - lot unique `ajouterPlusieurs` (BEGIN/COMMIT SQLite) ;
 - retry `deja_terminee` → aucun nouvel événement mutation ;
@@ -183,6 +184,9 @@ Hors périmètre :
 - Solana / Shadow / Live / trading réel.
 
 Démo non canonique : `experiences/developpement-mutation-v01.json`
+
+Reproduction autonome + mutation : `experiences/developpement-evolution-v01.json`
+(voir [`REPRODUCTION_AUTONOME.md`](./REPRODUCTION_AUTONOME.md)).
 (fournisseur simulé uniquement).
 
 Voir aussi : [`REPRODUCTION.md`](./REPRODUCTION.md),

@@ -28,6 +28,9 @@ const MOTIFS_CONNUS: readonly MotifRefusReproduction[] = [
   "reproductions_cycle_max",
   "reproduction_desactivee",
   "identifiant_ambigu",
+  "etat_survie_non_eligible",
+  "capacite_insuffisante",
+  "naissance_meme_cycle",
 ];
 
 /**

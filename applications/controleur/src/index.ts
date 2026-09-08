@@ -21,6 +21,18 @@ export {
   parserConfigurationExperience,
 } from "./configuration-experience.js";
 
+export type {
+  CriteresArretExperience,
+  CriteresArretExperienceJson,
+} from "./criteres-arret-experience.js";
+export {
+  CriteresArretExperienceInvalidesErreur,
+  VERSION_CRITERES_ARRET_EXPERIENCE,
+  doitTerminerExperienceApresCycle,
+  parserCriteresArretExperience,
+  serialiserCriteresArretExperience,
+} from "./criteres-arret-experience.js";
+
 export {
   IDENTIFIANT_SIMULATEUR_DEVELOPPEMENT,
   VERSION_SIMULATEUR_DEVELOPPEMENT,
@@ -136,6 +148,21 @@ export {
   projeterDiversiteHeritablePopulation,
   projeterHeritageVariationAgent,
 } from "./projections-mutation.js";
+
+export type {
+  ProjectionDynamiqueEvolutive,
+  ProjectionFrequenceGenotype,
+  ProjectionLigneeEvolutive,
+  ProjectionSuccesReproductifAgent,
+} from "./projections-evolution.js";
+export {
+  AVERTISSEMENT_DYNAMIQUE_EVOLUTIVE,
+  lirePlanReproductionAutonomeCycle,
+  projeterDynamiqueEvolutive,
+  projeterFrequencesGenotypes,
+  projeterLigneesEvolutives,
+  projeterSuccesReproductifAgent,
+} from "./projections-evolution.js";
 
 export type {
   ApercuInferenceTest,

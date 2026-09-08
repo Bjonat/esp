@@ -1,6 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import type {
+  ChargeReproductionAutonomeCyclePlanifiee,
   ConfigurationHeritableAgent,
   DecisionAgent,
   EntreeEvenementEsp,
@@ -10,6 +11,7 @@ import type {
   ObservationOpportunite,
   ParametresMutationExperienceJson,
   ParametresReproductionExperienceJson,
+  PolitiqueReproductionAutonomeJson,
   SnapshotCreationExperience,
   TresorerieProprietaire,
 } from "@esp/protocole";
@@ -29,6 +31,8 @@ import {
   creerEntreeCycleExperienceAvance,
   creerEntreeExperienceCreee,
   creerEntreeIdentiteAgentEnregistree,
+  creerEntreeReproductionAutonomeCyclePlanifiee,
+  creerEntreeReproductionAutonomeCycleTerminee,
   creerParametresReproductionInactifs,
   creerTresorerieProprietaire,
   executerCycleEconomique,
@@ -38,7 +42,9 @@ import {
   filtrerEvenementsEconomiques,
   parserParametresMutation,
   parserParametresReproduction,
+  parserPolitiqueReproductionAutonome,
   parserSnapshotCreationExperience,
+  planifierReproductionsAutonomes,
   preparerReproduction,
   reconstruireStatutExperience,
   resoudrePolitiqueDepuisConfigurationHeritable,
@@ -46,6 +52,7 @@ import {
   serialiserMicroUsdc,
   serialiserParametresMutation,
   serialiserParametresReproduction,
+  serialiserPolitiqueReproductionAutonome,
   trouverAttributionsPourDemande,
 } from "@esp/protocole";
 import type { RegistreEvenements } from "@esp/registre-evenements";
@@ -71,6 +78,12 @@ import type {
   StatutExperience,
 } from "./configuration-experience.js";
 import { chargerConfigurationExperience } from "./configuration-experience.js";
+import type { CriteresArretExperienceJson } from "./criteres-arret-experience.js";
+import {
+  doitTerminerExperienceApresCycle,
+  parserCriteresArretExperience,
+  serialiserCriteresArretExperience,
+} from "./criteres-arret-experience.js";
 import type { ConfigurationIdentiteJson } from "./configuration-identite.js";
 import {
   parserConfigurationIdentite,
@@ -159,6 +172,11 @@ import {
   projeterDiversiteHeritablePopulation,
   projeterHeritageVariationAgent,
 } from "./projections-mutation.js";
+import type { ProjectionDynamiqueEvolutive } from "./projections-evolution.js";
+import {
+  projeterDynamiqueEvolutive,
+  projeterSuccesReproductifAgent,
+} from "./projections-evolution.js";
 import type { FenetreEvaluation } from "@esp/protocole";
 import type {
   ProjectionXwayAgent,
@@ -186,7 +204,7 @@ import {
 
 /**
  * Résultat API / contrôleur de la reproduction mécanique v0.1.
- * Déclenchement manuel uniquement (pas d'auto-politique dans avancerUnCycle).
+ * Déclenchement manuel ou phase autonome dans avancerUnCycle.
  */
 export type ResultatReproductionApi =
   | {
@@ -459,6 +477,16 @@ export class ControleurExperience {
       configuration.mutation !== undefined
         ? serialiserParametresMutation(configuration.mutation)
         : undefined;
+    const reproductionAutonomeSerialisee =
+      configuration.reproductionAutonome !== undefined
+        ? serialiserPolitiqueReproductionAutonome(
+            configuration.reproductionAutonome,
+          )
+        : undefined;
+    const criteresArretSerialises =
+      configuration.criteresArret !== undefined
+        ? serialiserCriteresArretExperience(configuration.criteresArret)
+        : undefined;
     const snapshot: SnapshotCreationExperience = {
       identifiantExperience: configuration.identifiantExperience,
       versionProtocole: configuration.versionProtocole,
@@ -507,6 +535,22 @@ export class ControleurExperience {
         ? {
             mutation:
               mutationSerialisee as unknown as Readonly<
+                Record<string, unknown>
+              >,
+          }
+        : {}),
+      ...(reproductionAutonomeSerialisee !== undefined
+        ? {
+            reproductionAutonome:
+              reproductionAutonomeSerialisee as unknown as Readonly<
+                Record<string, unknown>
+              >,
+          }
+        : {}),
+      ...(criteresArretSerialises !== undefined
+        ? {
+            criteresArret:
+              criteresArretSerialises as unknown as Readonly<
                 Record<string, unknown>
               >,
           }
@@ -622,6 +666,18 @@ export class ControleurExperience {
             snapshot.mutation as unknown as ParametresMutationExperienceJson,
           )
         : undefined;
+    const reproductionAutonome =
+      snapshot.reproductionAutonome !== undefined
+        ? parserPolitiqueReproductionAutonome(
+            snapshot.reproductionAutonome as unknown as PolitiqueReproductionAutonomeJson,
+          )
+        : undefined;
+    const criteresArret =
+      snapshot.criteresArret !== undefined
+        ? parserCriteresArretExperience(
+            snapshot.criteresArret as unknown as CriteresArretExperienceJson,
+          )
+        : undefined;
     const configuration: ConfigurationExperience = {
       identifiantExperience: snapshot.identifiantExperience,
       versionProtocole: snapshot.versionProtocole,
@@ -640,6 +696,8 @@ export class ControleurExperience {
         : {}),
       ...(reproduction !== undefined ? { reproduction } : {}),
       ...(mutation !== undefined ? { mutation } : {}),
+      ...(reproductionAutonome !== undefined ? { reproductionAutonome } : {}),
+      ...(criteresArret !== undefined ? { criteresArret } : {}),
     };
 
     const economiques = filtrerEvenementsEconomiques(evenements);
@@ -798,8 +856,13 @@ export class ControleurExperience {
    * Avance l'expérience d'un cycle expérimental.
    * L'horloge wall-clock n'influence aucune règle économique.
    *
-   * Si un cycle N a déjà CYCLE_EXPERIENCE_AVANCE mais qu'au moins un agent
-   * vivant n'a pas CYCLE_TERMINE, reprend N (pas N+1).
+   * Ordre canonique :
+   * 1. Détecter cycle incomplet (économie OU phase reproduction autonome)
+   * 2. CYCLE_EXPERIENCE_AVANCE si nouveau cycle
+   * 3. Boucle économique (agents au début ; naissances du cycle exclues)
+   * 4. Phase reproduction autonome si politiques actives
+   * 5. Historique / numeroCycleCourant
+   * 6. EXPERIENCE_TERMINEE si criteresArret.cycleMaximum atteint
    *
    * Si fournisseur=openai : aucune inférence réelle automatique
    * (commande volontaire /inference-test uniquement).
@@ -827,10 +890,13 @@ export class ControleurExperience {
     const evenementsRegistre = this.registre.listerParExperience(
       this.configuration.identifiantExperience,
     );
-    const cycleAReprendre = detecterCycleEconomiqueIncomplet({
+    const cycleAReprendre = detecterCycleExperienceIncomplet({
       evenements: evenementsRegistre,
       identifiantExperience: this.configuration.identifiantExperience,
       agents: this.agents,
+      reproductionAutonomeActive:
+        this.configuration.reproductionAutonome?.active === true &&
+        this.configuration.reproduction?.active === true,
     });
     const repriseCycleIncomplet = cycleAReprendre !== undefined;
     const numeroCycle = repriseCycleIncomplet
@@ -849,6 +915,10 @@ export class ControleurExperience {
       ]);
     }
 
+    // Horloge de cycle avant reproduction (naissance = numeroCycle courant).
+    this.numeroCycleCourant = numeroCycle;
+
+    const agentsAuDebut = [...this.agents];
     const agentsApres: AgentExperience[] = [];
     let tresorerie = this.tresorerie;
     const xwayAutoActif =
@@ -856,8 +926,14 @@ export class ControleurExperience {
       this.passerelleXway !== undefined &&
       this.configuration.xway.fournisseur.selecteur !== "openai";
 
-    for (const agent of this.agents) {
+    for (const agent of agentsAuDebut) {
       if (agent.etatEconomique.etatSurvie === "mort") {
+        agentsApres.push(agent);
+        continue;
+      }
+
+      // Nés ce cycle : pas d'économie / décision avant N+1.
+      if (agent.identite.cycleNaissance === numeroCycle) {
         agentsApres.push(agent);
         continue;
       }
@@ -1006,12 +1082,17 @@ export class ControleurExperience {
       agentsApres.push({
         identite: agent.identite,
         etatEconomique: resultat.etat,
+        ...(agent.configurationHeritable !== undefined
+          ? { configurationHeritable: agent.configurationHeritable }
+          : {}),
       });
     }
 
     this.agents = agentsApres;
     this.tresorerie = tresorerie;
-    this.numeroCycleCourant = numeroCycle;
+
+    await this.executerPhaseReproductionAutonome(numeroCycle);
+
     this.statut = "en_cours";
     if (repriseCycleIncomplet) {
       this.historique = this.historique.filter(
@@ -1046,11 +1127,154 @@ export class ControleurExperience {
       },
     ];
 
+    if (
+      doitTerminerExperienceApresCycle({
+        criteresArret: this.configuration.criteresArret,
+        numeroCycle,
+      })
+    ) {
+      this.enregistrerControle("EXPERIENCE_TERMINEE");
+      this.statut = "terminee";
+    }
+
     return {
       numeroCycle,
       population: this.projeterPopulation(),
       experience: this.projeterExperience(),
     };
+  }
+
+  /**
+   * Phase post-économie : planification + exécution des naissances retenues.
+   * Idempotente à la reprise (PLANIFIEE / DEMANDEE / TERMINEE).
+   */
+  private async executerPhaseReproductionAutonome(
+    numeroCycle: number,
+  ): Promise<void> {
+    const politique = this.configuration.reproductionAutonome;
+    const parametresReproduction = this.configuration.reproduction;
+    if (
+      politique === undefined ||
+      !politique.active ||
+      parametresReproduction === undefined ||
+      !parametresReproduction.active
+    ) {
+      return;
+    }
+
+    let evenements = this.registre.listerParExperience(
+      this.configuration.identifiantExperience,
+    );
+
+    if (phaseReproductionAutonomeTerminee(evenements, numeroCycle)) {
+      return;
+    }
+
+    let plan = lirePlanReproductionAutonome(evenements, numeroCycle);
+    if (plan === undefined) {
+      const candidats = this.agents
+        .filter(
+          (agent) =>
+            agent.etatEconomique.etatSurvie !== "mort" &&
+            agent.identite.cycleNaissance !== numeroCycle,
+        )
+        .map((agent) => {
+          const enfantsParent = this.agents.filter(
+            (a) => a.identite.identifiantParent === agent.identite.identifiant,
+          );
+          return {
+            identifiantAgent: agent.identite.identifiant,
+            etatParent: agent.etatEconomique,
+            nombreEnfantsParent: enfantsParent.length,
+            cycleDerniereNaissanceParent:
+              enfantsParent.length === 0
+                ? null
+                : Math.max(
+                    ...enfantsParent.map((e) => e.identite.cycleNaissance),
+                  ),
+            cycleNaissanceAgent: agent.identite.cycleNaissance,
+          };
+        });
+
+      const planCalcule = planifierReproductionsAutonomes({
+        politique,
+        parametresReproduction,
+        graineExperience: this.configuration.graineSimulation,
+        numeroCycle,
+        populationAuSnapshot: this.agents.length,
+        reproductionsDejaAuSnapshot: compterReproductionsTermineesCycle(
+          evenements,
+          numeroCycle,
+        ),
+        candidats,
+      });
+
+      this.enregistrerEvenements([
+        creerEntreeReproductionAutonomeCyclePlanifiee({
+          identifiantExperience: this.configuration.identifiantExperience,
+          numeroCycle,
+          charge: {
+            numeroCycle: planCalcule.numeroCycle,
+            versionPolitique: planCalcule.versionPolitique,
+            placesDisponibles: planCalcule.placesDisponibles,
+            identifiantsEligiblesOrdonnes:
+              planCalcule.identifiantsEligiblesOrdonnes,
+            identifiantsRetenus: planCalcule.identifiantsRetenus,
+            identifiantsRefusCapacite: planCalcule.identifiantsRefusCapacite,
+            populationAuSnapshot: planCalcule.populationAuSnapshot,
+            reproductionsDejaAuSnapshot: planCalcule.reproductionsDejaAuSnapshot,
+          },
+          ...(this.datesEvenementsFixes !== undefined
+            ? { dateEnregistrement: this.datesEvenementsFixes }
+            : {}),
+        }),
+      ]);
+      plan = planCalcule;
+      evenements = this.registre.listerParExperience(
+        this.configuration.identifiantExperience,
+      );
+    }
+
+    for (const identifiantParent of plan.identifiantsRetenus) {
+      evenements = this.registre.listerParExperience(
+        this.configuration.identifiantExperience,
+      );
+      if (
+        parentDejaTraiteDansPhaseAutonome(
+          evenements,
+          identifiantParent,
+          numeroCycle,
+        )
+      ) {
+        continue;
+      }
+      await this.executerReproductionPreparee(identifiantParent);
+    }
+
+    evenements = this.registre.listerParExperience(
+      this.configuration.identifiantExperience,
+    );
+    if (!phaseReproductionAutonomeTerminee(evenements, numeroCycle)) {
+      const naissancesEffectuees = compterNaissancesAutonomesRetenues(
+        evenements,
+        numeroCycle,
+        plan.identifiantsRetenus,
+      );
+      this.enregistrerEvenements([
+        creerEntreeReproductionAutonomeCycleTerminee({
+          identifiantExperience: this.configuration.identifiantExperience,
+          numeroCycle,
+          charge: {
+            numeroCycle,
+            naissancesEffectuees,
+            refusCapacite: plan.identifiantsRefusCapacite.length,
+          },
+          ...(this.datesEvenementsFixes !== undefined
+            ? { dateEnregistrement: this.datesEvenementsFixes }
+            : {}),
+        }),
+      ]);
+    }
   }
 
   reconstruireDepuisRegistre(): void {
@@ -1106,6 +1330,18 @@ export class ControleurExperience {
             snapshot.mutation as unknown as ParametresMutationExperienceJson,
           )
         : undefined;
+    const reproductionAutonome =
+      snapshot.reproductionAutonome !== undefined
+        ? parserPolitiqueReproductionAutonome(
+            snapshot.reproductionAutonome as unknown as PolitiqueReproductionAutonomeJson,
+          )
+        : undefined;
+    const criteresArret =
+      snapshot.criteresArret !== undefined
+        ? parserCriteresArretExperience(
+            snapshot.criteresArret as unknown as CriteresArretExperienceJson,
+          )
+        : undefined;
     this.configuration = {
       identifiantExperience: snapshot.identifiantExperience,
       versionProtocole: snapshot.versionProtocole,
@@ -1124,6 +1360,8 @@ export class ControleurExperience {
         : {}),
       ...(reproduction !== undefined ? { reproduction } : {}),
       ...(mutation !== undefined ? { mutation } : {}),
+      ...(reproductionAutonome !== undefined ? { reproductionAutonome } : {}),
+      ...(criteresArret !== undefined ? { criteresArret } : {}),
     };
     this.environnementDecision =
       environnementDecisionConfig !== undefined
@@ -1260,7 +1498,34 @@ export class ControleurExperience {
           ? { politiqueBase: this.politiqueBudgetCognitif }
           : {}),
       }),
+      dynamiqueEvolutive: this.projeterDynamiqueEvolutive(),
     };
+  }
+
+  /**
+   * Dynamique évolutive population — émergence descriptive, sans ranking fitness.
+   */
+  projeterDynamiqueEvolutive(): ProjectionDynamiqueEvolutive {
+    const evenements = this.registre.listerParExperience(
+      this.configuration.identifiantExperience,
+    );
+    return projeterDynamiqueEvolutive({
+      agents: this.agents,
+      evenements,
+      cycleCourant: this.numeroCycleCourant,
+      ...(this.configuration.reproduction !== undefined
+        ? { parametresReproduction: this.configuration.reproduction }
+        : {}),
+      ...(this.configuration.reproductionAutonome !== undefined
+        ? {
+            politiqueReproductionAutonome:
+              this.configuration.reproductionAutonome,
+          }
+        : {}),
+      ...(this.politiqueBudgetCognitif !== undefined
+        ? { politiqueBase: this.politiqueBudgetCognitif }
+        : {}),
+    });
   }
 
   projeterAgents(): ProjectionAgent[] {
@@ -1310,6 +1575,21 @@ export class ControleurExperience {
         evenements,
         ...(this.politiqueBudgetCognitif !== undefined
           ? { politiqueBase: this.politiqueBudgetCognitif }
+          : {}),
+      }),
+      succesReproductif: projeterSuccesReproductifAgent({
+        agent,
+        agents: this.agents,
+        evenements,
+        cycleCourant: this.numeroCycleCourant,
+        ...(this.configuration.reproduction !== undefined
+          ? { parametresReproduction: this.configuration.reproduction }
+          : {}),
+        ...(this.configuration.reproductionAutonome !== undefined
+          ? {
+              politiqueReproductionAutonome:
+                this.configuration.reproductionAutonome,
+            }
           : {}),
       }),
     };
@@ -1373,8 +1653,8 @@ export class ControleurExperience {
   }
 
   /**
-   * Reproduction mécanique manuelle v0.1 — déclenchement API uniquement.
-   * Aucune auto-politique dans avancerUnCycle (declenchementManuelUniquement).
+   * Reproduction mécanique manuelle v0.1 — déclenchement API.
+   * Partage le compteur nombreMaxReproductionsParCycle avec la phase autonome.
    *
    * Stratégie keystore (si identité active et autorisée) :
    * a. Préparer le lot via preparerReproduction
@@ -1407,6 +1687,28 @@ export class ControleurExperience {
     if (!parametres.active) {
       throw new ControleurExperienceErreur("Reproduction inactive");
     }
+
+    return this.executerReproductionPreparee(identifiantParent);
+  }
+
+  /**
+   * Chemin partagé manuel / autonome : preparerReproduction + mutation +
+   * keystore + commit atomique. Aucun appel Xway/OpenAI.
+   */
+  private async executerReproductionPreparee(
+    identifiantParent: string,
+  ): Promise<ResultatReproductionApi> {
+    const parent = this.agents.find(
+      (a) => a.identite.identifiant === identifiantParent,
+    );
+    if (parent === undefined) {
+      throw new ControleurExperienceErreur(
+        `Agent introuvable : ${identifiantParent}`,
+      );
+    }
+
+    const parametres =
+      this.configuration.reproduction ?? creerParametresReproductionInactifs();
 
     const evenements = this.registre.listerParExperience(
       this.configuration.identifiantExperience,
@@ -2307,6 +2609,9 @@ export class ControleurExperience {
       agentsApres.push({
         identite: a.identite,
         etatEconomique: eco.etat,
+        ...(a.configurationHeritable !== undefined
+          ? { configurationHeritable: a.configurationHeritable }
+          : {}),
       });
     }
     this.agents = agentsApres;
@@ -2484,13 +2789,16 @@ export class ControleurExperience {
 }
 
 /**
- * Si CYCLE_EXPERIENCE_AVANCE(N) existe et qu'un agent non mort n'a pas
- * CYCLE_TERMINE pour N → reprendre N.
+ * Cycle incomplet si :
+ * - économie : CYCLE_EXPERIENCE_AVANCE(N) et un agent vivant (hors nés en N)
+ *   n'a pas CYCLE_TERMINE ;
+ * - ou phase reproduction autonome active sans PLANIFIEE / TERMINEE pour N.
  */
-function detecterCycleEconomiqueIncomplet(options: {
+function detecterCycleExperienceIncomplet(options: {
   readonly evenements: readonly EvenementEsp[];
   readonly identifiantExperience: string;
   readonly agents: readonly AgentExperience[];
+  readonly reproductionAutonomeActive: boolean;
 }): number | undefined {
   let maxAvance = 0;
   for (const evenement of options.evenements) {
@@ -2509,6 +2817,9 @@ function detecterCycleEconomiqueIncomplet(options: {
     if (agent.etatEconomique.etatSurvie === "mort") {
       continue;
     }
+    if (agent.identite.cycleNaissance === maxAvance) {
+      continue;
+    }
     const analyse = analyserExecutionEconomique({
       evenements: options.evenements,
       identifiantExperience: options.identifiantExperience,
@@ -2519,7 +2830,141 @@ function detecterCycleEconomiqueIncomplet(options: {
       return maxAvance;
     }
   }
+
+  if (options.reproductionAutonomeActive) {
+    const plan = lirePlanReproductionAutonome(options.evenements, maxAvance);
+    if (plan === undefined) {
+      return maxAvance;
+    }
+    if (!phaseReproductionAutonomeTerminee(options.evenements, maxAvance)) {
+      return maxAvance;
+    }
+  }
+
   return undefined;
+}
+
+function lirePlanReproductionAutonome(
+  evenements: readonly EvenementEsp[],
+  numeroCycle: number,
+): ChargeReproductionAutonomeCyclePlanifiee | undefined {
+  for (const evenement of evenements) {
+    if (
+      evenement.type !== "REPRODUCTION_AUTONOME_CYCLE_PLANIFIEE" ||
+      evenement.numeroCycle !== numeroCycle
+    ) {
+      continue;
+    }
+    const charge = evenement.chargeUtile;
+    const eligibles = charge.identifiantsEligiblesOrdonnes;
+    const retenus = charge.identifiantsRetenus;
+    const refus = charge.identifiantsRefusCapacite;
+    if (
+      typeof charge.numeroCycle !== "number" ||
+      typeof charge.versionPolitique !== "string" ||
+      typeof charge.placesDisponibles !== "number" ||
+      !Array.isArray(eligibles) ||
+      !Array.isArray(retenus) ||
+      !Array.isArray(refus) ||
+      typeof charge.populationAuSnapshot !== "number" ||
+      typeof charge.reproductionsDejaAuSnapshot !== "number"
+    ) {
+      continue;
+    }
+    return {
+      numeroCycle: charge.numeroCycle,
+      versionPolitique: charge.versionPolitique,
+      placesDisponibles: charge.placesDisponibles,
+      identifiantsEligiblesOrdonnes: eligibles as string[],
+      identifiantsRetenus: retenus as string[],
+      identifiantsRefusCapacite: refus as string[],
+      populationAuSnapshot: charge.populationAuSnapshot,
+      reproductionsDejaAuSnapshot: charge.reproductionsDejaAuSnapshot,
+    };
+  }
+  return undefined;
+}
+
+function phaseReproductionAutonomeTerminee(
+  evenements: readonly EvenementEsp[],
+  numeroCycle: number,
+): boolean {
+  return evenements.some(
+    (evenement) =>
+      evenement.type === "REPRODUCTION_AUTONOME_CYCLE_TERMINEE" &&
+      evenement.numeroCycle === numeroCycle,
+  );
+}
+
+/**
+ * Idempotence reprise : une DEMANDEE (ou clôture) après PLANIFIEE pour ce parent.
+ */
+function parentDejaTraiteDansPhaseAutonome(
+  evenements: readonly EvenementEsp[],
+  identifiantParent: string,
+  numeroCycle: number,
+): boolean {
+  let apresPlan = false;
+  for (const evenement of evenements) {
+    if (
+      evenement.type === "REPRODUCTION_AUTONOME_CYCLE_PLANIFIEE" &&
+      evenement.numeroCycle === numeroCycle
+    ) {
+      apresPlan = true;
+      continue;
+    }
+    if (!apresPlan || evenement.numeroCycle !== numeroCycle) {
+      continue;
+    }
+    const parentCharge = evenement.chargeUtile.identifiantParent;
+    const concerneParent =
+      evenement.identifiantAgent === identifiantParent ||
+      parentCharge === identifiantParent;
+    if (
+      concerneParent &&
+      (evenement.type === "REPRODUCTION_DEMANDEE" ||
+        evenement.type === "REPRODUCTION_TERMINEE" ||
+        evenement.type === "REPRODUCTION_REFUSEE")
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function compterNaissancesAutonomesRetenues(
+  evenements: readonly EvenementEsp[],
+  numeroCycle: number,
+  identifiantsRetenus: readonly string[],
+): number {
+  const retenus = new Set(identifiantsRetenus);
+  let apresPlan = false;
+  let compte = 0;
+  for (const evenement of evenements) {
+    if (
+      evenement.type === "REPRODUCTION_AUTONOME_CYCLE_PLANIFIEE" &&
+      evenement.numeroCycle === numeroCycle
+    ) {
+      apresPlan = true;
+      continue;
+    }
+    if (
+      !apresPlan ||
+      evenement.type !== "REPRODUCTION_TERMINEE" ||
+      evenement.numeroCycle !== numeroCycle
+    ) {
+      continue;
+    }
+    const parent =
+      evenement.identifiantAgent ??
+      (typeof evenement.chargeUtile.identifiantParent === "string"
+        ? evenement.chargeUtile.identifiantParent
+        : undefined);
+    if (parent !== undefined && retenus.has(parent)) {
+      compte += 1;
+    }
+  }
+  return compte;
 }
 
 function ouvrirRegistre(options: OptionsControleurExperience): {

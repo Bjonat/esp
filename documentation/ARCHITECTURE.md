@@ -15,7 +15,8 @@ Phases livrées :
 - **Moteur de décision agent v0.1** — observation → décision → action simulée → noyau ;
 - **Atomicité cycle économique v0.1** — lot atomique, reprise exactly-once ;
 - **Fitness descriptive v0.1** — mesures multidimensionnelles, aucune sélection ;
-- **Reproduction mécanique v0.1** — naissance financée par le parent, aucune sélection.
+- **Reproduction mécanique v0.1** — naissance financée par le parent, aucune sélection ;
+- **Reproduction autonome v0.1** — phase post-économie opt-in, priorité neutre, sélection émergente économique sans ranking fitness.
 
 Aucune transaction réelle, aucun wallet Solana. IA réelle uniquement via opt-in
 explicite (`xway.fournisseur: openai`) + `OPENAI_API_KEY` + commande manuelle
@@ -44,6 +45,10 @@ esp/
 │   ├── NOYAU_ECONOMIQUE.md
 │   ├── CONTROLEUR_EXPERIENCE.md
 │   ├── DASHBOARD.md
+│   ├── REPRODUCTION.md
+│   ├── REPRODUCTION_AUTONOME.md
+│   ├── HERITAGE_MUTATION.md
+│   ├── FITNESS_DESCRIPTIVE.md
 │   ├── XWAY.md
 │   ├── IDENTITE_AGENT.md
 │   └── FOURNISSEUR_IA_REEL.md
@@ -113,13 +118,22 @@ fitness / ranking / tournoi ; score de fitness unique ; tool calling ;
 rotation de clés ; HSM / Vault ; service réseau Xway indépendant ;
 héritage de mémoire / KnowledgeUnits.
 
-En place (v0.1) : reproduction mécanique, héritage de configuration comportementale
-et mutation déterministe bornée — voir [`REPRODUCTION.md`](./REPRODUCTION.md) et
+En place (v0.1) : reproduction mécanique, reproduction autonome (opt-in),
+héritage de configuration comportementale et mutation déterministe bornée —
+voir [`REPRODUCTION.md`](./REPRODUCTION.md),
+[`REPRODUCTION_AUTONOME.md`](./REPRODUCTION_AUTONOME.md) et
 [`HERITAGE_MUTATION.md`](./HERITAGE_MUTATION.md).
+
+Le **contrôle expérimental** (`criteresArret.cycleMaximum`) est distinct des
+contraintes de population / reproduction : il décide si l'expérience continue,
+pas si un agent se reproduit. La diversité génotypique reste une mesure
+descriptive (aucune anti-fixation en v0.1).
 
 Voir [`FOURNISSEUR_IA_REEL.md`](./FOURNISSEUR_IA_REEL.md) pour l'adaptateur OpenAI v0.1.
 Voir [`MOTEUR_DECISION_AGENT.md`](./MOTEUR_DECISION_AGENT.md) pour la boucle décisionnelle.
 Voir [`ATOMICITE_CYCLE_ECONOMIQUE.md`](./ATOMICITE_CYCLE_ECONOMIQUE.md) pour la reprise exactly-once.
 Voir [`FITNESS_DESCRIPTIVE.md`](./FITNESS_DESCRIPTIVE.md) pour les mesures v0.1.
 Voir [`REPRODUCTION.md`](./REPRODUCTION.md) pour la naissance mécanique v0.1.
+Voir [`REPRODUCTION_AUTONOME.md`](./REPRODUCTION_AUTONOME.md) pour la phase autonome v0.1.
 Voir [`HERITAGE_MUTATION.md`](./HERITAGE_MUTATION.md) pour l'héritage / mutation v0.1.
+Voir [`CONTROLEUR_EXPERIENCE.md`](./CONTROLEUR_EXPERIENCE.md) pour l'orchestration.
