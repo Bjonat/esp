@@ -146,5 +146,5 @@ Détail adaptateur : [`FOURNISSEUR_IA_REEL.md`](./FOURNISSEUR_IA_REEL.md).
 
 ## Dettes techniques
 
-- Reprise mid-`executerCycleEconomique` (entre `CYCLE_DEMARRE` et `CYCLE_TERMINE`)
-  — non corrigée ici ; à traiter séparément.
+- (néant pour la reprise mid-cycle économique — voir
+  [`ATOMICITE_CYCLE_ECONOMIQUE.md`](./ATOMICITE_CYCLE_ECONOMIQUE.md))

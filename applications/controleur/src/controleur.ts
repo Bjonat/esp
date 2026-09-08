@@ -11,6 +11,7 @@ import type {
 } from "@esp/protocole";
 import {
   AgentMortInactifErreur,
+  analyserExecutionEconomique,
   attribuerCapitalInitial,
   assertDemandesXwayNonDejaAttribuees,
   calculerRunwayEnCycles,
@@ -23,6 +24,7 @@ import {
   creerEntreeIdentiteAgentEnregistree,
   creerTresorerieProprietaire,
   executerCycleEconomique,
+  fabriquerIdentifiantExecutionEconomique,
   filtrerEvenementsEconomiques,
   parserSnapshotCreationExperience,
   reconstruireStatutExperience,
@@ -696,6 +698,9 @@ export class ControleurExperience {
    * Avance l'expérience d'un cycle expérimental.
    * L'horloge wall-clock n'influence aucune règle économique.
    *
+   * Si un cycle N a déjà CYCLE_EXPERIENCE_AVANCE mais qu'au moins un agent
+   * vivant n'a pas CYCLE_TERMINE, reprend N (pas N+1).
+   *
    * Si fournisseur=openai : aucune inférence réelle automatique
    * (commande volontaire /inference-test uniquement).
    */
@@ -719,17 +724,30 @@ export class ControleurExperience {
       this.enregistrerControle("EXPERIENCE_DEMARREE");
     }
 
-    const numeroCycle = this.numeroCycleCourant + 1;
+    const evenementsRegistre = this.registre.listerParExperience(
+      this.configuration.identifiantExperience,
+    );
+    const cycleAReprendre = detecterCycleEconomiqueIncomplet({
+      evenements: evenementsRegistre,
+      identifiantExperience: this.configuration.identifiantExperience,
+      agents: this.agents,
+    });
+    const repriseCycleIncomplet = cycleAReprendre !== undefined;
+    const numeroCycle = repriseCycleIncomplet
+      ? cycleAReprendre
+      : this.numeroCycleCourant + 1;
 
-    this.enregistrerEvenements([
-      creerEntreeCycleExperienceAvance({
-        identifiantExperience: this.configuration.identifiantExperience,
-        numeroCycle,
-        ...(this.datesEvenementsFixes !== undefined
-          ? { dateEnregistrement: this.datesEvenementsFixes }
-          : {}),
-      }),
-    ]);
+    if (!repriseCycleIncomplet) {
+      this.enregistrerEvenements([
+        creerEntreeCycleExperienceAvance({
+          identifiantExperience: this.configuration.identifiantExperience,
+          numeroCycle,
+          ...(this.datesEvenementsFixes !== undefined
+            ? { dateEnregistrement: this.datesEvenementsFixes }
+            : {}),
+        }),
+      ]);
+    }
 
     const agentsApres: AgentExperience[] = [];
     let tresorerie = this.tresorerie;
@@ -740,6 +758,20 @@ export class ControleurExperience {
 
     for (const agent of this.agents) {
       if (agent.etatEconomique.etatSurvie === "mort") {
+        agentsApres.push(agent);
+        continue;
+      }
+
+      const analyseEco = analyserExecutionEconomique({
+        evenements: this.registre.listerParExperience(
+          this.configuration.identifiantExperience,
+        ),
+        identifiantExperience: this.configuration.identifiantExperience,
+        identifiantAgent: agent.identite.identifiant,
+        numeroCycle,
+      });
+
+      if (analyseEco.statut === "terminee") {
         agentsApres.push(agent);
         continue;
       }
@@ -782,7 +814,13 @@ export class ControleurExperience {
         });
 
         let coutComputeXway = 0n;
-        if (xwayAutoActif && this.passerelleXway !== undefined && this.configuration.xway) {
+        const dejaCompute = analyseEco.typesPresents.has("DEPENSE_COMPUTE");
+        if (
+          !dejaCompute &&
+          xwayAutoActif &&
+          this.passerelleXway !== undefined &&
+          this.configuration.xway
+        ) {
           const resultatXway = await executerCycleCognitifAgent({
             configurationXway: this.configuration.xway,
             passerelle: this.passerelleXway,
@@ -815,7 +853,9 @@ export class ControleurExperience {
           ...activiteEco,
           depenseCompute:
             this.configuration.xway?.active === true && xwayAutoActif
-              ? coutComputeXway
+              ? dejaCompute
+                ? 0n
+                : coutComputeXway
               : activiteEco.depenseCompute,
         };
 
@@ -843,6 +883,9 @@ export class ControleurExperience {
           tresorerie,
           activite,
           prefixeIdentifiant: `${agent.identite.identifiant}-`,
+          identifiantExecutionEconomique:
+            analyseEco.identifiantExecutionEconomique,
+          evenementsExecutionExistants: analyseEco.evenements,
           ...(provenanceDepenseCompute !== undefined
             ? { provenanceDepenseCompute }
             : {}),
@@ -858,7 +901,7 @@ export class ControleurExperience {
         throw erreur;
       }
 
-      this.enregistrerEvenements(resultat.evenements);
+      this.enregistrerLotEconomiqueAtomique(resultat.evenements);
       tresorerie = resultat.tresorerie;
       agentsApres.push({
         identite: agent.identite,
@@ -870,6 +913,11 @@ export class ControleurExperience {
     this.tresorerie = tresorerie;
     this.numeroCycleCourant = numeroCycle;
     this.statut = "en_cours";
+    if (repriseCycleIncomplet) {
+      this.historique = this.historique.filter(
+        (entree) => entree.numeroCycle < numeroCycle,
+      );
+    }
     this.historique = [
       ...this.historique,
       {
@@ -1730,6 +1778,19 @@ export class ControleurExperience {
         tresorerie,
         activite: resultat.activite,
         prefixeIdentifiant: `${a.identite.identifiant}-`,
+        identifiantExecutionEconomique: fabriquerIdentifiantExecutionEconomique({
+          identifiantExperience: this.configuration.identifiantExperience,
+          identifiantAgent: a.identite.identifiant,
+          numeroCycle,
+        }),
+        evenementsExecutionExistants: analyserExecutionEconomique({
+          evenements: this.registre.listerParExperience(
+            this.configuration.identifiantExperience,
+          ),
+          identifiantExperience: this.configuration.identifiantExperience,
+          identifiantAgent: a.identite.identifiant,
+          numeroCycle,
+        }).evenements,
         ...(provenanceDepenseCompute !== undefined
           ? { provenanceDepenseCompute }
           : {}),
@@ -1737,7 +1798,7 @@ export class ControleurExperience {
           ? { dateEnregistrement: this.datesEvenementsFixes }
           : {}),
       });
-      this.enregistrerEvenements(eco.evenements);
+      this.enregistrerLotEconomiqueAtomique(eco.evenements);
       tresorerie = eco.tresorerie;
       agentsApres.push({
         identite: a.identite,
@@ -1828,16 +1889,30 @@ export class ControleurExperience {
               },
             ]
           : [];
-      this.assertAttributionsXwayInedites(attributionsXway);
+      const analyseEco = analyserExecutionEconomique({
+        evenements,
+        identifiantExperience: this.configuration.identifiantExperience,
+        identifiantAgent: agent.identite.identifiant,
+        numeroCycle,
+      });
+      // Attribution déjà matérialisée en DEPENSE_COMPUTE → ne pas re-vérifier
+      // comme « inédite » (sinon faux positif à la reprise partielle).
+      if (!analyseEco.typesPresents.has("DEPENSE_COMPUTE")) {
+        this.assertAttributionsXwayInedites(attributionsXway);
+      }
       return {
         activite: {
           revenuActivite: reprise.resultatAction.activite.revenuActivite,
           perteActivite: reprise.resultatAction.activite.perteActivite,
-          depenseCompute: reprise.resultatMoteur.coutCognitifMicroUsdc,
+          depenseCompute: analyseEco.typesPresents.has("DEPENSE_COMPUTE")
+            ? 0n
+            : reprise.resultatMoteur.coutCognitifMicroUsdc,
           depenseDonnees: 0n,
           fraisExecution: reprise.resultatAction.activite.fraisExecution,
         },
-        attributionsXway,
+        attributionsXway: analyseEco.typesPresents.has("DEPENSE_COMPUTE")
+          ? []
+          : attributionsXway,
       };
     }
 
@@ -1889,6 +1964,58 @@ export class ControleurExperience {
       this.registre.ajouter(entree);
     }
   }
+
+  /**
+   * Écriture atomique du lot économique d'un agent×cycle.
+   * SQLite : BEGIN/COMMIT — crash avant COMMIT → aucun événement partiel.
+   */
+  private enregistrerLotEconomiqueAtomique(
+    evenements: readonly EntreeEvenementEsp[],
+  ): void {
+    if (evenements.length === 0) {
+      return;
+    }
+    this.registre.ajouterPlusieurs(evenements);
+  }
+}
+
+/**
+ * Si CYCLE_EXPERIENCE_AVANCE(N) existe et qu'un agent non mort n'a pas
+ * CYCLE_TERMINE pour N → reprendre N.
+ */
+function detecterCycleEconomiqueIncomplet(options: {
+  readonly evenements: readonly EvenementEsp[];
+  readonly identifiantExperience: string;
+  readonly agents: readonly AgentExperience[];
+}): number | undefined {
+  let maxAvance = 0;
+  for (const evenement of options.evenements) {
+    if (
+      evenement.type === "CYCLE_EXPERIENCE_AVANCE" &&
+      evenement.numeroCycle > maxAvance
+    ) {
+      maxAvance = evenement.numeroCycle;
+    }
+  }
+  if (maxAvance < 1) {
+    return undefined;
+  }
+
+  for (const agent of options.agents) {
+    if (agent.etatEconomique.etatSurvie === "mort") {
+      continue;
+    }
+    const analyse = analyserExecutionEconomique({
+      evenements: options.evenements,
+      identifiantExperience: options.identifiantExperience,
+      identifiantAgent: agent.identite.identifiant,
+      numeroCycle: maxAvance,
+    });
+    if (analyse.statut !== "terminee") {
+      return maxAvance;
+    }
+  }
+  return undefined;
 }
 
 function ouvrirRegistre(options: OptionsControleurExperience): {

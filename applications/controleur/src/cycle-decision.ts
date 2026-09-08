@@ -21,6 +21,7 @@ import {
   creerEntreeObservationAgentRecue,
   creerEntreePropositionDecisionProduite,
   creerEntreeResultatActionObserve,
+  fabriquerIdentifiantExecutionEconomique,
   observationOpportuniteVersObservationAgent,
 } from "@esp/protocole";
 import type {
@@ -300,6 +301,12 @@ export async function executerCycleDecisionAgent(options: {
       identifiantDecision: resultatMoteur.decision.identifiantDecision,
     });
 
+    const identifiantExecutionEconomique =
+      fabriquerIdentifiantExecutionEconomique({
+        identifiantExperience: options.identifiantExperience,
+        identifiantAgent: options.agent.identifiant,
+        numeroCycle: options.numeroCycle,
+      });
     persister([
       creerEntreeActionEnvironnementExecutee({
         identifiantExperience: options.identifiantExperience,
@@ -323,6 +330,7 @@ export async function executerCycleDecisionAgent(options: {
         revenuActiviteMicroUsdc: resultatAction.activite.revenuActivite,
         perteActiviteMicroUsdc: resultatAction.activite.perteActivite,
         fraisExecutionMicroUsdc: resultatAction.activite.fraisExecution,
+        identifiantExecutionEconomique,
         indiceUnicite: options.prochaineSequence(),
         ...dateOpts,
       }),

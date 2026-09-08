@@ -30,6 +30,9 @@ import {
   enregistrerLoyerEncaisse,
   enregistrerRedevanceEncaissee,
 } from "./tresorerie-proprietaire.js";
+import {
+  fabriquerIdentifiantExecutionEconomique,
+} from "./execution-economique.js";
 
 /**
  * Résultat d'activité simulé pour un cycle — aucune IA, aucun marché.
@@ -64,6 +67,19 @@ export type OptionsCycleEconomique = {
   /** Préfixe des identifiants d'événements (tests / contrôleur). */
   prefixeIdentifiant?: string;
   dateEnregistrement?: string;
+  /**
+   * Identifiant causal de l'exécution. Défaut déterministe experience+agent+cycle.
+   */
+  identifiantExecutionEconomique?: string;
+  /**
+   * Événements déjà enregistrés pour cette exécution (reprise).
+   * Si CYCLE_TERMINE présent → aucun nouvel événement.
+   */
+  evenementsExecutionExistants?: readonly {
+    readonly type: string;
+    readonly identifiant: string;
+    readonly chargeUtile?: Readonly<Record<string, unknown>>;
+  }[];
 };
 
 export type ResultatCycleEconomique = {
@@ -72,6 +88,9 @@ export type ResultatCycleEconomique = {
   readonly evenements: readonly EntreeEvenementEconomique[];
   readonly runway: number;
   readonly valeurEconomiqueNette: MicroUsdc;
+  /** True si l'exécution était déjà terminée — aucun nouvel événement. */
+  readonly dejaTerminee?: boolean;
+  readonly identifiantExecutionEconomique: string;
 };
 
 export type MotifDette =
@@ -103,6 +122,7 @@ type ContexteEcriture = {
   indiceLocal: number;
   prefixeIdentifiant: string;
   dateEnregistrement?: string;
+  identifiantExecutionEconomique: string;
   evenements: EntreeEvenementEconomique[];
 };
 
@@ -118,7 +138,10 @@ function pousserEvenement(
     type,
     identifiantExperience: contexte.identifiantExperience,
     numeroCycle: contexte.numeroCycle,
-    chargeUtile,
+    chargeUtile: {
+      ...chargeUtile,
+      identifiantExecutionEconomique: contexte.identifiantExecutionEconomique,
+    },
     ...(options?.sansAgent
       ? {}
       : { identifiantAgent: contexte.identifiantAgent }),
@@ -145,8 +168,82 @@ function loyerEstDu(
   return numeroCycle > 0 && numeroCycle % periodeLoyerEnCycles === 0;
 }
 
+function extraireIndiceLocalMax(
+  evenements: readonly { readonly identifiant: string }[],
+  prefixe: string,
+  numeroCycle: number,
+): number {
+  let max = 0;
+  const motif = `-${String(numeroCycle)}-`;
+  for (const evenement of evenements) {
+    if (!evenement.identifiant.startsWith(prefixe)) {
+      continue;
+    }
+    const index = evenement.identifiant.lastIndexOf(motif);
+    if (index < 0) {
+      continue;
+    }
+    const reste = evenement.identifiant.slice(index + motif.length);
+    const valeur = Number(reste);
+    if (Number.isInteger(valeur) && valeur > max) {
+      max = valeur;
+    }
+  }
+  return max;
+}
+
+type JalonsExecution = {
+  readonly demarre: boolean;
+  readonly revenu: boolean;
+  readonly perte: boolean;
+  readonly compute: boolean;
+  readonly donnees: boolean;
+  readonly frais: boolean;
+  readonly loyerDu: boolean;
+  readonly loyerPaye: boolean;
+  readonly detteLoyer: boolean;
+  readonly redevanceDue: boolean;
+  readonly redevancePayee: boolean;
+  readonly detteRedevance: boolean;
+  readonly termine: boolean;
+};
+
+function lireJalons(
+  evenements: readonly {
+    readonly type: string;
+    readonly chargeUtile?: Readonly<Record<string, unknown>>;
+  }[],
+): JalonsExecution {
+  const types = new Set(evenements.map((e) => e.type));
+  const dettes = evenements.filter((e) => e.type === "DETTE_CREEE");
+  return {
+    demarre: types.has("CYCLE_DEMARRE"),
+    revenu: types.has("REVENU_ACTIVITE"),
+    perte: types.has("PERTE_ACTIVITE"),
+    compute: types.has("DEPENSE_COMPUTE"),
+    donnees: types.has("DEPENSE_DONNEES"),
+    frais: types.has("FRAIS_EXECUTION"),
+    loyerDu: types.has("LOYER_INFRASTRUCTURE_DU"),
+    loyerPaye: types.has("LOYER_INFRASTRUCTURE_PAYE"),
+    detteLoyer: dettes.some(
+      (e) => e.chargeUtile?.motif === "loyer_infrastructure",
+    ),
+    redevanceDue: types.has("REDEVANCE_PROPRIETAIRE_DUE"),
+    redevancePayee: types.has("REDEVANCE_PROPRIETAIRE_PAYEE"),
+    detteRedevance: dettes.some(
+      (e) => e.chargeUtile?.motif === "redevance_proprietaire",
+    ),
+    termine: types.has("CYCLE_TERMINE"),
+  };
+}
+
 /**
  * Exécute un cycle économique déterministe.
+ *
+ * Idempotence :
+ * - exécution déjà terminée → aucun nouvel événement ;
+ * - exécution partielle → n'applique/émet que les étapes manquantes
+ *   (l'état fourni doit déjà refléter les étapes enregistrées).
  *
  * La séquence globale des événements est attribuée par le registre à l'enregistrement,
  * pas par le moteur.
@@ -169,30 +266,58 @@ export function executerCycleEconomique(
   }
   assertMontantsActiviteNonNegatifs(options.activite);
 
+  const identifiantExecutionEconomique =
+    options.identifiantExecutionEconomique ??
+    fabriquerIdentifiantExecutionEconomique({
+      identifiantExperience: options.identifiantExperience,
+      identifiantAgent: options.identifiantAgent,
+      numeroCycle: options.numeroCycle,
+    });
+
+  const existants = options.evenementsExecutionExistants ?? [];
+  const jalons = lireJalons(existants);
+
+  if (jalons.termine) {
+    const survie = calculerSurvieApresCycle(options.etat, options.parametres);
+    return {
+      etat: figerEtatEconomique(clonerEtatEconomique(options.etat)),
+      tresorerie: options.tresorerie,
+      evenements: [],
+      runway: survie.runway,
+      valeurEconomiqueNette: calculerValeurEconomiqueNette(options.etat),
+      dejaTerminee: true,
+      identifiantExecutionEconomique,
+    };
+  }
+
+  const prefixe = options.prefixeIdentifiant ?? "";
   const etat = clonerEtatEconomique(options.etat);
   let tresorerie = options.tresorerie;
   const contexte: ContexteEcriture = {
     identifiantExperience: options.identifiantExperience,
     identifiantAgent: options.identifiantAgent,
     numeroCycle: options.numeroCycle,
-    indiceLocal: 1,
-    prefixeIdentifiant: options.prefixeIdentifiant ?? "",
+    indiceLocal: extraireIndiceLocalMax(existants, prefixe, options.numeroCycle) + 1,
+    prefixeIdentifiant: prefixe,
+    identifiantExecutionEconomique,
     evenements: [],
     ...(options.dateEnregistrement !== undefined
       ? { dateEnregistrement: options.dateEnregistrement }
       : {}),
   };
 
-  pousserEvenement(contexte, "CYCLE_DEMARRE");
+  if (!jalons.demarre) {
+    pousserEvenement(contexte, "CYCLE_DEMARRE");
+  }
 
-  if (options.activite.revenuActivite > 0n) {
+  if (options.activite.revenuActivite > 0n && !jalons.revenu) {
     etat.capitalLiquide += options.activite.revenuActivite;
     etat.totalRevenusActivite += options.activite.revenuActivite;
     pousserEvenement(contexte, "REVENU_ACTIVITE", {
       montantMicroUsdc: ecrireMontantChargeUtile(options.activite.revenuActivite),
     });
   }
-  if (options.activite.perteActivite > 0n) {
+  if (options.activite.perteActivite > 0n && !jalons.perte) {
     etat.capitalLiquide -= options.activite.perteActivite;
     etat.totalPertesActivite += options.activite.perteActivite;
     pousserEvenement(contexte, "PERTE_ACTIVITE", {
@@ -200,7 +325,7 @@ export function executerCycleEconomique(
     });
   }
 
-  if (options.activite.depenseCompute > 0n) {
+  if (options.activite.depenseCompute > 0n && !jalons.compute) {
     etat.capitalLiquide -= options.activite.depenseCompute;
     etat.totalDepensesCompute += options.activite.depenseCompute;
     if (options.provenanceDepenseCompute !== undefined) {
@@ -226,14 +351,14 @@ export function executerCycleEconomique(
       });
     }
   }
-  if (options.activite.depenseDonnees > 0n) {
+  if (options.activite.depenseDonnees > 0n && !jalons.donnees) {
     etat.capitalLiquide -= options.activite.depenseDonnees;
     etat.totalDepensesDonnees += options.activite.depenseDonnees;
     pousserEvenement(contexte, "DEPENSE_DONNEES", {
       montantMicroUsdc: ecrireMontantChargeUtile(options.activite.depenseDonnees),
     });
   }
-  if (options.activite.fraisExecution > 0n) {
+  if (options.activite.fraisExecution > 0n && !jalons.frais) {
     etat.capitalLiquide -= options.activite.fraisExecution;
     etat.totalFraisExecution += options.activite.fraisExecution;
     pousserEvenement(contexte, "FRAIS_EXECUTION", {
@@ -244,10 +369,12 @@ export function executerCycleEconomique(
   const parametres = options.parametres;
   if (loyerEstDu(options.numeroCycle, parametres.periodeLoyerEnCycles)) {
     const loyer = parametres.loyerInfrastructureMicroUsdc;
-    pousserEvenement(contexte, "LOYER_INFRASTRUCTURE_DU", {
-      montantMicroUsdc: ecrireMontantChargeUtile(loyer),
-    });
-    if (loyer > 0n) {
+    if (!jalons.loyerDu) {
+      pousserEvenement(contexte, "LOYER_INFRASTRUCTURE_DU", {
+        montantMicroUsdc: ecrireMontantChargeUtile(loyer),
+      });
+    }
+    if (loyer > 0n && !jalons.loyerPaye && !jalons.detteLoyer) {
       if (etat.capitalLiquide >= loyer) {
         etat.capitalLiquide -= loyer;
         etat.totalLoyersPayes += loyer;
@@ -269,29 +396,29 @@ export function executerCycleEconomique(
     etat,
     parametres.tauxRedevanceProprietairePointsDeBase,
   );
-  etat.highWaterMarkProprietaire = calculRedevance.highWaterMarkApres;
 
-  if (calculRedevance.montantRedevance > 0n) {
-    pousserEvenement(contexte, "REDEVANCE_PROPRIETAIRE_DUE", {
-      montantMicroUsdc: ecrireMontantChargeUtile(calculRedevance.montantRedevance),
-      profitTaxableMicroUsdc: ecrireMontantChargeUtile(calculRedevance.profitTaxable),
-      highWaterMarkAvantMicroUsdc: ecrireMontantChargeUtile(
-        calculRedevance.highWaterMarkAvant,
-      ),
-      highWaterMarkApresMicroUsdc: ecrireMontantChargeUtile(
-        calculRedevance.highWaterMarkApres,
-      ),
-    });
+  if (!jalons.redevanceDue) {
+    etat.highWaterMarkProprietaire = calculRedevance.highWaterMarkApres;
+  }
 
-    if (etat.capitalLiquide >= calculRedevance.montantRedevance) {
-      etat.capitalLiquide -= calculRedevance.montantRedevance;
-      etat.totalRedevancesProprietairePayees += calculRedevance.montantRedevance;
-      tresorerie = enregistrerRedevanceEncaissee(
-        tresorerie,
-        calculRedevance.montantRedevance,
-      );
-      pousserEvenement(contexte, "REDEVANCE_PROPRIETAIRE_PAYEE", {
-        montantMicroUsdc: ecrireMontantChargeUtile(calculRedevance.montantRedevance),
+  if (calculRedevance.montantRedevance > 0n || jalons.redevanceDue) {
+    const montantRedevance = jalons.redevanceDue
+      ? // Reprise : montant déjà dans l'événement DUE
+        (() => {
+          const due = existants.find((e) => e.type === "REDEVANCE_PROPRIETAIRE_DUE");
+          if (due?.chargeUtile?.montantMicroUsdc !== undefined) {
+            return lireMontantChargeUtile(
+              due.chargeUtile as Record<string, unknown>,
+              "montantMicroUsdc",
+            );
+          }
+          return calculRedevance.montantRedevance;
+        })()
+      : calculRedevance.montantRedevance;
+
+    if (!jalons.redevanceDue && montantRedevance > 0n) {
+      pousserEvenement(contexte, "REDEVANCE_PROPRIETAIRE_DUE", {
+        montantMicroUsdc: ecrireMontantChargeUtile(montantRedevance),
         profitTaxableMicroUsdc: ecrireMontantChargeUtile(
           calculRedevance.profitTaxable,
         ),
@@ -302,12 +429,55 @@ export function executerCycleEconomique(
           calculRedevance.highWaterMarkApres,
         ),
       });
-    } else {
-      etat.obligationsDues += calculRedevance.montantRedevance;
-      pousserEvenement(contexte, "DETTE_CREEE", {
-        motif: "redevance_proprietaire",
-        montantMicroUsdc: ecrireMontantChargeUtile(calculRedevance.montantRedevance),
-      });
+    }
+
+    if (
+      montantRedevance > 0n &&
+      !jalons.redevancePayee &&
+      !jalons.detteRedevance
+    ) {
+      const dueExistant = existants.find(
+        (e) => e.type === "REDEVANCE_PROPRIETAIRE_DUE",
+      );
+      const profitTaxable =
+        dueExistant?.chargeUtile?.profitTaxableMicroUsdc !== undefined
+          ? lireMontantChargeUtile(
+              dueExistant.chargeUtile as Record<string, unknown>,
+              "profitTaxableMicroUsdc",
+            )
+          : calculRedevance.profitTaxable;
+      const hwmAvant =
+        dueExistant?.chargeUtile?.highWaterMarkAvantMicroUsdc !== undefined
+          ? lireMontantChargeUtile(
+              dueExistant.chargeUtile as Record<string, unknown>,
+              "highWaterMarkAvantMicroUsdc",
+            )
+          : calculRedevance.highWaterMarkAvant;
+      const hwmApres =
+        dueExistant?.chargeUtile?.highWaterMarkApresMicroUsdc !== undefined
+          ? lireMontantChargeUtile(
+              dueExistant.chargeUtile as Record<string, unknown>,
+              "highWaterMarkApresMicroUsdc",
+            )
+          : etat.highWaterMarkProprietaire;
+
+      if (etat.capitalLiquide >= montantRedevance) {
+        etat.capitalLiquide -= montantRedevance;
+        etat.totalRedevancesProprietairePayees += montantRedevance;
+        tresorerie = enregistrerRedevanceEncaissee(tresorerie, montantRedevance);
+        pousserEvenement(contexte, "REDEVANCE_PROPRIETAIRE_PAYEE", {
+          montantMicroUsdc: ecrireMontantChargeUtile(montantRedevance),
+          profitTaxableMicroUsdc: ecrireMontantChargeUtile(profitTaxable),
+          highWaterMarkAvantMicroUsdc: ecrireMontantChargeUtile(hwmAvant),
+          highWaterMarkApresMicroUsdc: ecrireMontantChargeUtile(hwmApres),
+        });
+      } else {
+        etat.obligationsDues += montantRedevance;
+        pousserEvenement(contexte, "DETTE_CREEE", {
+          motif: "redevance_proprietaire",
+          montantMicroUsdc: ecrireMontantChargeUtile(montantRedevance),
+        });
+      }
     }
   }
 
@@ -318,7 +488,8 @@ export function executerCycleEconomique(
     survie.etatSurvie,
   );
 
-  if (nouvelEtatSurvie !== etatAvantSurvie) {
+  const aSurvieModifiee = existants.some((e) => e.type === "ETAT_SURVIE_MODIFIE");
+  if (nouvelEtatSurvie !== etatAvantSurvie && !aSurvieModifiee) {
     pousserEvenement(contexte, "ETAT_SURVIE_MODIFIE", {
       depuis: etatAvantSurvie,
       vers: nouvelEtatSurvie,
@@ -357,6 +528,7 @@ export function executerCycleEconomique(
     evenements: contexte.evenements,
     runway: survie.runway,
     valeurEconomiqueNette: calculerValeurEconomiqueNette(etat),
+    identifiantExecutionEconomique,
   };
 }
 

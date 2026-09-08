@@ -107,8 +107,11 @@ Pour chaque agent non mort :
 3. `simulerActiviteCycle` (activité économique simulée) ;
 4. agrégation `depenseCompute` = coûts Xway du cycle (si Xway actif) ;
 5. `executerCycleEconomique` (noyau) ;
-6. enregistrement append-only ;
+6. enregistrement **atomique** du lot (`ajouterPlusieurs` / transaction SQLite) ;
 7. mise à jour trésorerie propriétaire.
+
+Si le cycle N est incomplet (AVANCE sans `CYCLE_TERMINE` agent), reprise de N.
+Détail : [`ATOMICITE_CYCLE_ECONOMIQUE.md`](./ATOMICITE_CYCLE_ECONOMIQUE.md).
 
 ### Mode `decision_simulee`
 

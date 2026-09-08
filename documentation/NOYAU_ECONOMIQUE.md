@@ -107,6 +107,10 @@ Ordre déterministe d'un cycle :
 
 Entrées d'activité : `ResultatActiviteCycle` — simulé, sans IA ni marché.
 
+Chaque événement du lot porte `identifiantExecutionEconomique`
+(`ecoexec:{experience}:{agent}:c{N}`). Idempotence / reprise / transaction
+SQLite : voir [`ATOMICITE_CYCLE_ECONOMIQUE.md`](./ATOMICITE_CYCLE_ECONOMIQUE.md).
+
 ### Note sur l'ordre comptable
 
 L'ordre place la redevance **après** activité, coûts variables et loyer.

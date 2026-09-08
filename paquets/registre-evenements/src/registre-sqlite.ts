@@ -76,7 +76,61 @@ export class RegistreEvenementsSqlite implements RegistreEvenements {
       entree.identifiantExperience,
     );
     const evenement = normaliserEntreeEvenement(entree, sequence);
+    this.insererLigne(evenement);
+    return evenement;
+  }
 
+  /**
+   * Lot atomique SQLite : BEGIN → INSERT… → COMMIT.
+   * Crash avant COMMIT → aucun événement partiel visible.
+   */
+  ajouterPlusieurs(entrees: readonly EntreeEvenement[]): readonly Evenement[] {
+    this.assertOuvert();
+    if (entrees.length === 0) {
+      return [];
+    }
+
+    const sequencesParExperience = new Map<string, number>();
+    const preparés: Evenement[] = [];
+
+    for (const entree of entrees) {
+      const base =
+        sequencesParExperience.get(entree.identifiantExperience) ??
+        this.consulterProchaineSequence(entree.identifiantExperience);
+      preparés.push(normaliserEntreeEvenement(entree, base));
+      sequencesParExperience.set(entree.identifiantExperience, base + 1);
+    }
+
+    this.base.exec("BEGIN");
+    try {
+      for (const evenement of preparés) {
+        this.insererLigne(evenement);
+      }
+      this.base.exec("COMMIT");
+    } catch (erreur) {
+      try {
+        this.base.exec("ROLLBACK");
+      } catch {
+        /* ignore rollback secondary errors */
+      }
+      const message = erreur instanceof Error ? erreur.message : String(erreur);
+      if (message.includes("UNIQUE constraint failed")) {
+        if (message.includes("identifiant_experience")) {
+          throw new Error(
+            "Séquence déjà attribuée pour une expérience du lot atomique",
+          );
+        }
+        throw new Error(
+          "Événement déjà présent dans le registre (lot atomique)",
+        );
+      }
+      throw erreur;
+    }
+
+    return preparés;
+  }
+
+  private insererLigne(evenement: Evenement): void {
     try {
       this.base
         .prepare(
@@ -108,17 +162,15 @@ export class RegistreEvenementsSqlite implements RegistreEvenements {
       if (message.includes("UNIQUE constraint failed")) {
         if (message.includes("identifiant_experience")) {
           throw new Error(
-            `Séquence déjà attribuée pour l'expérience ${entree.identifiantExperience} : ${String(sequence)}`,
+            `Séquence déjà attribuée pour l'expérience ${evenement.identifiantExperience} : ${String(evenement.sequence)}`,
           );
         }
         throw new Error(
-          `Événement déjà présent dans le registre : ${entree.identifiant}`,
+          `Événement déjà présent dans le registre : ${evenement.identifiant}`,
         );
       }
       throw erreur;
     }
-
-    return evenement;
   }
 
   lister(): readonly Evenement[] {

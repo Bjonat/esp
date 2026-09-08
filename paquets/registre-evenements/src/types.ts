@@ -22,6 +22,12 @@ export interface RegistreEvenements {
    * monotone de son expérience (1, 2, 3, …).
    */
   ajouter(entree: EntreeEvenement): Evenement;
+  /**
+   * Insère un lot atomiquement (tout ou rien).
+   * SQLite : BEGIN … COMMIT ; mémoire : commit logique équivalent.
+   * Les séquences attribuées sont consécutives.
+   */
+  ajouterPlusieurs(entrees: readonly EntreeEvenement[]): readonly Evenement[];
   /** Prochaine séquence qui serait attribuée pour l'expérience. */
   consulterProchaineSequence(identifiantExperience: string): number;
   lister(): readonly Evenement[];
