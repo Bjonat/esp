@@ -165,16 +165,18 @@ DTO sans secret. EV / regret exposés en rationnel canonique :
 `microUsdcArrondiAffichage` est une troncature vers zéro pour le dashboard ;
 la donnée canonique reste le rationnel.
 
-## Futur (hors périmètre v0.1)
+## Futur (hors périmètre sélection)
 
-Avant reproduction / sélection, il faudra décider :
+Avant une sélection autonome, il faudra décider :
 
 - quelles dimensions entrent dans une politique de sélection ;
 - pondérations éventuelles (versionnées) ;
 - fenêtres / cohortes ;
-- traitement des agents morts ;
-- interaction avec héritage / mutation.
+- traitement des agents morts.
 
+Invariant inchangé : **fitness ≠ mutation ≠ sélection**.
+La mutation déterministe (sans sélection) est en
+[`HERITAGE_MUTATION.md`](./HERITAGE_MUTATION.md).
 La **reproduction mécanique** (naissance sans sélection) est en
 [`REPRODUCTION.md`](./REPRODUCTION.md). Cette phase fitness ne tranche
 **aucune** question de sélection.

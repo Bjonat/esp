@@ -76,6 +76,11 @@ export type SnapshotCreationExperience = {
    * Absents = reproduction inactive (legacy / opt-in).
    */
   readonly reproduction?: Readonly<Record<string, unknown>>;
+  /**
+   * Paramètres de mutation héritable figés à la création.
+   * Absents = mutation inactive (legacy / opt-in).
+   */
+  readonly mutation?: Readonly<Record<string, unknown>>;
 };
 
 export type ChargeExperienceCreee = {
@@ -102,6 +107,7 @@ export type ChargeExperienceCreee = {
   readonly environnementDecision?: Readonly<Record<string, unknown>>;
   readonly politiqueBudgetCognitif?: Readonly<Record<string, unknown>>;
   readonly reproduction?: Readonly<Record<string, unknown>>;
+  readonly mutation?: Readonly<Record<string, unknown>>;
 };
 
 export type ChargeCycleExperienceAvance = {
@@ -167,6 +173,7 @@ export function serialiserSnapshotCreationExperience(
     ...(snapshot.reproduction !== undefined
       ? { reproduction: snapshot.reproduction }
       : {}),
+    ...(snapshot.mutation !== undefined ? { mutation: snapshot.mutation } : {}),
   };
 }
 
@@ -295,6 +302,13 @@ export function parserSnapshotCreationExperience(
           reproduction: chargeUtile.reproduction as Readonly<
             Record<string, unknown>
           >,
+        }
+      : {}),
+    ...(chargeUtile.mutation !== undefined &&
+    chargeUtile.mutation !== null &&
+    typeof chargeUtile.mutation === "object"
+      ? {
+          mutation: chargeUtile.mutation as Readonly<Record<string, unknown>>,
         }
       : {}),
   };

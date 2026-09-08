@@ -1,0 +1,103 @@
+{
+  "_commentaire": [
+    "VALEURS DE DÉMONSTRATION",
+    "NON CANONIQUES",
+    "NON PRÉENREGISTRÉES",
+    "NON DESTINÉES AUX FUTURES EXPÉRIENCES SCIENTIFIQUES",
+    "Héritage + mutation v0.1 — variation comportementale déterministe, aucune sélection.",
+    "Fournisseur d'inférence simulé uniquement — aucun réseau OpenAI."
+  ],
+  "identifiantExperience": "exp-dev-mutation-v01",
+  "versionProtocole": "0.1.0",
+  "mode": "decision_simulee",
+  "graineSimulation": 424242,
+  "taillePopulationInitiale": 3,
+  "capitalInitialParAgentMicroUsdc": "10000000",
+  "parametresEconomiques": {
+    "version": "demo-mutation-v01",
+    "loyerInfrastructureMicroUsdc": "50000",
+    "periodeLoyerEnCycles": 10,
+    "tauxRedevanceProprietairePointsDeBase": "500",
+    "coutOperationnelMinimalParCycleMicroUsdc": "30000",
+    "seuilRunwaySainEnCycles": 20,
+    "seuilRunwayContraintEnCycles": 5,
+    "cyclesDormanceAvantMort": 3
+  },
+  "environnementDecision": {
+    "identifiant": "environnement-opportunites-simulees",
+    "version": "0.1.0",
+    "probabiliteSuccesBaseBps": 6000,
+    "amplitudeProbabiliteBps": 2000,
+    "gainSiSuccesMicroUsdc": "800000",
+    "perteSiEchecMicroUsdc": "400000",
+    "fraisActionMicroUsdc": "20000",
+    "fraisAttendreMicroUsdc": "0"
+  },
+  "politiqueBudgetCognitif": {
+    "identifiant": "politique-budget-cognitif-agent",
+    "version": "0.1.0",
+    "seuilEnjeuPourInferenceMicroUsdc": "100000",
+    "partMaxVenParCycleBps": 50,
+    "plafondCognitifMicroUsdc": "10000",
+    "modeleLogique": "modele_standard",
+    "comportementSansInference": "agir_si_favorable",
+    "refuserSiCritiqueOuDormant": true
+  },
+  "reproduction": {
+    "version": "parametres-reproduction-v01",
+    "active": true,
+    "dotationEnfantMicroUsdc": "2000000",
+    "coutReproductionMicroUsdc": "500000",
+    "reserveMinimaleParentMicroUsdc": "500000",
+    "populationMaximale": 12,
+    "nombreMaxReproductionsParCycle": 3,
+    "nombreMaxEnfantsParAgent": 3,
+    "cooldownCycles": 0
+  },
+  "mutation": {
+    "version": "parametres-mutation-v01",
+    "active": true,
+    "tauxMutationParGeneBps": 5000,
+    "versionCatalogueGenes": "genes-mutables-v01"
+  },
+  "xway": {
+    "active": true,
+    "plafondComputeParCycleMicroUsdc": "50000",
+    "modeles": [
+      {
+        "identifiant": "modele_economique",
+        "libelle": "Modèle économique (démo)",
+        "coutParMillionJetonsEntreeMicroUsdc": "500000",
+        "coutParMillionJetonsSortieMicroUsdc": "1500000",
+        "nombreMaxJetonsSortie": 256
+      },
+      {
+        "identifiant": "modele_standard",
+        "libelle": "Modèle standard (démo)",
+        "coutParMillionJetonsEntreeMicroUsdc": "2000000",
+        "coutParMillionJetonsSortieMicroUsdc": "6000000",
+        "nombreMaxJetonsSortie": 512
+      },
+      {
+        "identifiant": "modele_premium",
+        "libelle": "Modèle premium (démo)",
+        "coutParMillionJetonsEntreeMicroUsdc": "20000000",
+        "coutParMillionJetonsSortieMicroUsdc": "60000000",
+        "nombreMaxJetonsSortie": 1024
+      }
+    ],
+    "politiqueCognitive": {
+      "identifiant": "politique-budget-cognitif-agent",
+      "version": "0.1.0"
+    },
+    "fournisseur": {
+      "identifiant": "fournisseur-inference-simule",
+      "version": "0.1.0"
+    }
+  },
+  "identite": {
+    "active": true,
+    "algorithme": "ed25519",
+    "version": "0.1.0"
+  }
+}

@@ -14,11 +14,13 @@ La dotation de l'enfant provient du parent (transfert interne).
 ## Hors périmètre v0.1
 
 - sélection par fitness ;
-- mutation ;
 - héritage de connaissances / mémoire ;
 - compétition reproductive complexe ;
 - Solana / Shadow / Live ;
 - appels OpenAI.
+
+La **mutation déterministe** de la configuration héritable est documentée dans
+[`HERITAGE_MUTATION.md`](./HERITAGE_MUTATION.md) (variation sans sélection).
 
 ## Identité enfant
 
@@ -123,8 +125,8 @@ Refus sans dette automatique, sans refinancement caché.
 `ConfigurationHeritableAgent` (`configuration-heritable-v01`) :
 
 - distincte de l'identité, de l'économie, de la mémoire et des secrets ;
-- **copie exacte** parent → enfant ;
-- **aucune mutation** en v0.1.
+- copie parent → enfant, puis **mutation optionnelle** (paramètres d'expérience) ;
+- détail : [`HERITAGE_MUTATION.md`](./HERITAGE_MUTATION.md).
 
 Jamais hérité : clé privée, capital complet, obligations, HWM brut parent,
 historique, CoT, crédits Xway, mémoire épisodique.
@@ -190,11 +192,13 @@ d'écrasement silencieux.
 
 Aucun score reproductif.
 
-## Futur (mutation / héritage)
+## Futur (sélection / héritage étendu)
 
-Avant d'activer mutation ou sélection :
+Avant d'activer une sélection économique autonome :
 
-1. quelles dimensions de `ConfigurationHeritableAgent` mutent, et comment ?
-2. politique de sélection (fitness → parents) versionnée ;
-3. KnowledgeUnits / mémoire héritée ;
-4. interaction avec atomicité et identité.
+1. quelles dimensions de fitness entrent dans une politique de sélection versionnée ;
+2. KnowledgeUnits / mémoire héritée ;
+3. interaction avec atomicité et identité.
+
+La mutation comportementale bornée (sans sélection) est en
+[`HERITAGE_MUTATION.md`](./HERITAGE_MUTATION.md).

@@ -69,18 +69,24 @@ Onglets :
 | Recherche | « Aucune source de données ou recherche connectée » |
 | Portefeuille | « Aucun environnement financier connecté » |
 | Descendance | Lignée, parent, enfants, stats demandées/autorisées/refusées/terminées, dotations, coûts — aucune sélection |
+| Héritage / variation | Empreinte de configuration, différences vs parent, mutations à la naissance — **aucune sélection** |
 
 
 L'écran principal affiche aussi une section **Xway** globale
 (demandes / autorisations / refus / coûts / répartition modèles).
 
+La population expose `diversiteHeritable` (configs distinctes, mutations
+cumulées / cycle, stats par gène) sous la bannière
+`DIVERSITE_HERITABLE_DESCRIPTIVE_AUCUNE_SELECTION_ACTIVE`.
+
 Placeholders **volontaires et honnêtes** — aucune donnée fictive.
 
 ## Arbre généalogique
 
-Modèle prêt pour parent → enfant.
-En v0.1 : N racines, 0 relation.
-Aucun faux descendant.
+Relations parent → enfant reconstruites depuis le registre.
+Chaque nœud peut porter `nombreMutationsNaissance` et
+`empreinteConfiguration` (descriptifs).
+Aucun faux descendant. Aucun score reproductif.
 
 ## Développement
 

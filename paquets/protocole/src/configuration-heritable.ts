@@ -4,7 +4,8 @@
  * Distincte de : constitution/protocole, état économique, mémoire,
  * secrets, identité cryptographique.
  *
- * Reproduction mécanique : copie exacte parent → enfant, AUCUNE mutation.
+ * Reproduction : copie parent → enfant, puis mutation optionnelle
+ * (voir appliquerMutationConfigurationHeritable) — parent immuable.
  */
 
 export const VERSION_CONFIGURATION_HERITABLE =
@@ -12,7 +13,7 @@ export const VERSION_CONFIGURATION_HERITABLE =
 
 /**
  * Paramètres comportementaux héritables (extensible).
- * v0.1 : structure minimale, copie bit-à-bit, zéro mutation.
+ * v0.1 : structure minimale ; mutation via catalogue gènes mutables.
  */
 export type ConfigurationHeritableAgent = {
   readonly version: typeof VERSION_CONFIGURATION_HERITABLE;
@@ -30,7 +31,7 @@ export function creerConfigurationHeritableVide(): ConfigurationHeritableAgent {
   };
 }
 
-/** Copie exacte — aucune mutation v0.1. */
+/** Copie exacte — le parent n'est jamais muté en place. */
 export function copierConfigurationHeritable(
   source: ConfigurationHeritableAgent,
 ): ConfigurationHeritableAgent {

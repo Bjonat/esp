@@ -27,6 +27,10 @@ import { serialiserMontantApi } from "./serialisation-api.js";
 import type { ModeExperience, StatutExperience } from "./configuration-experience.js";
 import type { ProjectionIdentiteAgent } from "./projections-identite.js";
 import type { ProjectionStatistiquesReproductionAgent } from "./projections-reproduction.js";
+import type {
+  ProjectionDiversiteHeritablePopulation,
+  ProjectionHeritageVariationAgent,
+} from "./projections-mutation.js";
 
 /** Identité d'agent enrichie pour l'observation (généalogie prête). */
 export interface IdentiteAgentExperience {
@@ -81,6 +85,8 @@ export interface ProjectionAgent {
   readonly identite?: ProjectionIdentiteAgent;
   /** Stats reproductives (parent) — registre uniquement. */
   readonly reproduction?: ProjectionStatistiquesReproductionAgent;
+  /** Héritage / variation génotypique — descriptif, aucune sélection. */
+  readonly heritageVariation?: ProjectionHeritageVariationAgent;
 }
 
 export interface ProjectionPopulation {
@@ -117,6 +123,8 @@ export interface ProjectionPopulation {
   readonly dotationsInternesCumulees: MontantApi;
   readonly coutsReproductifsCumules: MontantApi;
   readonly generationsPresentes: readonly number[];
+  /** Diversité héritable population — descriptif, aucune sélection. */
+  readonly diversiteHeritable?: ProjectionDiversiteHeritablePopulation;
 }
 
 export interface ProjectionTresorerie {
@@ -134,6 +142,10 @@ export interface NoeudArbreGenealogique {
   readonly identifiantLignee: string;
   readonly etatSurvie: EtatSurvie;
   readonly valeurEconomiqueNette: MontantApi;
+  /** Nombre de MUTATION_APPLIQUEE à la naissance de cet agent. */
+  readonly nombreMutationsNaissance: number;
+  /** Empreinte configuration héritable effective (descriptif). */
+  readonly empreinteConfiguration: string;
 }
 
 export interface RelationArbreGenealogique {
@@ -383,17 +395,29 @@ export function projeterTresorerie(
 export function projeterArbreGenealogique(
   agents: readonly AgentExperience[],
   reproductionActivee = false,
+  metaMutation?: ReadonlyMap<
+    string,
+    {
+      readonly nombreMutationsNaissance: number;
+      readonly empreinteConfiguration: string;
+    }
+  >,
 ): ProjectionArbreGenealogique {
-  const noeuds: NoeudArbreGenealogique[] = agents.map((agent) => ({
-    identifiant: agent.identite.identifiant,
-    generation: agent.identite.generation,
-    identifiantParent: agent.identite.identifiantParent ?? null,
-    identifiantLignee: agent.identite.identifiantLignee,
-    etatSurvie: agent.etatEconomique.etatSurvie,
-    valeurEconomiqueNette: serialiserMontantApi(
-      calculerValeurEconomiqueNette(agent.etatEconomique),
-    ),
-  }));
+  const noeuds: NoeudArbreGenealogique[] = agents.map((agent) => {
+    const meta = metaMutation?.get(agent.identite.identifiant);
+    return {
+      identifiant: agent.identite.identifiant,
+      generation: agent.identite.generation,
+      identifiantParent: agent.identite.identifiantParent ?? null,
+      identifiantLignee: agent.identite.identifiantLignee,
+      etatSurvie: agent.etatEconomique.etatSurvie,
+      valeurEconomiqueNette: serialiserMontantApi(
+        calculerValeurEconomiqueNette(agent.etatEconomique),
+      ),
+      nombreMutationsNaissance: meta?.nombreMutationsNaissance ?? 0,
+      empreinteConfiguration: meta?.empreinteConfiguration ?? "",
+    };
+  });
 
   const relations: RelationArbreGenealogique[] = [];
   for (const agent of agents) {
