@@ -1,0 +1,104 @@
+{
+  "_commentaire": [
+    "VALEURS DE DÉMONSTRATION",
+    "NON CANONIQUES",
+    "NON PRÉENREGISTRÉES",
+    "NON DESTINÉES AUX FUTURES EXPÉRIENCES SCIENTIFIQUES",
+    "Reproduction autonome v0.1 — sélection émergente économique sans ranking fitness.",
+    "Mode simulation : divergence via simulateur de développement (profils par id).",
+    "Fournisseur d'inférence simulé uniquement — aucun réseau OpenAI."
+  ],
+  "identifiantExperience": "exp-dev-evolution-v01",
+  "versionProtocole": "0.1.0",
+  "mode": "simulation",
+  "graineSimulation": 20250908,
+  "taillePopulationInitiale": 3,
+  "capitalInitialParAgentMicroUsdc": "8000000",
+  "parametresEconomiques": {
+    "version": "demo-evolution-v01",
+    "loyerInfrastructureMicroUsdc": "0",
+    "periodeLoyerEnCycles": 100,
+    "tauxRedevanceProprietairePointsDeBase": "0",
+    "coutOperationnelMinimalParCycleMicroUsdc": "20000",
+    "seuilRunwaySainEnCycles": 20,
+    "seuilRunwayContraintEnCycles": 5,
+    "cyclesDormanceAvantMort": 3
+  },
+  "reproduction": {
+    "version": "parametres-reproduction-v01",
+    "active": true,
+    "dotationEnfantMicroUsdc": "2500000",
+    "coutReproductionMicroUsdc": "800000",
+    "reserveMinimaleParentMicroUsdc": "1500000",
+    "populationMaximale": 12,
+    "nombreMaxReproductionsParCycle": 3,
+    "nombreMaxEnfantsParAgent": 3,
+    "cooldownCycles": 1
+  },
+  "reproductionAutonome": {
+    "version": "politique-reproduction-autonome-v01",
+    "active": true,
+    "etatsSurvieEligibles": ["sain", "contraint"],
+    "nombreMaxNaissancesParCycle": 2
+  },
+  "criteresArret": {
+    "version": "criteres-arret-experience-v01",
+    "cycleMaximum": 30
+  },
+  "mutation": {
+    "version": "parametres-mutation-v01",
+    "active": true,
+    "tauxMutationParGeneBps": 2500,
+    "versionCatalogueGenes": "genes-mutables-v01"
+  },
+  "politiqueBudgetCognitif": {
+    "identifiant": "politique-budget-cognitif-agent",
+    "version": "0.1.0",
+    "seuilEnjeuPourInferenceMicroUsdc": "100000",
+    "partMaxVenParCycleBps": 50,
+    "plafondCognitifMicroUsdc": "10000",
+    "modeleLogique": "modele_standard",
+    "comportementSansInference": "agir_si_favorable",
+    "refuserSiCritiqueOuDormant": true
+  },
+  "xway": {
+    "active": true,
+    "plafondComputeParCycleMicroUsdc": "50000",
+    "modeles": [
+      {
+        "identifiant": "modele_economique",
+        "libelle": "Modèle économique (démo)",
+        "coutParMillionJetonsEntreeMicroUsdc": "500000",
+        "coutParMillionJetonsSortieMicroUsdc": "1500000",
+        "nombreMaxJetonsSortie": 256
+      },
+      {
+        "identifiant": "modele_standard",
+        "libelle": "Modèle standard (démo)",
+        "coutParMillionJetonsEntreeMicroUsdc": "2000000",
+        "coutParMillionJetonsSortieMicroUsdc": "6000000",
+        "nombreMaxJetonsSortie": 512
+      },
+      {
+        "identifiant": "modele_premium",
+        "libelle": "Modèle premium (démo)",
+        "coutParMillionJetonsEntreeMicroUsdc": "20000000",
+        "coutParMillionJetonsSortieMicroUsdc": "60000000",
+        "nombreMaxJetonsSortie": 1024
+      }
+    ],
+    "politiqueCognitive": {
+      "identifiant": "politique-budget-cognitif-agent",
+      "version": "0.1.0"
+    },
+    "fournisseur": {
+      "identifiant": "fournisseur-inference-simule",
+      "version": "0.1.0"
+    }
+  },
+  "identite": {
+    "active": true,
+    "algorithme": "ed25519",
+    "version": "0.1.0"
+  }
+}

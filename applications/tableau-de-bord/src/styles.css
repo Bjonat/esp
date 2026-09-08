@@ -626,12 +626,30 @@ body {
   grid-column: 1 / -1;
 }
 
+.dynamique-evolutive {
+  grid-column: 1 / -1;
+}
+
 .diversite-heritable h3,
+.dynamique-evolutive h3,
 .fitness-agent h3,
-.heritage-agent h3 {
+.heritage-agent h3,
+.succes-reproductif-agent h3 {
   margin: 1rem 0 0.4rem;
   font-size: 0.95rem;
   font-weight: 600;
+}
+
+.table-lignees-evolutives {
+  margin-top: 0.35rem;
+}
+
+.causalite-reproductive {
+  margin-top: 0.35rem;
+}
+
+.causalite-reproductive .ligne-evt {
+  align-items: baseline;
 }
 
 .liste-genes {
@@ -683,7 +701,9 @@ body {
   .activite,
   .tresorerie,
   .historique,
-  .fiche-agent {
+  .fiche-agent,
+  .dynamique-evolutive,
+  .diversite-heritable {
     grid-column: 1 / -1;
   }
 

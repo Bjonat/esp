@@ -258,6 +258,32 @@ export {
 } from "./parametres-reproduction.js";
 
 export type {
+  PolitiqueReproductionAutonome,
+  PolitiqueReproductionAutonomeJson,
+} from "./parametres-reproduction-autonome.js";
+export {
+  VERSION_POLITIQUE_REPRODUCTION_AUTONOME,
+  PolitiqueReproductionAutonomeInvalideErreur,
+  creerPolitiqueReproductionAutonomeInactive,
+  parserPolitiqueReproductionAutonome,
+  serialiserPolitiqueReproductionAutonome,
+} from "./parametres-reproduction-autonome.js";
+
+export type {
+  ChargeReproductionAutonomeCyclePlanifiee,
+  ChargeReproductionAutonomeCycleTerminee,
+  EntreeEvenementReproductionAutonome,
+  TypeEvenementReproductionAutonome,
+} from "./evenements-reproduction-autonome.js";
+export {
+  TYPES_EVENEMENT_REPRODUCTION_AUTONOME,
+  VERSION_SCHEMA_EVENEMENT_REPRODUCTION_AUTONOME,
+  creerEntreeReproductionAutonomeCyclePlanifiee,
+  creerEntreeReproductionAutonomeCycleTerminee,
+  estTypeEvenementReproductionAutonome,
+} from "./evenements-reproduction-autonome.js";
+
+export type {
   AnalyseReproduction,
   ContexteAutorisationReproduction,
   OptionsPreparationReproduction,
@@ -270,6 +296,19 @@ export {
   fabriquerIdentifiantReproduction,
   preparerReproduction,
 } from "./reproduction.js";
+
+export type {
+  CandidatReproductionAutonome,
+  ContextePrioriteReproductionNeutre,
+  PlanReproductionAutonome,
+  ResultatEligibiliteReproductionAutonome,
+} from "./politique-reproduction-autonome.js";
+export {
+  calculerPrioriteReproductionNeutre,
+  evaluerEligibiliteReproductionAutonome,
+  ordonnerCandidatsParPrioriteNeutre,
+  planifierReproductionsAutonomes,
+} from "./politique-reproduction-autonome.js";
 
 export type {
   CleGeneMutable,

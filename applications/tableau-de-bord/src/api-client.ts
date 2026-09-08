@@ -60,6 +60,52 @@ export interface ProjectionDiversiteHeritablePopulation {
   readonly genes: readonly ProjectionGeneDiversite[];
 }
 
+export interface ProjectionLigneeEvolutive {
+  readonly identifiantLignee: string;
+  readonly membresCumules: number;
+  readonly membresVivants: number;
+  readonly naissancesCumulees: number;
+  readonly partPopulationVivanteBps: number;
+}
+
+export interface ProjectionFrequenceGenotype {
+  readonly empreinteConfiguration: string;
+  readonly agentsVivants: number;
+  readonly agentsCumules: number;
+  readonly partPopulationVivanteBps: number;
+}
+
+/** Dynamique évolutive — descriptive, sans ranking fitness. */
+export interface ProjectionDynamiqueEvolutive {
+  readonly populationActuelle: number;
+  readonly naissancesCycle: number;
+  readonly generationsPresentes: readonly number[];
+  readonly ligneesVivantes: number;
+  readonly candidatsReproduction: number;
+  readonly reproductionsAutorisees: number;
+  readonly refusEconomiques: number;
+  readonly refusCapacite: number;
+  readonly configurationsHeritablesDistinctes: number;
+  readonly lignees: readonly ProjectionLigneeEvolutive[];
+  readonly frequencesGenotypes: readonly ProjectionFrequenceGenotype[];
+  readonly genes: readonly ProjectionGeneDiversite[];
+  readonly avertissement: string;
+}
+
+/** Succès reproductif agent — descriptif, pas une fitness. */
+export interface ProjectionSuccesReproductifAgent {
+  readonly nombreEnfants: number;
+  readonly nombreDescendantsDirects: number;
+  readonly nombreDescendantsTotaux: number;
+  readonly agePremiereReproduction: number | null;
+  readonly intervalleMoyenReproductions: number | null;
+  readonly eligibleReproduction: boolean | null;
+  readonly motifNonEligibilite: string | null;
+  readonly coutNecessaireMicroUsdc: string;
+  readonly reserveApresReproductionMicroUsdc: string | null;
+  readonly dernierCycleReproduction: number | null;
+}
+
 export interface ProjectionPopulation {
   readonly populationTotale: number;
   readonly agentsSain: number;
@@ -84,6 +130,7 @@ export interface ProjectionPopulation {
   readonly coutsReproductifsCumules?: MontantApi;
   readonly generationsPresentes?: readonly number[];
   readonly diversiteHeritable?: ProjectionDiversiteHeritablePopulation;
+  readonly dynamiqueEvolutive?: ProjectionDynamiqueEvolutive;
 }
 
 export interface ProjectionAgent {
@@ -127,6 +174,8 @@ export interface ProjectionAgent {
   };
   /** Héritage / variation — descriptif, aucune sélection. */
   readonly heritageVariation?: ProjectionHeritageVariationAgent;
+  /** Succès reproductif — descriptif, pas une fitness. */
+  readonly succesReproductif?: ProjectionSuccesReproductifAgent;
   /** Identité cryptographique publique — jamais de clé privée. */
   readonly identite?: {
     readonly algorithme: "ed25519" | null;

@@ -24,6 +24,7 @@ import {
 import { FicheAgent } from "./FicheAgent.js";
 import { CartePopulation } from "./CartePopulation.js";
 import { DiversiteHeritablePopulation } from "./DiversiteHeritablePopulation.js";
+import { DynamiqueEvolutivePopulation } from "./DynamiqueEvolutivePopulation.js";
 import { HistoriqueVen } from "./HistoriqueVen.js";
 import { TableauFitnessPopulation } from "./TableauFitnessPopulation.js";
 
@@ -350,7 +351,9 @@ export function TableauDeBord() {
                   </span>
                   <span className="cycle">Cycle {String(evt.numeroCycle)}</span>
                   <span className="type">{evt.type}</span>
-                  <span className="resume">{evt.resume}</span>
+                  <span className="resume">
+                    {resumerActiviteReproductive(evt) ?? evt.resume}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -491,6 +494,19 @@ export function TableauDeBord() {
             />
           )}
 
+          {instantane.population.dynamiqueEvolutive !== undefined && (
+            <DynamiqueEvolutivePopulation
+              dynamique={instantane.population.dynamiqueEvolutive}
+              cycleCourant={instantane.population.cycleCourant}
+              agents={instantane.agents}
+              activite={instantane.activite}
+              onSelectionAgent={(id) => {
+                setAgentSelectionne(id);
+                setOnglet("descendance");
+              }}
+            />
+          )}
+
           {instantane.population.diversiteHeritable !== undefined && (
             <DiversiteHeritablePopulation
               diversite={instantane.population.diversiteHeritable}
@@ -529,4 +545,39 @@ function Kpi(props: { libelle: string; valeur: string }) {
       <span className="kpi-valeur">{props.valeur}</span>
     </div>
   );
+}
+
+/** Résumé causalité économique pour événements reproduction (timeline). */
+function resumerActiviteReproductive(
+  evt: ProjectionEvenement,
+): string | null {
+  if (evt.type === "REPRODUCTION_AUTONOME_CYCLE_PLANIFIEE") {
+    const retenus = evt.chargeUtile.identifiantsRetenus;
+    const refus = evt.chargeUtile.identifiantsRefusCapacite;
+    const eligibles = evt.chargeUtile.identifiantsEligiblesOrdonnes;
+    const nRetenus = Array.isArray(retenus) ? retenus.length : 0;
+    const nRefus = Array.isArray(refus) ? refus.length : 0;
+    const nElig = Array.isArray(eligibles) ? eligibles.length : 0;
+    return `éligibles ${String(nElig)} → autorisées ${String(nRetenus)} · refus capacité ${String(nRefus)}`;
+  }
+  if (evt.type === "REPRODUCTION_AUTONOME_CYCLE_TERMINEE") {
+    const n = evt.chargeUtile.naissancesEffectuees;
+    const refus = evt.chargeUtile.refusCapacite;
+    return `naissances ${String(n ?? "?")} · refus capacité ${String(refus ?? "?")}`;
+  }
+  if (evt.type === "REPRODUCTION_TERMINEE") {
+    const enfant = evt.chargeUtile.identifiantEnfant;
+    return `VEN → éligible → reproduction → enfant ${String(enfant ?? "?")}`;
+  }
+  if (evt.type === "REPRODUCTION_REFUSEE") {
+    const motif = String(evt.chargeUtile.motif ?? "refus");
+    return `non éligible → ${motif.replaceAll("_", " ")}`;
+  }
+  if (evt.type === "REPRODUCTION_DEMANDEE") {
+    return "demande reproduction";
+  }
+  if (evt.type === "REPRODUCTION_AUTORISEE") {
+    return "autorisée";
+  }
+  return null;
 }

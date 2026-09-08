@@ -31,6 +31,10 @@ import type {
   ProjectionDiversiteHeritablePopulation,
   ProjectionHeritageVariationAgent,
 } from "./projections-mutation.js";
+import type {
+  ProjectionDynamiqueEvolutive,
+  ProjectionSuccesReproductifAgent,
+} from "./projections-evolution.js";
 
 /** Identité d'agent enrichie pour l'observation (généalogie prête). */
 export interface IdentiteAgentExperience {
@@ -87,6 +91,8 @@ export interface ProjectionAgent {
   readonly reproduction?: ProjectionStatistiquesReproductionAgent;
   /** Héritage / variation génotypique — descriptif, aucune sélection. */
   readonly heritageVariation?: ProjectionHeritageVariationAgent;
+  /** Succès reproductif / dynamique — descriptif, pas une fitness. */
+  readonly succesReproductif?: ProjectionSuccesReproductifAgent;
 }
 
 export interface ProjectionPopulation {
@@ -125,6 +131,8 @@ export interface ProjectionPopulation {
   readonly generationsPresentes: readonly number[];
   /** Diversité héritable population — descriptif, aucune sélection. */
   readonly diversiteHeritable?: ProjectionDiversiteHeritablePopulation;
+  /** Dynamique évolutive population — émergence sans ranking fitness. */
+  readonly dynamiqueEvolutive?: ProjectionDynamiqueEvolutive;
 }
 
 export interface ProjectionTresorerie {

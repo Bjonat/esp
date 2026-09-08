@@ -142,13 +142,18 @@ Interdit en v0.1 :
 
 ## Déclenchement
 
-API manuelle uniquement :
+API manuelle :
 
 ```
 POST /api/agents/:id/reproduire
 ```
 
-Aucune auto-politique dans `avancerUnCycle` (évite explosions accidentelles).
+**Phase autonome (opt-in)** : si `reproductionAutonome.active` **et**
+`reproduction.active`, `avancerUnCycle` exécute une planification post-économie
+(priorité neutre, pas de fitness). Détail :
+[`REPRODUCTION_AUTONOME.md`](./REPRODUCTION_AUTONOME.md).
+
+Sans le bloc `reproductionAutonome` (configs historiques) : aucun plan autonome.
 
 ## Atomicité
 
@@ -202,3 +207,6 @@ Avant d'activer une sélection économique autonome :
 
 La mutation comportementale bornée (sans sélection) est en
 [`HERITAGE_MUTATION.md`](./HERITAGE_MUTATION.md).
+
+La reproduction autonome (sélection émergente économique, sans ranking) est en
+[`REPRODUCTION_AUTONOME.md`](./REPRODUCTION_AUTONOME.md).

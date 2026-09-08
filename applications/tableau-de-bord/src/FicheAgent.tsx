@@ -575,10 +575,98 @@ export function FicheAgent(props: Props) {
         </p>
       )}
       {props.onglet === "descendance" && (
-        <div>
+        <div className="succes-reproductif-agent">
           <p className="rappel">
             Reproduction mécanique v0.1 — aucune sélection par fitness.
           </p>
+          <h3>Succès reproductif / éligibilité</h3>
+          <p className="banniere-fitness">
+            Descriptif uniquement — pas un score de fitness
+          </p>
+          {agent.succesReproductif === undefined ? (
+            <p className="rappel">
+              Aucune projection de succès reproductif pour cet agent.
+            </p>
+          ) : (
+            <dl className="metriques-compactes">
+              <div>
+                <dt>Éligible</dt>
+                <dd>
+                  {agent.succesReproductif.eligibleReproduction === null
+                    ? "—"
+                    : agent.succesReproductif.eligibleReproduction
+                      ? "oui"
+                      : "non"}
+                </dd>
+              </div>
+              <div>
+                <dt>Motif</dt>
+                <dd>
+                  {agent.succesReproductif.eligibleReproduction === true
+                    ? "—"
+                    : libelleMotifEligibilite(
+                        agent.succesReproductif.motifNonEligibilite,
+                      )}
+                </dd>
+              </div>
+              <div>
+                <dt>Coût nécessaire</dt>
+                <dd>
+                  {formaterMicroUsdcAffichage(
+                    agent.succesReproductif.coutNecessaireMicroUsdc,
+                  )}{" "}
+                  USDC
+                </dd>
+              </div>
+              <div>
+                <dt>Réserve après reproduction</dt>
+                <dd>
+                  {agent.succesReproductif.reserveApresReproductionMicroUsdc ===
+                  null
+                    ? "—"
+                    : `${formaterMicroUsdcAffichage(
+                        agent.succesReproductif.reserveApresReproductionMicroUsdc,
+                      )} USDC`}
+                </dd>
+              </div>
+              <div>
+                <dt>Enfants</dt>
+                <dd>{String(agent.succesReproductif.nombreEnfants)}</dd>
+              </div>
+              <div>
+                <dt>Descendants totaux</dt>
+                <dd>{String(agent.succesReproductif.nombreDescendantsTotaux)}</dd>
+              </div>
+              <div>
+                <dt>Dernier cycle reproduction</dt>
+                <dd>
+                  {agent.succesReproductif.dernierCycleReproduction === null
+                    ? "—"
+                    : String(agent.succesReproductif.dernierCycleReproduction)}
+                </dd>
+              </div>
+              <div>
+                <dt>Âge première reproduction</dt>
+                <dd>
+                  {agent.succesReproductif.agePremiereReproduction === null
+                    ? "—"
+                    : String(agent.succesReproductif.agePremiereReproduction)}
+                </dd>
+              </div>
+              <div>
+                <dt>Intervalle moyen</dt>
+                <dd>
+                  {agent.succesReproductif.intervalleMoyenReproductions === null
+                    ? "—"
+                    : String(
+                        agent.succesReproductif.intervalleMoyenReproductions,
+                      )}
+                </dd>
+              </div>
+            </dl>
+          )}
+
+          <h3>Généalogie / compteurs</h3>
           <dl className="metriques-compactes">
             <div>
               <dt>Génération</dt>
@@ -597,7 +685,7 @@ export function FicheAgent(props: Props) {
               <dd>{String(agent.cycleNaissance)}</dd>
             </div>
             <div>
-              <dt>Enfants</dt>
+              <dt>Enfants (liens)</dt>
               <dd>{String(agent.identifiantsEnfants.length)}</dd>
             </div>
             <div>
@@ -646,6 +734,42 @@ function LigneMontant(props: { libelle: string; montant: string }) {
       <dd>{props.montant} USDC</dd>
     </div>
   );
+}
+
+function libelleMotifEligibilite(motif: string | null): string {
+  if (motif === null || motif.length === 0) {
+    return "—";
+  }
+  const libelles: Record<string, string> = {
+    capital_insuffisant: "capital insuffisant",
+    reserve_minimale: "réserve insuffisante",
+    population_maximale: "population maximale",
+    nombre_enfants_max: "nombre d'enfants max",
+    reproductions_cycle_max: "reproductions cycle max",
+    cooldown: "cooldown",
+    agent_mort: "agent mort",
+    etat_survie_non_eligible: "état de survie non éligible",
+    naissance_meme_cycle: "naissance même cycle",
+    reproduction_desactivee: "reproduction désactivée",
+  };
+  return libelles[motif] ?? motif.replaceAll("_", " ");
+}
+
+/** Affiche un micro-USDC (string entier) en USDC décimal. */
+function formaterMicroUsdcAffichage(micro: string): string {
+  try {
+    const brut = BigInt(micro);
+    const negatif = brut < 0n;
+    const abs = negatif ? -brut : brut;
+    const entier = abs / 1_000_000n;
+    const reste = abs % 1_000_000n;
+    const frac = reste.toString().padStart(6, "0").replace(/0+$/, "");
+    const corps =
+      frac.length === 0 ? entier.toString() : `${entier.toString()}.${frac}`;
+    return negatif ? `-${corps}` : corps;
+  } catch {
+    return micro;
+  }
 }
 
 function libelleStatutIdentite(

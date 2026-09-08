@@ -49,6 +49,9 @@ Aucune absence de données n'est comblée par des mocks.
 - Activité récente (vrais événements du registre)
 - Section **Activité décisionnelle** (si mode `decision_simulee`)
 - Tableau **Fitness descriptive** (tri par colonne, aucun ranking synthétique)
+- Section **Dynamique évolutive** (si projections présentes) — candidats /
+  retenus / lignées / génotypes, bannière
+  `SELECTION_EMERGENTE_SANS_RANKING_FITNESS`
 - Contrôle : Avancer d'un cycle / Démarrer / Pause
 - Trésorerie propriétaire
 - Mini historique VEN
@@ -68,7 +71,7 @@ Onglets :
 | Performance | Fitness descriptive multidimensionnelle — **aucune sélection active** |
 | Recherche | « Aucune source de données ou recherche connectée » |
 | Portefeuille | « Aucun environnement financier connecté » |
-| Descendance | Lignée, parent, enfants, stats demandées/autorisées/refusées/terminées, dotations, coûts — aucune sélection |
+| Descendance | Lignée, parent, enfants, stats demandées/autorisées/refusées/terminées, dotations, coûts, succès reproductif descriptif — aucune sélection |
 | Héritage / variation | Empreinte de configuration, différences vs parent, mutations à la naissance — **aucune sélection** |
 
 

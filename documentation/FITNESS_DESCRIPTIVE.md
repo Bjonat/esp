@@ -11,7 +11,7 @@ ESP étudie l'évolution économique sous contraintes. Un scalaire
 - survie / drawdown / contribution propriétaire.
 
 Cette phase **mesure** uniquement. Elle ne sélectionne pas, ne classe pas,
-ne déclenche ni reproduction, ni mutation, ni héritage.
+ne déclenche ni reproduction (mécanique ou autonome), ni mutation, ni héritage.
 
 Bannière méthodologique :
 
@@ -178,5 +178,7 @@ Invariant inchangé : **fitness ≠ mutation ≠ sélection**.
 La mutation déterministe (sans sélection) est en
 [`HERITAGE_MUTATION.md`](./HERITAGE_MUTATION.md).
 La **reproduction mécanique** (naissance sans sélection) est en
-[`REPRODUCTION.md`](./REPRODUCTION.md). Cette phase fitness ne tranche
-**aucune** question de sélection.
+[`REPRODUCTION.md`](./REPRODUCTION.md). La **reproduction autonome**
+(éligibilité économique + priorité neutre, sans ranking fitness) est en
+[`REPRODUCTION_AUTONOME.md`](./REPRODUCTION_AUTONOME.md). Cette phase fitness
+ne tranche **aucune** question de sélection.
