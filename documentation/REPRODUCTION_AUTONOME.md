@@ -185,3 +185,6 @@ Fiche agent : `succesReproductif` (enfants, descendants, éligibilité descripti
 
 Sélection explicite par fitness ; tournois ; quotas par lignée ; Solana /
 Shadow / Live ; appels OpenAI dans la phase autonome.
+
+Protocole expérimental multi-génération (matrice A/B/C/D, contrôle négatif B/C) :
+[`PROTOCOLE_EXPERIMENTAL_EVOLUTION.md`](./PROTOCOLE_EXPERIMENTAL_EVOLUTION.md).

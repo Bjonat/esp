@@ -24,6 +24,10 @@ Invariant méthodologique :
 La fitness descriptive reste purement observable. La mutation ne lit pas la
 fitness. Aucun ranking, tournoi ni politique de sélection n'est activé.
 
+`tauxMutationParGeneBps === 0` (pipeline actif) est un **no-op strict** :
+copie pure du parent, sans matérialisation de défauts catalogue — aligné sur
+`mutation.active === false` pour le contrôle négatif expérimental B/C.
+
 ## Génotype comportemental
 
 `ConfigurationHeritableAgent` (`configuration-heritable-v01`) est le **génotype**
@@ -191,4 +195,5 @@ Reproduction autonome + mutation : `experiences/developpement-evolution-v01.json
 
 Voir aussi : [`REPRODUCTION.md`](./REPRODUCTION.md),
 [`MOTEUR_DECISION_AGENT.md`](./MOTEUR_DECISION_AGENT.md),
-[`FITNESS_DESCRIPTIVE.md`](./FITNESS_DESCRIPTIVE.md).
+[`FITNESS_DESCRIPTIVE.md`](./FITNESS_DESCRIPTIVE.md),
+[`PROTOCOLE_EXPERIMENTAL_EVOLUTION.md`](./PROTOCOLE_EXPERIMENTAL_EVOLUTION.md).

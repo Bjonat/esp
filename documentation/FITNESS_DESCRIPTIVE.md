@@ -182,3 +182,6 @@ La **reproduction mécanique** (naissance sans sélection) est en
 (éligibilité économique + priorité neutre, sans ranking fitness) est en
 [`REPRODUCTION_AUTONOME.md`](./REPRODUCTION_AUTONOME.md). Cette phase fitness
 ne tranche **aucune** question de sélection.
+
+Campagne multi-génération (comparaisons sans score global) :
+[`PROTOCOLE_EXPERIMENTAL_EVOLUTION.md`](./PROTOCOLE_EXPERIMENTAL_EVOLUTION.md).
