@@ -485,61 +485,67 @@ describe("Moteur de décision agent v0.1", () => {
     expect(eco).toBeDefined();
   });
 
-  it("L — reprise SQLite : pas de double action", async () => {
-    const repertoire = repertoireTemp();
-    const cheminSqlite = join(repertoire, "esp.sqlite");
-    const keystore = join(repertoire, "identites");
-    const conf = construireConfigDecision({
-      taillePopulationInitiale: 1,
-      politiqueBudgetCognitif: {
-        ...POLITIQUE_BASE,
-        seuilEnjeuPourInferenceMicroUsdc: "999999999999",
-        comportementSansInference: "attendre",
-      },
-    });
+  // Timeout élargi : en suite complète CI, ouverture/fermeture SQLite + 6 cycles
+  // peut dépasser le défaut Vitest 5 s (~6,3 s observés) sans deadlock métier.
+  it(
+    "L — reprise SQLite : pas de double action",
+    async () => {
+      const repertoire = repertoireTemp();
+      const cheminSqlite = join(repertoire, "esp.sqlite");
+      const keystore = join(repertoire, "identites");
+      const conf = construireConfigDecision({
+        taillePopulationInitiale: 1,
+        politiqueBudgetCognitif: {
+          ...POLITIQUE_BASE,
+          seuilEnjeuPourInferenceMicroUsdc: "999999999999",
+          comportementSansInference: "attendre",
+        },
+      });
 
-    const premier = ControleurExperience.ouvrir({
-      configuration: conf,
-      cheminSqlite,
-      cheminKeystoreIdentites: keystore,
-      dateCreationFixe: "2020-01-01T00:00:00.000Z",
-      datesEvenementsFixes: "2020-01-01T00:00:00.000Z",
-    });
-    for (let i = 0; i < 5; i += 1) {
-      await premier.avancerUnCycle();
-    }
-    const actionsAvant = evenementsExperience(premier).filter(
-      (e) => e.type === "ACTION_ENVIRONNEMENT_EXECUTEE",
-    ).length;
-    const empreinte = premier.capturerEmpreinteEconomique();
-    premier.fermer();
+      const premier = ControleurExperience.ouvrir({
+        configuration: conf,
+        cheminSqlite,
+        cheminKeystoreIdentites: keystore,
+        dateCreationFixe: "2020-01-01T00:00:00.000Z",
+        datesEvenementsFixes: "2020-01-01T00:00:00.000Z",
+      });
+      for (let i = 0; i < 5; i += 1) {
+        await premier.avancerUnCycle();
+      }
+      const actionsAvant = evenementsExperience(premier).filter(
+        (e) => e.type === "ACTION_ENVIRONNEMENT_EXECUTEE",
+      ).length;
+      const empreinte = premier.capturerEmpreinteEconomique();
+      premier.fermer();
 
-    const second = ControleurExperience.ouvrir({
-      configuration: conf,
-      cheminSqlite,
-      cheminKeystoreIdentites: keystore,
-      datesEvenementsFixes: "2020-01-01T00:00:00.000Z",
-    });
-    expect(second.capturerEmpreinteEconomique()).toEqual(empreinte);
-    const actionsApresOuverture = evenementsExperience(second).filter(
-      (e) => e.type === "ACTION_ENVIRONNEMENT_EXECUTEE",
-    ).length;
-    expect(actionsApresOuverture).toBe(actionsAvant);
+      const second = ControleurExperience.ouvrir({
+        configuration: conf,
+        cheminSqlite,
+        cheminKeystoreIdentites: keystore,
+        datesEvenementsFixes: "2020-01-01T00:00:00.000Z",
+      });
+      expect(second.capturerEmpreinteEconomique()).toEqual(empreinte);
+      const actionsApresOuverture = evenementsExperience(second).filter(
+        (e) => e.type === "ACTION_ENVIRONNEMENT_EXECUTEE",
+      ).length;
+      expect(actionsApresOuverture).toBe(actionsAvant);
 
-    await second.avancerUnCycle();
-    const actions = evenementsExperience(second).filter(
-      (e) => e.type === "ACTION_ENVIRONNEMENT_EXECUTEE",
-    );
-    const parCle = new Map<string, number>();
-    for (const a of actions) {
-      const cle = `${a.identifiantAgent}|${String(a.numeroCycle)}`;
-      parCle.set(cle, (parCle.get(cle) ?? 0) + 1);
-    }
-    for (const compte of parCle.values()) {
-      expect(compte).toBe(1);
-    }
-    second.fermer();
-  });
+      await second.avancerUnCycle();
+      const actions = evenementsExperience(second).filter(
+        (e) => e.type === "ACTION_ENVIRONNEMENT_EXECUTEE",
+      );
+      const parCle = new Map<string, number>();
+      for (const a of actions) {
+        const cle = `${a.identifiantAgent}|${String(a.numeroCycle)}`;
+        parCle.set(cle, (parCle.get(cle) ?? 0) + 1);
+      }
+      for (const compte of parCle.values()) {
+        expect(compte).toBe(1);
+      }
+      second.fermer();
+    },
+    15_000,
+  );
 
   it("M — multi-agents : aucun mélange observations / décisions / coûts", async () => {
     const controleur = ouvrirMemoire({
