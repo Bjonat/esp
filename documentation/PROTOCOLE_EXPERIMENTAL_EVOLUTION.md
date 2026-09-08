@@ -107,6 +107,9 @@ pas de causalité universelle.
 
 ## Fichiers
 
-- `experiences/protocoles/evolution-pilote-v01.json` — calibration démo
-- `experiences/protocoles/evolution-evaluation-v01.exemple.json` — template
-- Résultats : `experiences/resultats/` (gitignored)
+- `experiences/protocoles/evolution-pilote-v01.json` — pilote démo (pré-calibration)
+- `experiences/protocoles/evolution-calibree-v01.json` — paramètres retenus (mode calibration)
+- `experiences/protocoles/evolution-evaluation-v01.json` — freeze évaluation (non exécuté en phase calibration)
+- `documentation/CALIBRATION_EVOLUTION_V01.md` — rapport de calibration
+- `experiences/calibration/evolution-v01/` — journal + vue whitelistée
+- Résultats bruts : `experiences/resultats/` (gitignored)
