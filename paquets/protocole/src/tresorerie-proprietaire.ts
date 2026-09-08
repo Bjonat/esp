@@ -3,12 +3,15 @@ import { assertMicroUsdcNonNegatif } from "./monnaie.js";
 
 /**
  * Trésorerie propriétaire — extérieure à la population des agents.
- * Distingue loyers et redevances encaissés des dépenses d'infrastructure.
+ * Distingue loyers, redevances et coûts de reproduction encaissés
+ * des dépenses d'infrastructure.
  * Les coûts variables agent (compute, données, frais) ne sont PAS recomptés ici.
  */
 export interface TresorerieProprietaire {
   readonly revenusLoyers: MicroUsdc;
   readonly revenusRedevances: MicroUsdc;
+  /** Coûts de reproduction payés par les parents (sortie population). */
+  readonly revenusCoutsReproduction: MicroUsdc;
   readonly depensesInfrastructure: MicroUsdc;
 }
 
@@ -16,17 +19,19 @@ export function creerTresorerieProprietaire(): TresorerieProprietaire {
   return {
     revenusLoyers: 0n,
     revenusRedevances: 0n,
+    revenusCoutsReproduction: 0n,
     depensesInfrastructure: 0n,
   };
 }
 
-/** Solde net = loyers + redevances − dépenses infrastructure. */
+/** Solde net = loyers + redevances + coûts repro − dépenses infrastructure. */
 export function calculerSoldeNetTresorerie(
   tresorerie: TresorerieProprietaire,
 ): MicroUsdc {
   return (
     tresorerie.revenusLoyers +
-    tresorerie.revenusRedevances -
+    tresorerie.revenusRedevances +
+    tresorerie.revenusCoutsReproduction -
     tresorerie.depensesInfrastructure
   );
 }
@@ -50,6 +55,17 @@ export function enregistrerRedevanceEncaissee(
   return {
     ...tresorerie,
     revenusRedevances: tresorerie.revenusRedevances + montant,
+  };
+}
+
+export function enregistrerCoutReproductionEncaisse(
+  tresorerie: TresorerieProprietaire,
+  montant: MicroUsdc,
+): TresorerieProprietaire {
+  assertMicroUsdcNonNegatif(montant, "coût reproduction encaissé");
+  return {
+    ...tresorerie,
+    revenusCoutsReproduction: tresorerie.revenusCoutsReproduction + montant,
   };
 }
 

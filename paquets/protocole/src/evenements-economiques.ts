@@ -30,6 +30,7 @@ export const TYPES_EVENEMENT_ECONOMIQUE = [
   "AGENT_MORT",
   "TRANSFERT_INTERNE",
   "DEPENSE_INFRASTRUCTURE_PROPRIETAIRE",
+  "COUT_REPRODUCTION_PAYE",
 ] as const;
 
 export type TypeEvenementEconomique =
@@ -108,6 +109,12 @@ export type ChargeAgentCree = {
   indexPopulation: number;
   dateNaissance: string;
   identifiantParent?: string;
+  /** Lignée du fondateur Genesis — stable pour tous les descendants. */
+  identifiantLignee?: string;
+  /** Snapshot configuration héritable (enfant). */
+  configurationHeritable?: Readonly<Record<string, unknown>>;
+  /** Corrélation reproduction mécanique (absent pour Genesis). */
+  identifiantReproduction?: string;
 };
 
 export type ChargeMontantSimple = {

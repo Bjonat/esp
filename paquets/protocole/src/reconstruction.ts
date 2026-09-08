@@ -244,6 +244,14 @@ function appliquerEvenement(
     case "LOYER_INFRASTRUCTURE_DU":
     case "DEPENSE_INFRASTRUCTURE_PROPRIETAIRE":
       break;
+    case "COUT_REPRODUCTION_PAYE": {
+      const montant = lireMontantChargeUtile(
+        evenement.chargeUtile,
+        "montantMicroUsdc",
+      );
+      brouillon.capitalLiquide -= montant;
+      break;
+    }
     default: {
       const _exhaustif: never = evenement.type;
       void _exhaustif;

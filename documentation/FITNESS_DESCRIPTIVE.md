@@ -90,6 +90,21 @@ Arrondi µUSDC éventuel **uniquement** en projection d'affichage
 Bonne décision + mauvais tirage → regret 0.
 Mauvaise décision + bon tirage → regret > 0.
 
+## Reproduction (coût distinct)
+
+`COUT_REPRODUCTION_PAYE` n'est **pas** une perte d'activité.
+
+Champs économie :
+
+- `coutsReproductionPayesMicroUsdc`
+- `resultatEconomiqueApresReproductionMicroUsdc` =
+  `resultatApresContrat − coutsReproductionPayes`
+
+La dotation de naissance reste un transfert interne (neutralisé). Le coût
+reproductif **reste** dans la variation VEN neutralisée (coût réel système).
+
+La fenêtre fitness d'un enfant commence à son `cycleNaissance` (jamais avant).
+Aucune sélection fitness → reproduction.
 ## Cognition
 
 Compteurs Xway + coût cognitif. Ratio :
@@ -160,4 +175,6 @@ Avant reproduction / sélection, il faudra décider :
 - traitement des agents morts ;
 - interaction avec héritage / mutation.
 
-Cette phase ne tranche **aucune** de ces questions.
+La **reproduction mécanique** (naissance sans sélection) est en
+[`REPRODUCTION.md`](./REPRODUCTION.md). Cette phase fitness ne tranche
+**aucune** question de sélection.

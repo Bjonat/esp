@@ -1,34 +1,45 @@
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import type {
+  ConfigurationHeritableAgent,
   DecisionAgent,
   EntreeEvenementEsp,
   EtatEconomiqueAgent,
   EvenementEsp,
+  MotifRefusReproduction,
   ObservationOpportunite,
+  ParametresReproductionExperienceJson,
   SnapshotCreationExperience,
   TresorerieProprietaire,
 } from "@esp/protocole";
 import {
   AgentMortInactifErreur,
   analyserExecutionEconomique,
+  analyserReproduction,
   attribuerCapitalInitial,
   assertDemandesXwayNonDejaAttribuees,
   calculerRunwayEnCycles,
   calculerValeurEconomiqueNette,
   construireChargeDepenseCompute,
   creerAgent,
+  creerConfigurationHeritableVide,
   creerEntreeControleExperience,
   creerEntreeCycleExperienceAvance,
   creerEntreeExperienceCreee,
   creerEntreeIdentiteAgentEnregistree,
+  creerParametresReproductionInactifs,
   creerTresorerieProprietaire,
   executerCycleEconomique,
+  fabriquerIdentifiantEnfant,
   fabriquerIdentifiantExecutionEconomique,
+  fabriquerIdentifiantReproduction,
   filtrerEvenementsEconomiques,
+  parserParametresReproduction,
   parserSnapshotCreationExperience,
+  preparerReproduction,
   reconstruireStatutExperience,
   serialiserMicroUsdc,
+  serialiserParametresReproduction,
   trouverAttributionsPourDemande,
 } from "@esp/protocole";
 import type { RegistreEvenements } from "@esp/registre-evenements";
@@ -76,6 +87,7 @@ import {
   projeterEvenement,
   projeterPopulation,
   projeterTresorerie,
+  reconstruireConfigurationsHeritablesDepuisEvenements,
   reconstruireHistoriqueParCycle,
   reconstruirePopulationDepuisEvenements,
   reconstruireTresorerieProprietaire,
@@ -88,6 +100,7 @@ import {
   projeterIdentiteAgent,
   reconstruireIdentitesPubliques,
 } from "./projections-identite.js";
+import { projeterStatistiquesReproductionAgent } from "./projections-reproduction.js";
 import {
   IDENTIFIANT_SIMULATEUR_DEVELOPPEMENT,
   VERSION_SIMULATEUR_DEVELOPPEMENT,
@@ -159,6 +172,35 @@ import {
   serialiserConfigurationEnvironnementOpportunites,
   type ConfigurationEnvironnementOpportunitesJson,
 } from "@esp/environnement";
+
+/**
+ * Résultat API / contrôleur de la reproduction mécanique v0.1.
+ * Déclenchement manuel uniquement (pas d'auto-politique dans avancerUnCycle).
+ */
+export type ResultatReproductionApi =
+  | {
+      readonly statut: "autorisee";
+      readonly identifiantReproduction: string;
+      readonly identifiantParent: string;
+      readonly identifiantEnfant: string;
+      readonly identifiantLignee: string;
+      readonly numeroGeneration: number;
+      readonly motif: null;
+    }
+  | {
+      readonly statut: "refusee";
+      readonly identifiantReproduction: string;
+      readonly identifiantParent: string;
+      readonly identifiantEnfant: string | null;
+      readonly motif: MotifRefusReproduction;
+    }
+  | {
+      readonly statut: "deja_terminee";
+      readonly identifiantReproduction: string;
+      readonly identifiantParent: string;
+      readonly identifiantEnfant: string | null;
+      readonly motif: null;
+    };
 
 export type OptionsControleurExperience = {
   /**
@@ -398,6 +440,10 @@ export class ControleurExperience {
             configuration.politiqueBudgetCognitif,
           )
         : undefined;
+    const reproductionSerialisee =
+      configuration.reproduction !== undefined
+        ? serialiserParametresReproduction(configuration.reproduction)
+        : undefined;
     const snapshot: SnapshotCreationExperience = {
       identifiantExperience: configuration.identifiantExperience,
       versionProtocole: configuration.versionProtocole,
@@ -430,6 +476,14 @@ export class ControleurExperience {
         ? {
             politiqueBudgetCognitif:
               politiqueSerialisee as unknown as Readonly<
+                Record<string, unknown>
+              >,
+          }
+        : {}),
+      ...(reproductionSerialisee !== undefined
+        ? {
+            reproduction:
+              reproductionSerialisee as unknown as Readonly<
                 Record<string, unknown>
               >,
           }
@@ -533,6 +587,12 @@ export class ControleurExperience {
             snapshot.politiqueBudgetCognitif as unknown as ConfigurationPolitiqueBudgetCognitifJson,
           )
         : undefined;
+    const reproduction =
+      snapshot.reproduction !== undefined
+        ? parserParametresReproduction(
+            snapshot.reproduction as unknown as ParametresReproductionExperienceJson,
+          )
+        : undefined;
     const configuration: ConfigurationExperience = {
       identifiantExperience: snapshot.identifiantExperience,
       versionProtocole: snapshot.versionProtocole,
@@ -549,6 +609,7 @@ export class ControleurExperience {
       ...(politiqueBudgetCognitif !== undefined
         ? { politiqueBudgetCognitif }
         : {}),
+      ...(reproduction !== undefined ? { reproduction } : {}),
     };
 
     const economiques = filtrerEvenementsEconomiques(evenements);
@@ -1003,6 +1064,12 @@ export class ControleurExperience {
             snapshot.politiqueBudgetCognitif as unknown as ConfigurationPolitiqueBudgetCognitifJson,
           )
         : undefined;
+    const reproduction =
+      snapshot.reproduction !== undefined
+        ? parserParametresReproduction(
+            snapshot.reproduction as unknown as ParametresReproductionExperienceJson,
+          )
+        : undefined;
     this.configuration = {
       identifiantExperience: snapshot.identifiantExperience,
       versionProtocole: snapshot.versionProtocole,
@@ -1019,6 +1086,7 @@ export class ControleurExperience {
       ...(politiqueBudgetCognitif !== undefined
         ? { politiqueBudgetCognitif }
         : {}),
+      ...(reproduction !== undefined ? { reproduction } : {}),
     };
     this.environnementDecision =
       environnementDecisionConfig !== undefined
@@ -1140,6 +1208,9 @@ export class ControleurExperience {
       this.agents,
       this.numeroCycleCourant,
       this.tresorerie,
+      this.registre.listerParExperience(
+        this.configuration.identifiantExperience,
+      ),
     );
   }
 
@@ -1166,12 +1237,24 @@ export class ControleurExperience {
       this.configuration.identite?.active === true
         ? this.projeterIdentiteAgent(agent.identite.identifiant)
         : undefined;
-    return projeterAgent(
+    const base = projeterAgent(
       agent,
       this.configuration.parametresEconomiques,
       enfants,
       projectionIdentite,
     );
+    const identifiantsEnfants =
+      enfants.get(agent.identite.identifiant) ?? [];
+    return {
+      ...base,
+      reproduction: projeterStatistiquesReproductionAgent({
+        identifiantParent: agent.identite.identifiant,
+        evenements: this.registre.listerParExperience(
+          this.configuration.identifiantExperience,
+        ),
+        identifiantsEnfants,
+      }),
+    };
   }
 
   projeterEvenementsAgent(identifiant: string): ProjectionEvenement[] {
@@ -1206,11 +1289,282 @@ export class ControleurExperience {
   }
 
   projeterArbre(): ProjectionArbreGenealogique {
-    return projeterArbreGenealogique(this.agents);
+    // Généalogie = reconstruction registre seule (vivants + morts).
+    const evenements = this.registre.listerParExperience(
+      this.configuration.identifiantExperience,
+    );
+    const population = reconstruirePopulationDepuisEvenements(
+      filtrerEvenementsEconomiques(evenements),
+    );
+    return projeterArbreGenealogique(
+      population,
+      this.configuration.reproduction?.active === true,
+    );
   }
 
   projeterTresorerie(): ProjectionTresorerie {
     return projeterTresorerie(this.tresorerie);
+  }
+
+  /**
+   * Reproduction mécanique manuelle v0.1 — déclenchement API uniquement.
+   * Aucune auto-politique dans avancerUnCycle (declenchementManuelUniquement).
+   *
+   * Stratégie keystore (si identité active et autorisée) :
+   * a. Préparer le lot via preparerReproduction
+   * b. Si le keystore a déjà la clé pour CET identifiantAgent enfant déterministe
+   *    → réutiliser exclusivement ce matériel public (clé orpheline post-crash) ;
+   *    sinon générer une NOUVELLE clé CSPRNG et l'enregistrer AVANT commit
+   * c. Inclure IDENTITE_AGENT_ENREGISTREE dans le même lot atomique ajouterPlusieurs
+   * d. Ne jamais écraser / régénérer une clé différente pour le même identifiant
+   * e. Si registre IDENTITE publique ≠ clé privée keystore → fail-closed
+   * f. Échec fermé à la réouverture si IDENTITE enregistrée sans clé privée
+   *    (SignataireAgentLocal → cle_privee_indisponible)
+   *
+   * Clé orpheline (keystore sans AGENT_CREE) : acceptable pour le même
+   * identifiant logique déterministe au retry ; jamais pour un autre agent.
+   */
+  async demanderReproduction(
+    identifiantParent: string,
+  ): Promise<ResultatReproductionApi> {
+    const parent = this.agents.find(
+      (a) => a.identite.identifiant === identifiantParent,
+    );
+    if (parent === undefined) {
+      throw new ControleurExperienceErreur(
+        `Agent introuvable : ${identifiantParent}`,
+      );
+    }
+
+    const parametres =
+      this.configuration.reproduction ?? creerParametresReproductionInactifs();
+    if (!parametres.active) {
+      throw new ControleurExperienceErreur("Reproduction inactive");
+    }
+
+    const evenements = this.registre.listerParExperience(
+      this.configuration.identifiantExperience,
+    );
+    const numeroEnfant = calculerProchainNumeroEnfant(
+      identifiantParent,
+      this.agents,
+      evenements,
+    );
+    const identifiantEnfant = fabriquerIdentifiantEnfant({
+      identifiantParent,
+      numeroEnfant,
+    });
+    const identifiantReproduction = fabriquerIdentifiantReproduction({
+      identifiantExperience: this.configuration.identifiantExperience,
+      identifiantParent,
+      numeroEnfant,
+    });
+
+    const analyseExistante = analyserReproduction({
+      identifiantReproduction,
+      evenements,
+    });
+    if (analyseExistante.terminee) {
+      return {
+        statut: "deja_terminee",
+        identifiantReproduction,
+        identifiantParent,
+        identifiantEnfant: analyseExistante.identifiantEnfant,
+        motif: null,
+      };
+    }
+    if (analyseExistante.refusee) {
+      return {
+        statut: "refusee",
+        identifiantReproduction,
+        identifiantParent,
+        identifiantEnfant: analyseExistante.identifiantEnfant,
+        motif: analyseExistante.motifRefus ?? "reproduction_desactivee",
+      };
+    }
+
+    const enfantsParent = this.agents.filter(
+      (a) => a.identite.identifiantParent === identifiantParent,
+    );
+    const reproductionsDejaCeCycle = compterReproductionsTermineesCycle(
+      evenements,
+      this.numeroCycleCourant,
+    );
+    const cycleDerniereNaissanceParent =
+      enfantsParent.length === 0
+        ? null
+        : Math.max(...enfantsParent.map((e) => e.identite.cycleNaissance));
+
+    const configurationHeritableParent =
+      parent.configurationHeritable ??
+      this.lireConfigurationHeritableDepuisRegistre(identifiantParent) ??
+      creerConfigurationHeritableVide();
+
+    const dateNaissance =
+      this.datesEvenementsFixes ?? new Date().toISOString();
+
+    const preparation = preparerReproduction({
+      identifiantExperience: this.configuration.identifiantExperience,
+      identifiantParent,
+      identifiantEnfant,
+      identifiantReproduction,
+      numeroCycle: this.numeroCycleCourant,
+      dateNaissance,
+      indexPopulationEnfant: this.agents.length,
+      numeroGenerationParent: parent.identite.generation,
+      identifiantLignee:
+        parent.identite.identifiantLignee ?? parent.identite.identifiant,
+      configurationHeritableParent,
+      etatParent: parent.etatEconomique,
+      tresorerie: this.tresorerie,
+      parametres,
+      populationTotale: this.agents.length,
+      nombreEnfantsParent: enfantsParent.length,
+      reproductionsDejaCeCycle,
+      cycleDerniereNaissanceParent,
+      evenementsExistants: evenements,
+      ...(this.datesEvenementsFixes !== undefined
+        ? { dateEnregistrement: this.datesEvenementsFixes }
+        : {}),
+    });
+
+    if (preparation.statut === "deja_terminee") {
+      return {
+        statut: "deja_terminee",
+        identifiantReproduction,
+        identifiantParent,
+        identifiantEnfant: preparation.analyse.identifiantEnfant,
+        motif: null,
+      };
+    }
+
+    if (preparation.statut === "refusee") {
+      this.enregistrerLotEconomiqueAtomique(preparation.evenements);
+      return {
+        statut: "refusee",
+        identifiantReproduction,
+        identifiantParent,
+        identifiantEnfant: null,
+        motif: preparation.motif,
+      };
+    }
+
+    const lot: EntreeEvenementEsp[] = [...preparation.evenements];
+
+    if (
+      this.configuration.identite?.active === true &&
+      this.configuration.identite !== undefined
+    ) {
+      const versionIdentite = this.configuration.identite.version;
+      const existante = this.keystore.chargerClePrivee({
+        identifiantExperience: this.configuration.identifiantExperience,
+        identifiantAgent: identifiantEnfant,
+      });
+      let clePubliqueBase64Url: string;
+      let empreinteClePublique: string;
+      if (existante !== null) {
+        clePubliqueBase64Url = existante.clePubliqueBase64Url;
+        empreinteClePublique = existante.empreinteClePublique;
+        const identiteRegistre = evenements.find(
+          (e) =>
+            e.type === "IDENTITE_AGENT_ENREGISTREE" &&
+            e.identifiantAgent === identifiantEnfant,
+        );
+        if (identiteRegistre !== undefined) {
+          const pubRegistre = identiteRegistre.chargeUtile.clePubliqueBase64Url;
+          if (
+            typeof pubRegistre === "string" &&
+            pubRegistre !== clePubliqueBase64Url
+          ) {
+            throw new ControleurExperienceErreur(
+              `Identité incompatible pour ${identifiantEnfant} : registre ≠ keystore — fail-closed`,
+            );
+          }
+        }
+      } else {
+        const paire = genererPaireIdentiteEd25519();
+        const stockee = this.keystore.enregistrerClePrivee({
+          identifiantExperience: this.configuration.identifiantExperience,
+          identifiantAgent: identifiantEnfant,
+          clePriveePkcs8Der: paire.clePriveePkcs8Der,
+        });
+        clePubliqueBase64Url = stockee.clePubliqueBase64Url;
+        empreinteClePublique = stockee.empreinteClePublique;
+      }
+
+      const dejaIdentite = evenements.some(
+        (e) =>
+          e.type === "IDENTITE_AGENT_ENREGISTREE" &&
+          e.identifiantAgent === identifiantEnfant,
+      );
+      if (!dejaIdentite) {
+        lot.push(
+          creerEntreeIdentiteAgentEnregistree({
+            identifiantExperience: this.configuration.identifiantExperience,
+            identifiantAgent: identifiantEnfant,
+            clePubliqueBase64Url,
+            empreinteClePublique,
+            versionIdentite,
+            indiceUnicite: this.registre.consulterProchaineSequence(
+              this.configuration.identifiantExperience,
+            ),
+            numeroCycle: this.numeroCycleCourant,
+            ...(this.datesEvenementsFixes !== undefined
+              ? { dateEnregistrement: this.datesEvenementsFixes }
+              : { dateEnregistrement: dateNaissance }),
+          }),
+        );
+      }
+    }
+
+    this.enregistrerLotEconomiqueAtomique(lot);
+    this.tresorerie = preparation.tresorerie;
+    this.agents = this.agents.map((agent) =>
+      agent.identite.identifiant === identifiantParent
+        ? { ...agent, etatEconomique: preparation.etatParent }
+        : agent,
+    );
+    this.agents = [
+      ...this.agents,
+      {
+        identite: {
+          identifiant: preparation.identifiantEnfant,
+          generation: preparation.numeroGeneration,
+          identifiantParent,
+          identifiantLignee: preparation.identifiantLignee,
+          indexPopulation: this.agents.length,
+          cycleNaissance: this.numeroCycleCourant,
+          dateNaissance,
+        },
+        etatEconomique: preparation.etatEnfant,
+        configurationHeritable: preparation.configurationHeritableEnfant,
+      },
+    ];
+
+    if (this.configuration.identite?.active === true) {
+      this.rafraichirPasserelleXway();
+    }
+
+    return {
+      statut: "autorisee",
+      identifiantReproduction,
+      identifiantParent,
+      identifiantEnfant: preparation.identifiantEnfant,
+      identifiantLignee: preparation.identifiantLignee,
+      numeroGeneration: preparation.numeroGeneration,
+      motif: null,
+    };
+  }
+
+  private lireConfigurationHeritableDepuisRegistre(
+    identifiantAgent: string,
+  ): ConfigurationHeritableAgent | undefined {
+    const evenements = this.registre.listerParExperience(
+      this.configuration.identifiantExperience,
+    );
+    const heritables =
+      reconstruireConfigurationsHeritablesDepuisEvenements(evenements);
+    return heritables.get(identifiantAgent);
   }
 
   projeterHistorique(): readonly PointHistoriqueVen[] {
@@ -1522,6 +1876,7 @@ export class ControleurExperience {
         generation: 0,
         dateNaissance,
         etatSurvie: "sain",
+        identifiantLignee: identifiant,
       });
 
       const { etat, evenements } = attribuerCapitalInitial({
@@ -1534,6 +1889,7 @@ export class ControleurExperience {
           generation: 0,
           indexPopulation: index,
           dateNaissance,
+          identifiantLignee: identifiant,
         },
         ...(this.datesEvenementsFixes !== undefined
           ? { dateEnregistrement: this.datesEvenementsFixes }
@@ -1574,8 +1930,10 @@ export class ControleurExperience {
           indexPopulation: index,
           cycleNaissance: 0,
           dateNaissance,
+          identifiantLignee: identifiant,
         },
         etatEconomique: etat,
+        configurationHeritable: creerConfigurationHeritableVide(),
       });
     }
 
@@ -2080,6 +2438,73 @@ function fabriquerIdentifiantAgent(
 ): string {
   const suffixe = String(index).padStart(3, "0");
   return `${identifiantExperience}-agent-${suffixe}`;
+}
+
+function echapperRegex(texte: string): string {
+  return texte.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * Prochain numéro d'enfant déterministe : max observé (agents + événements) + 1.
+ * Inclut les tentatives refusées pour ne pas réutiliser un identifiantReproduction.
+ */
+function calculerProchainNumeroEnfant(
+  identifiantParent: string,
+  agents: readonly AgentExperience[],
+  evenements: readonly EvenementEsp[],
+): number {
+  let max = 0;
+  const motifEnfant = new RegExp(
+    `^${echapperRegex(identifiantParent)}-e(\\d+)$`,
+  );
+  const motifRepro = new RegExp(
+    `:e(\\d+)$`,
+  );
+
+  for (const agent of agents) {
+    const m = motifEnfant.exec(agent.identite.identifiant);
+    if (m?.[1] !== undefined) {
+      max = Math.max(max, Number(m[1]));
+    }
+  }
+
+  for (const evenement of evenements) {
+    const idRepro = evenement.chargeUtile.identifiantReproduction;
+    if (
+      typeof idRepro === "string" &&
+      idRepro.includes(`:${identifiantParent}:`)
+    ) {
+      const m = motifRepro.exec(idRepro);
+      if (m?.[1] !== undefined) {
+        max = Math.max(max, Number(m[1]));
+      }
+    }
+    const idEnfant = evenement.chargeUtile.identifiantEnfant;
+    if (typeof idEnfant === "string") {
+      const m = motifEnfant.exec(idEnfant);
+      if (m?.[1] !== undefined) {
+        max = Math.max(max, Number(m[1]));
+      }
+    }
+  }
+
+  return max + 1;
+}
+
+function compterReproductionsTermineesCycle(
+  evenements: readonly EvenementEsp[],
+  numeroCycle: number,
+): number {
+  let compte = 0;
+  for (const evenement of evenements) {
+    if (
+      evenement.type === "REPRODUCTION_TERMINEE" &&
+      evenement.numeroCycle === numeroCycle
+    ) {
+      compte += 1;
+    }
+  }
+  return compte;
 }
 
 /**

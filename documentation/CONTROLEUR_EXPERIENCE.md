@@ -169,10 +169,13 @@ Scénario validé par tests :
 | GET | `/api/activite-recente` | Timeline |
 | GET | `/api/historique` | VEN / états / trésorerie par cycle |
 | POST | `/api/experience/avancer` | +1 cycle |
+| POST | `/api/agents/:id/reproduire` | reproduction mécanique manuelle |
 | POST | `/api/experience/demarrer` | Statut en_cours |
 | POST | `/api/experience/pause` | Statut en_pause |
 
 Pas d'endpoint `reset` destructeur.
+
+Voir [`REPRODUCTION.md`](./REPRODUCTION.md).
 
 ## Sérialisation
 

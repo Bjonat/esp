@@ -86,6 +86,8 @@ export type ProjectionFitnessAgent = {
     readonly resultatActiviteBrut: MontantApi;
     readonly resultatOperationnelAvantContrat: MontantApi;
     readonly resultatApresContrat: MontantApi;
+    readonly coutsReproductionPayes: MontantApi;
+    readonly resultatEconomiqueApresReproduction: MontantApi;
   };
   readonly decision: {
     readonly nombreDecisions: number;
@@ -206,6 +208,10 @@ export function projeterMesuresFitnessAgent(
         mesures.economie.resultatOperationnelAvantContratMicroUsdc,
       ),
       resultatApresContrat: m(mesures.economie.resultatApresContratMicroUsdc),
+      coutsReproductionPayes: m(mesures.economie.coutsReproductionPayesMicroUsdc),
+      resultatEconomiqueApresReproduction: m(
+        mesures.economie.resultatEconomiqueApresReproductionMicroUsdc,
+      ),
     },
     decision: {
       nombreDecisions: mesures.decision.nombreDecisions,

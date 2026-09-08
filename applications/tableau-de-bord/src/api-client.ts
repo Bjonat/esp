@@ -37,12 +37,21 @@ export interface ProjectionPopulation {
   readonly obligationsTotales: MontantApi;
   readonly loyersCumulesVerses: MontantApi;
   readonly redevancesCumulees: MontantApi;
+  readonly naissancesCumulees?: number;
+  readonly naissancesCycle?: number;
+  readonly nombreLigneesVivantes?: number;
+  readonly ligneesVivantes?: number;
+  readonly taillePopulationActuelle?: number;
+  readonly dotationsInternesCumulees?: MontantApi;
+  readonly coutsReproductifsCumules?: MontantApi;
+  readonly generationsPresentes?: readonly number[];
 }
 
 export interface ProjectionAgent {
   readonly identifiant: string;
   readonly generation: number;
   readonly identifiantParent: string | null;
+  readonly identifiantLignee?: string;
   readonly cycleNaissance: number;
   readonly dateNaissance: string;
   readonly etatSurvie: string;
@@ -63,6 +72,20 @@ export interface ProjectionAgent {
     readonly redevances: MontantApi;
   };
   readonly identifiantsEnfants: readonly string[];
+  readonly configurationHeritable?: {
+    readonly version: string;
+    readonly parametres: Readonly<Record<string, string | number | boolean>>;
+  };
+  readonly reproduction?: {
+    readonly reproductionsDemandees: number;
+    readonly reproductionsAutorisees: number;
+    readonly reproductionsRefusees: number;
+    readonly reproductionsTerminees: number;
+    readonly dotationsCumulees: MontantApi;
+    readonly coutsReproductifsCumules: MontantApi;
+    readonly nombreEnfants: number;
+    readonly refusParMotif: Readonly<Record<string, number>>;
+  };
   /** Identité cryptographique publique — jamais de clé privée. */
   readonly identite?: {
     readonly algorithme: "ed25519" | null;
@@ -89,6 +112,7 @@ export interface ProjectionEvenement {
 export interface ProjectionTresorerie {
   readonly revenusLoyers: MontantApi;
   readonly revenusRedevances: MontantApi;
+  readonly revenusCoutsReproduction?: MontantApi;
   readonly depensesInfrastructure: MontantApi;
   readonly soldeNet: MontantApi;
 }
@@ -98,6 +122,7 @@ export interface ProjectionArbre {
     readonly identifiant: string;
     readonly generation: number;
     readonly identifiantParent: string | null;
+    readonly identifiantLignee?: string;
     readonly etatSurvie: string;
     readonly valeurEconomiqueNette: MontantApi;
   }[];

@@ -8,6 +8,8 @@ export interface Agent {
   readonly identifiant: string;
   readonly generation: number;
   readonly identifiantParent?: string;
+  /** Fondateur Genesis de la lignée (stable). Absent uniquement legacy. */
+  readonly identifiantLignee?: string;
   readonly etatSurvie: EtatSurvie;
   /** Horodatage ISO 8601 de la naissance. */
   readonly dateNaissance: string;
@@ -17,6 +19,7 @@ export type EntreeCreationAgent = {
   identifiant: string;
   generation: number;
   identifiantParent?: string;
+  identifiantLignee?: string;
   etatSurvie?: EtatSurvie;
   dateNaissance: string;
 };
@@ -32,9 +35,12 @@ export function creerAgent(entree: EntreeCreationAgent): Agent {
     dateNaissance: entree.dateNaissance,
   };
 
+  let resultat = agent;
   if (entree.identifiantParent !== undefined) {
-    return { ...agent, identifiantParent: entree.identifiantParent };
+    resultat = { ...resultat, identifiantParent: entree.identifiantParent };
   }
-
-  return agent;
+  if (entree.identifiantLignee !== undefined) {
+    resultat = { ...resultat, identifiantLignee: entree.identifiantLignee };
+  }
+  return resultat;
 }

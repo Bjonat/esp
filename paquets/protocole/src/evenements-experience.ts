@@ -71,6 +71,11 @@ export type SnapshotCreationExperience = {
    * Politique de budget cognitif figée (mode decision_simulee).
    */
   readonly politiqueBudgetCognitif?: Readonly<Record<string, unknown>>;
+  /**
+   * Paramètres de reproduction mécanique figés à la création.
+   * Absents = reproduction inactive (legacy / opt-in).
+   */
+  readonly reproduction?: Readonly<Record<string, unknown>>;
 };
 
 export type ChargeExperienceCreee = {
@@ -96,6 +101,7 @@ export type ChargeExperienceCreee = {
   readonly identite?: Readonly<Record<string, unknown>>;
   readonly environnementDecision?: Readonly<Record<string, unknown>>;
   readonly politiqueBudgetCognitif?: Readonly<Record<string, unknown>>;
+  readonly reproduction?: Readonly<Record<string, unknown>>;
 };
 
 export type ChargeCycleExperienceAvance = {
@@ -157,6 +163,9 @@ export function serialiserSnapshotCreationExperience(
       : {}),
     ...(snapshot.politiqueBudgetCognitif !== undefined
       ? { politiqueBudgetCognitif: snapshot.politiqueBudgetCognitif }
+      : {}),
+    ...(snapshot.reproduction !== undefined
+      ? { reproduction: snapshot.reproduction }
       : {}),
   };
 }
@@ -277,6 +286,15 @@ export function parserSnapshotCreationExperience(
             chargeUtile.politiqueBudgetCognitif as Readonly<
               Record<string, unknown>
             >,
+        }
+      : {}),
+    ...(chargeUtile.reproduction !== undefined &&
+    chargeUtile.reproduction !== null &&
+    typeof chargeUtile.reproduction === "object"
+      ? {
+          reproduction: chargeUtile.reproduction as Readonly<
+            Record<string, unknown>
+          >,
         }
       : {}),
   };

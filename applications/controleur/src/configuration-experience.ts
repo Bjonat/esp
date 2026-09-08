@@ -1,6 +1,14 @@
 import { readFileSync } from "node:fs";
-import type { ParametresEconomiquesExperience } from "@esp/protocole";
-import { parserMicroUsdc, validerParametresEconomiques } from "@esp/protocole";
+import type {
+  ParametresEconomiquesExperience,
+  ParametresReproductionExperience,
+  ParametresReproductionExperienceJson,
+} from "@esp/protocole";
+import {
+  parserMicroUsdc,
+  parserParametresReproduction,
+  validerParametresEconomiques,
+} from "@esp/protocole";
 import type { MicroUsdc } from "@esp/protocole";
 import type { ConfigurationXway, ConfigurationXwayJson } from "@esp/xway";
 import { parserConfigurationXway } from "@esp/xway";
@@ -59,6 +67,8 @@ export interface ConfigurationExperienceJson {
   readonly identite?: ConfigurationIdentiteJson;
   readonly environnementDecision?: ConfigurationEnvironnementOpportunitesJson;
   readonly politiqueBudgetCognitif?: ConfigurationPolitiqueBudgetCognitifJson;
+  /** Reproduction mécanique — absente = inactive (opt-in). */
+  readonly reproduction?: ParametresReproductionExperienceJson;
 }
 
 export interface ConfigurationExperience {
@@ -73,6 +83,8 @@ export interface ConfigurationExperience {
   readonly identite?: ConfigurationIdentite;
   readonly environnementDecision?: ConfigurationEnvironnementOpportunites;
   readonly politiqueBudgetCognitif?: ConfigurationPolitiqueBudgetCognitif;
+  /** Reproduction mécanique — absente = inactive (opt-in). */
+  readonly reproduction?: ParametresReproductionExperience;
 }
 
 export class ConfigurationExperienceInvalideErreur extends Error {
@@ -163,6 +175,11 @@ export function parserConfigurationExperience(
     }
   }
 
+  const reproduction =
+    brut.reproduction !== undefined
+      ? parserParametresReproduction(brut.reproduction)
+      : undefined;
+
   return {
     identifiantExperience: brut.identifiantExperience,
     versionProtocole: brut.versionProtocole,
@@ -183,6 +200,7 @@ export function parserConfigurationExperience(
     ...(politiqueBudgetCognitif !== undefined
       ? { politiqueBudgetCognitif }
       : {}),
+    ...(reproduction !== undefined ? { reproduction } : {}),
   };
 }
 
