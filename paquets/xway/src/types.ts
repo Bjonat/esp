@@ -253,7 +253,9 @@ export type ConfigurationXway = {
   readonly plafondComputeParCycleMicroUsdc: MicroUsdc;
   readonly modeles: readonly TarifModeleInference[];
   readonly politiqueCognitive: {
-    readonly identifiant: "politique-cognitive-developpement";
+    readonly identifiant:
+      | "politique-cognitive-developpement"
+      | "politique-budget-cognitif-agent";
     readonly version: string;
   };
   readonly fournisseur: {
@@ -286,7 +288,9 @@ export type ConfigurationXwayJson = {
     readonly nombreMaxJetonsSortie: number;
   }[];
   readonly politiqueCognitive: {
-    readonly identifiant: "politique-cognitive-developpement";
+    readonly identifiant:
+      | "politique-cognitive-developpement"
+      | "politique-budget-cognitif-agent";
     readonly version: string;
   };
   /**

@@ -1,5 +1,6 @@
 import type {
   ProjectionAgent,
+  ProjectionDecisionAgent,
   ProjectionEvenement,
   ProjectionXwayAgent,
 } from "./api-client.js";
@@ -19,6 +20,7 @@ type Props = {
   readonly agent: ProjectionAgent;
   readonly evenements: readonly ProjectionEvenement[];
   readonly xway: ProjectionXwayAgent | null;
+  readonly decisions: readonly ProjectionDecisionAgent[];
   readonly onglet: Onglet;
   readonly onOnglet: (onglet: Onglet) => void;
   readonly onFermer: () => void;
@@ -259,7 +261,67 @@ export function FicheAgent(props: Props) {
       )}
 
       {props.onglet === "decisions" && (
-        <p className="placeholder-honnete">Moteur de décision non connecté</p>
+        <div className="liste-decisions">
+          {props.decisions.length === 0 ? (
+            <p className="rappel">Aucune décision enregistrée pour cet agent.</p>
+          ) : (
+            <ul className="timeline decisions">
+              {[...props.decisions].reverse().map((decision) => (
+                <li key={decision.identifiantDecision} className="carte-decision">
+                  <p className="cycle">
+                    Cycle {String(decision.numeroCycle)} ·{" "}
+                    <span className="mono">{decision.identifiantDecision}</span>
+                  </p>
+                  <dl className="metriques-compactes">
+                    <div>
+                      <dt>Opportunité</dt>
+                      <dd>
+                        p=
+                        {decision.observation.probabiliteSuccesBps === null
+                          ? "—"
+                          : `${String(decision.observation.probabiliteSuccesBps)} bps`}
+                        {" · "}
+                        gain{" "}
+                        {decision.observation.gainSiSucces?.usdc ?? "—"} / perte{" "}
+                        {decision.observation.perteSiEchec?.usdc ?? "—"} / frais{" "}
+                        {decision.observation.fraisAction?.usdc ?? "—"} USDC
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Cognition</dt>
+                      <dd>
+                        {decision.choixCognitif === null
+                          ? "—"
+                          : decision.choixCognitif.utiliserInference
+                            ? `inférence (${decision.choixCognitif.modeleLogique ?? "?"}) · limite ${decision.choixCognitif.limiteDepense?.usdc ?? "—"} USDC`
+                            : `sans inférence · ${decision.choixCognitif.motif ?? ""}`}
+                        {" · coût "}
+                        {decision.coutCognitif.usdc} USDC
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Décision</dt>
+                      <dd>
+                        {decision.decision === null
+                          ? "—"
+                          : `${decision.decision.action} · confiance ${String(decision.decision.confianceBps)} bps · ${decision.decision.sourceDecision}`}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Résultat</dt>
+                      <dd>
+                        {/* Jamais de résultat futur avant action exécutée. */}
+                        {decision.action === null || decision.resultat === null
+                          ? "en attente (aucune action exécutée)"
+                          : `${decision.resultat.issue} · revenu ${decision.resultat.revenuActivite.usdc} / perte ${decision.resultat.perteActivite.usdc} / frais ${decision.resultat.fraisExecution.usdc} USDC`}
+                      </dd>
+                    </div>
+                  </dl>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       )}
       {props.onglet === "recherche" && (
         <p className="placeholder-honnete">

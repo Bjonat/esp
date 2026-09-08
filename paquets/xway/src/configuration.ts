@@ -261,12 +261,22 @@ export function parserConfigurationXway(
     throw new Error("timeoutInferenceMs invalide");
   }
 
+  if (
+    brut.politiqueCognitive.identifiant !==
+      "politique-cognitive-developpement" &&
+    brut.politiqueCognitive.identifiant !== "politique-budget-cognitif-agent"
+  ) {
+    throw new Error(
+      `Politique cognitive Xway inconnue : ${String(brut.politiqueCognitive.identifiant)}`,
+    );
+  }
+
   return {
     active: brut.active,
     plafondComputeParCycleMicroUsdc: plafond,
     modeles,
     politiqueCognitive: {
-      identifiant: "politique-cognitive-developpement",
+      identifiant: brut.politiqueCognitive.identifiant,
       version: brut.politiqueCognitive.version,
     },
     fournisseur: { identifiant, selecteur, version },

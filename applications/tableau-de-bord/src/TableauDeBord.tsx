@@ -3,11 +3,13 @@ import type {
   EtatConnexionApi,
   InstantaneEsp,
   ProjectionAgent,
+  ProjectionDecisionAgent,
   ProjectionEvenement,
   ProjectionXwayAgent,
 } from "./api-client.js";
 import {
   avancerCycle,
+  chargerDecisionsAgent,
   chargerEvenementsAgent,
   chargerInstantane,
   chargerXwayAgent,
@@ -42,6 +44,9 @@ export function TableauDeBord() {
     readonly ProjectionEvenement[]
   >([]);
   const [xwayAgent, setXwayAgent] = useState<ProjectionXwayAgent | null>(null);
+  const [decisionsAgent, setDecisionsAgent] = useState<
+    readonly ProjectionDecisionAgent[]
+  >([]);
   const [avanceEnCours, setAvanceEnCours] = useState(false);
 
   useEffect(() => {
@@ -87,16 +92,19 @@ export function TableauDeBord() {
     if (agentSelectionne === null || connexion !== "connecte") {
       setEvenementsAgent([]);
       setXwayAgent(null);
+      setDecisionsAgent([]);
       return;
     }
     let annule = false;
     void Promise.all([
       chargerEvenementsAgent(agentSelectionne),
       chargerXwayAgent(agentSelectionne),
-    ]).then(([evts, xway]) => {
+      chargerDecisionsAgent(agentSelectionne),
+    ]).then(([evts, xway, decisions]) => {
       if (!annule) {
         setEvenementsAgent(evts);
         setXwayAgent(xway);
+        setDecisionsAgent(decisions);
       }
     });
     return () => {
@@ -147,6 +155,8 @@ export function TableauDeBord() {
 
   const agent: ProjectionAgent | undefined =
     instantane?.agents.find((a) => a.identifiant === agentSelectionne);
+
+  const cycleDecisionnel = instantane?.activiteDecisionnelle.cycleCourant;
 
   return (
     <div className="page commande">
@@ -388,6 +398,53 @@ export function TableauDeBord() {
             )}
           </section>
 
+          {cycleDecisionnel !== undefined && (
+            <section
+              className="panneau activite-decisionnelle"
+              aria-label="Activité décisionnelle"
+            >
+              <h2>Activité décisionnelle</h2>
+              <p className="rappel">
+                Métriques descriptives du cycle courant — aucun score
+                d&apos;intelligence.
+              </p>
+              <dl className="metriques-compactes">
+                <div>
+                  <dt>Décisions</dt>
+                  <dd>{String(cycleDecisionnel.decisions)}</dd>
+                </div>
+                <div>
+                  <dt>% inférence</dt>
+                  <dd>
+                    {cycleDecisionnel.pourcentAvecInference === null
+                      ? "—"
+                      : `${String(cycleDecisionnel.pourcentAvecInference)} %`}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Coût cognitif</dt>
+                  <dd>{cycleDecisionnel.coutCognitif.usdc} USDC</dd>
+                </div>
+                <div>
+                  <dt>Agir</dt>
+                  <dd>{String(cycleDecisionnel.actionsAgir)}</dd>
+                </div>
+                <div>
+                  <dt>Attendre</dt>
+                  <dd>{String(cycleDecisionnel.actionsAttendre)}</dd>
+                </div>
+                <div>
+                  <dt>Succès</dt>
+                  <dd>{String(cycleDecisionnel.succes)}</dd>
+                </div>
+                <div>
+                  <dt>Échecs</dt>
+                  <dd>{String(cycleDecisionnel.echecs)}</dd>
+                </div>
+              </dl>
+            </section>
+          )}
+
           <section className="panneau historique" aria-label="Historique VEN">
             <h2>Historique VEN population</h2>
             <HistoriqueVen points={instantane.historique} />
@@ -398,6 +455,7 @@ export function TableauDeBord() {
               agent={agent}
               evenements={evenementsAgent}
               xway={xwayAgent}
+              decisions={decisionsAgent}
               onglet={onglet}
               onOnglet={setOnglet}
               onFermer={() => {

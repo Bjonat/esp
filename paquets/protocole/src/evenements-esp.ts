@@ -1,4 +1,9 @@
 import type {
+  EntreeEvenementDecision,
+  TypeEvenementDecision,
+} from "./evenements-decision.js";
+import { estTypeEvenementDecision } from "./evenements-decision.js";
+import type {
   EntreeEvenementEconomique,
   EvenementEconomique,
   TypeEvenementEconomique,
@@ -27,13 +32,15 @@ export type TypeEvenementEsp =
   | TypeEvenementEconomique
   | TypeEvenementExperience
   | TypeEvenementXway
-  | TypeEvenementIdentite;
+  | TypeEvenementIdentite
+  | TypeEvenementDecision;
 
 export type EntreeEvenementEsp =
   | EntreeEvenementEconomique
   | EntreeEvenementExperience
   | EntreeEvenementXway
-  | EntreeEvenementIdentite;
+  | EntreeEvenementIdentite
+  | EntreeEvenementDecision;
 
 export type EvenementEsp = Omit<EvenementEconomique, "type"> & {
   readonly type: TypeEvenementEsp;
@@ -46,7 +53,8 @@ export function estTypeEvenementEsp(
     estTypeEvenementEconomique(valeur) ||
     estTypeEvenementExperience(valeur) ||
     estTypeEvenementXway(valeur) ||
-    estTypeEvenementIdentite(valeur)
+    estTypeEvenementIdentite(valeur) ||
+    estTypeEvenementDecision(valeur)
   );
 }
 
@@ -84,4 +92,16 @@ export function filtrerEvenementsIdentite(
   evenements: readonly EvenementEsp[],
 ): Array<EvenementEsp & { type: TypeEvenementIdentite }> {
   return evenements.filter(estEvenementIdentite);
+}
+
+export function estEvenementDecision(
+  evenement: EvenementEsp,
+): evenement is EvenementEsp & { type: TypeEvenementDecision } {
+  return estTypeEvenementDecision(evenement.type);
+}
+
+export function filtrerEvenementsDecision(
+  evenements: readonly EvenementEsp[],
+): Array<EvenementEsp & { type: TypeEvenementDecision }> {
+  return evenements.filter(estEvenementDecision);
 }

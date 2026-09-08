@@ -166,6 +166,9 @@ importers:
       '@esp/adaptateur-openai':
         specifier: workspace:*
         version: link:../../adaptateurs/openai
+      '@esp/environnement':
+        specifier: workspace:*
+        version: link:../../paquets/environnement
       '@esp/moteur-agent':
         specifier: workspace:*
         version: link:../../paquets/moteur-agent
@@ -205,13 +208,20 @@ importers:
         specifier: ^7.1.4
         version: 7.3.6(@types/node@24.13.3)(tsx@4.23.13)
 
-  paquets/environnement: {}
+  paquets/environnement:
+    dependencies:
+      '@esp/protocole':
+        specifier: workspace:*
+        version: link:../protocole
 
   paquets/moteur-agent:
     dependencies:
       '@esp/protocole':
         specifier: workspace:*
         version: link:../protocole
+      '@esp/xway':
+        specifier: workspace:*
+        version: link:../xway
 
   paquets/protocole: {}
 

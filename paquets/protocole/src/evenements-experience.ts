@@ -19,7 +19,12 @@ export const TYPES_EVENEMENT_EXPERIENCE = [
 export type TypeEvenementExperience =
   (typeof TYPES_EVENEMENT_EXPERIENCE)[number];
 
-export type ModeExperienceProtocole = "simulation";
+/**
+ * Modes d'expérience protocole.
+ * - simulation : simulateur de développement historique (revenus/pertes indépendants).
+ * - decision_simulee : activité issue des actions agent dans un environnement déterministe.
+ */
+export type ModeExperienceProtocole = "simulation" | "decision_simulee";
 
 export type StatutExperienceProtocole =
   | "configuree"
@@ -58,6 +63,14 @@ export type SnapshotCreationExperience = {
    * Absente = identité non configurée (legacy).
    */
   readonly identite?: Readonly<Record<string, unknown>>;
+  /**
+   * Paramètres d'environnement de décision figés (mode decision_simulee).
+   */
+  readonly environnementDecision?: Readonly<Record<string, unknown>>;
+  /**
+   * Politique de budget cognitif figée (mode decision_simulee).
+   */
+  readonly politiqueBudgetCognitif?: Readonly<Record<string, unknown>>;
 };
 
 export type ChargeExperienceCreee = {
@@ -81,6 +94,8 @@ export type ChargeExperienceCreee = {
   readonly dateCreation: string;
   readonly xway?: Readonly<Record<string, unknown>>;
   readonly identite?: Readonly<Record<string, unknown>>;
+  readonly environnementDecision?: Readonly<Record<string, unknown>>;
+  readonly politiqueBudgetCognitif?: Readonly<Record<string, unknown>>;
 };
 
 export type ChargeCycleExperienceAvance = {
@@ -137,6 +152,12 @@ export function serialiserSnapshotCreationExperience(
     dateCreation: snapshot.dateCreation,
     ...(snapshot.xway !== undefined ? { xway: snapshot.xway } : {}),
     ...(snapshot.identite !== undefined ? { identite: snapshot.identite } : {}),
+    ...(snapshot.environnementDecision !== undefined
+      ? { environnementDecision: snapshot.environnementDecision }
+      : {}),
+    ...(snapshot.politiqueBudgetCognitif !== undefined
+      ? { politiqueBudgetCognitif: snapshot.politiqueBudgetCognitif }
+      : {}),
   };
 }
 
@@ -156,7 +177,10 @@ export function parserSnapshotCreationExperience(
 
   assertChaine(chargeUtile.identifiantExperience, "identifiantExperience");
   assertChaine(chargeUtile.versionProtocole, "versionProtocole");
-  if (chargeUtile.mode !== "simulation") {
+  if (
+    chargeUtile.mode !== "simulation" &&
+    chargeUtile.mode !== "decision_simulee"
+  ) {
     throw new Error("EXPERIENCE_CREEE : mode invalide");
   }
   if (typeof chargeUtile.graineSimulation !== "number") {
@@ -213,7 +237,7 @@ export function parserSnapshotCreationExperience(
   return {
     identifiantExperience: chargeUtile.identifiantExperience,
     versionProtocole: chargeUtile.versionProtocole,
-    mode: "simulation",
+    mode: chargeUtile.mode,
     graineSimulation: chargeUtile.graineSimulation,
     taillePopulationInitiale: chargeUtile.taillePopulationInitiale,
     capitalInitialParAgentMicroUsdc: parserMicroUsdc(
@@ -234,6 +258,26 @@ export function parserSnapshotCreationExperience(
     chargeUtile.identite !== null &&
     typeof chargeUtile.identite === "object"
       ? { identite: chargeUtile.identite as Readonly<Record<string, unknown>> }
+      : {}),
+    ...(chargeUtile.environnementDecision !== undefined &&
+    chargeUtile.environnementDecision !== null &&
+    typeof chargeUtile.environnementDecision === "object"
+      ? {
+          environnementDecision:
+            chargeUtile.environnementDecision as Readonly<
+              Record<string, unknown>
+            >,
+        }
+      : {}),
+    ...(chargeUtile.politiqueBudgetCognitif !== undefined &&
+    chargeUtile.politiqueBudgetCognitif !== null &&
+    typeof chargeUtile.politiqueBudgetCognitif === "object"
+      ? {
+          politiqueBudgetCognitif:
+            chargeUtile.politiqueBudgetCognitif as Readonly<
+              Record<string, unknown>
+            >,
+        }
       : {}),
   };
 }

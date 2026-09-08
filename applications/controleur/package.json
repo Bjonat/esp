@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@esp/adaptateur-openai": "workspace:*",
+    "@esp/environnement": "workspace:*",
     "@esp/moteur-agent": "workspace:*",
     "@esp/protocole": "workspace:*",
     "@esp/registre-evenements": "workspace:*",
