@@ -48,6 +48,7 @@ Aucune absence de données n'est comblée par des mocks.
 - Carte de population (racines Genesis, états colorés, taille ~ VEN)
 - Activité récente (vrais événements du registre)
 - Section **Activité décisionnelle** (si mode `decision_simulee`)
+- Tableau **Fitness descriptive** (tri par colonne, aucun ranking synthétique)
 - Contrôle : Avancer d'un cycle / Démarrer / Pause
 - Trésorerie propriétaire
 - Mini historique VEN
@@ -64,6 +65,7 @@ Onglets :
 | Activité | Chronologie registre |
 | Cognition / Xway | Demandes, modèles, jetons, coût imputé ESP, estimation fournisseur, proposition — SIMULÉ ou OPENAI RÉEL |
 | Décisions | Chaîne Observation → Choix cognitif → Proposition → Action → Résultat → Coût (registre) |
+| Performance | Fitness descriptive multidimensionnelle — **aucune sélection active** |
 | Recherche | « Aucune source de données ou recherche connectée » |
 | Portefeuille | « Aucun environnement financier connecté » |
 | Descendance | « Reproduction non activée » |

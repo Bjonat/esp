@@ -5,12 +5,16 @@ import type {
   ProjectionAgent,
   ProjectionDecisionAgent,
   ProjectionEvenement,
+  ProjectionFitnessAgent,
+  ProjectionFitnessPopulation,
   ProjectionXwayAgent,
 } from "./api-client.js";
 import {
   avancerCycle,
   chargerDecisionsAgent,
   chargerEvenementsAgent,
+  chargerFitnessAgent,
+  chargerFitnessPopulation,
   chargerInstantane,
   chargerXwayAgent,
   demarrerExperience,
@@ -20,6 +24,7 @@ import {
 import { FicheAgent } from "./FicheAgent.js";
 import { CartePopulation } from "./CartePopulation.js";
 import { HistoriqueVen } from "./HistoriqueVen.js";
+import { TableauFitnessPopulation } from "./TableauFitnessPopulation.js";
 
 const INTERVALLE_POLLING_MS = 2000;
 
@@ -30,6 +35,7 @@ type OngletFiche =
   | "identite"
   | "xway"
   | "decisions"
+  | "fitness"
   | "recherche"
   | "portefeuille"
   | "descendance";
@@ -47,6 +53,11 @@ export function TableauDeBord() {
   const [decisionsAgent, setDecisionsAgent] = useState<
     readonly ProjectionDecisionAgent[]
   >([]);
+  const [fitnessAgent, setFitnessAgent] = useState<ProjectionFitnessAgent | null>(
+    null,
+  );
+  const [fitnessPopulation, setFitnessPopulation] =
+    useState<ProjectionFitnessPopulation | null>(null);
   const [avanceEnCours, setAvanceEnCours] = useState(false);
 
   useEffect(() => {
@@ -69,10 +80,21 @@ export function TableauDeBord() {
         }
         setConnexion("connecte");
         setInstantane(data);
+        try {
+          const fitness = await chargerFitnessPopulation();
+          if (!annule) {
+            setFitnessPopulation(fitness);
+          }
+        } catch {
+          if (!annule) {
+            setFitnessPopulation(null);
+          }
+        }
       } catch {
         if (!annule) {
           setConnexion("deconnecte");
           setInstantane(null);
+          setFitnessPopulation(null);
         }
       }
     }
@@ -93,6 +115,7 @@ export function TableauDeBord() {
       setEvenementsAgent([]);
       setXwayAgent(null);
       setDecisionsAgent([]);
+      setFitnessAgent(null);
       return;
     }
     let annule = false;
@@ -100,11 +123,13 @@ export function TableauDeBord() {
       chargerEvenementsAgent(agentSelectionne),
       chargerXwayAgent(agentSelectionne),
       chargerDecisionsAgent(agentSelectionne),
-    ]).then(([evts, xway, decisions]) => {
+      chargerFitnessAgent(agentSelectionne),
+    ]).then(([evts, xway, decisions, fitness]) => {
       if (!annule) {
         setEvenementsAgent(evts);
         setXwayAgent(xway);
         setDecisionsAgent(decisions);
+        setFitnessAgent(fitness);
       }
     });
     return () => {
@@ -445,6 +470,17 @@ export function TableauDeBord() {
             </section>
           )}
 
+          {fitnessPopulation !== null && (
+            <TableauFitnessPopulation
+              agents={fitnessPopulation.agents}
+              avertissement={fitnessPopulation.avertissement}
+              onSelection={(id) => {
+                setAgentSelectionne(id);
+                setOnglet("fitness");
+              }}
+            />
+          )}
+
           <section className="panneau historique" aria-label="Historique VEN">
             <h2>Historique VEN population</h2>
             <HistoriqueVen points={instantane.historique} />
@@ -456,6 +492,7 @@ export function TableauDeBord() {
               evenements={evenementsAgent}
               xway={xwayAgent}
               decisions={decisionsAgent}
+              fitness={fitnessAgent}
               onglet={onglet}
               onOnglet={setOnglet}
               onFermer={() => {

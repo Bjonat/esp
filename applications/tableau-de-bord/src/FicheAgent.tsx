@@ -2,6 +2,7 @@ import type {
   ProjectionAgent,
   ProjectionDecisionAgent,
   ProjectionEvenement,
+  ProjectionFitnessAgent,
   ProjectionXwayAgent,
 } from "./api-client.js";
 
@@ -12,6 +13,7 @@ type Onglet =
   | "identite"
   | "xway"
   | "decisions"
+  | "fitness"
   | "recherche"
   | "portefeuille"
   | "descendance";
@@ -21,6 +23,7 @@ type Props = {
   readonly evenements: readonly ProjectionEvenement[];
   readonly xway: ProjectionXwayAgent | null;
   readonly decisions: readonly ProjectionDecisionAgent[];
+  readonly fitness: ProjectionFitnessAgent | null;
   readonly onglet: Onglet;
   readonly onOnglet: (onglet: Onglet) => void;
   readonly onFermer: () => void;
@@ -33,6 +36,7 @@ const ONGLET_LIBELLES: Record<Onglet, string> = {
   identite: "Identité ESP",
   xway: "Cognition / Xway",
   decisions: "Décisions",
+  fitness: "Performance",
   recherche: "Recherche",
   portefeuille: "Portefeuille",
   descendance: "Descendance",
@@ -323,6 +327,140 @@ export function FicheAgent(props: Props) {
           )}
         </div>
       )}
+
+      {props.onglet === "fitness" && (
+        <div className="fitness-agent">
+          <p className="banniere-fitness">
+            FITNESS DESCRIPTIVE — aucune sélection active
+          </p>
+          {props.fitness === null ? (
+            <p className="rappel">Chargement des mesures…</p>
+          ) : (
+            <>
+              <h3>Économie</h3>
+              <dl className="metriques-compactes">
+                <LigneMontant libelle="VEN début" montant={props.fitness.economie.venDebut.usdc} />
+                <LigneMontant libelle="VEN fin" montant={props.fitness.economie.venFin.usdc} />
+                <LigneMontant libelle="Variation VEN" montant={props.fitness.economie.variationVen.usdc} />
+                <LigneMontant
+                  libelle="Variation neutralisée exogènes"
+                  montant={props.fitness.economie.variationVenNeutraliseeExogenes.usdc}
+                />
+                <LigneMontant
+                  libelle="Résultat opérationnel"
+                  montant={props.fitness.economie.resultatOperationnelAvantContrat.usdc}
+                />
+                <LigneMontant
+                  libelle="Résultat après contrat"
+                  montant={props.fitness.economie.resultatApresContrat.usdc}
+                />
+              </dl>
+              <h3>Décision</h3>
+              <dl className="metriques-compactes">
+                <div>
+                  <dt>Décisions</dt>
+                  <dd>{String(props.fitness.decision.nombreDecisions)}</dd>
+                </div>
+                <div>
+                  <dt>Optimales ex ante</dt>
+                  <dd>
+                    {props.fitness.decision.tauxDecisionsOptimalesExAnteBps === null
+                      ? "—"
+                      : `${String(props.fitness.decision.tauxDecisionsOptimalesExAnteBps)} bps`}
+                  </dd>
+                </div>
+                <LigneMontant
+                  libelle="Regret ex ante cumulé (affichage)"
+                  montant={
+                    props.fitness.decision.regretExAnteCumule
+                      .microUsdcArrondiAffichage.usdc
+                  }
+                />
+                <div>
+                  <dt>Regret exact (numérateur BPS)</dt>
+                  <dd className="mono">
+                    {props.fitness.decision.regretExAnteCumule.numerateurMicroUsdcBps}
+                    /
+                    {String(
+                      props.fitness.decision.regretExAnteCumule.denominateurBps,
+                    )}
+                  </dd>
+                </div>
+                <LigneMontant
+                  libelle="Résultat activité réalisé"
+                  montant={props.fitness.decision.resultatActiviteRealise.usdc}
+                />
+                <div>
+                  <dt>Succès / échecs</dt>
+                  <dd>
+                    {String(props.fitness.decision.nombreSuccesRealises)} /{" "}
+                    {String(props.fitness.decision.nombreEchecsRealises)}
+                  </dd>
+                </div>
+              </dl>
+              <h3>Cognition</h3>
+              <dl className="metriques-compactes">
+                <div>
+                  <dt>Demandes / exécutées / refus</dt>
+                  <dd>
+                    {String(props.fitness.cognition.nombreDemandesInference)} /{" "}
+                    {String(props.fitness.cognition.nombreInferencesExecutees)} /{" "}
+                    {String(props.fitness.cognition.nombreRefusXway)}
+                  </dd>
+                </div>
+                <LigneMontant
+                  libelle="Coût cognitif total"
+                  montant={props.fitness.cognition.coutCognitifTotal.usdc}
+                />
+                <div>
+                  <dt>Ratio op./cognitif (non causal)</dt>
+                  <dd className="mono">
+                    {props.fitness.cognition.ratioResultatOperationnelSurCoutCognitif ===
+                    null
+                      ? "—"
+                      : props.fitness.cognition.ratioResultatOperationnelSurCoutCognitif
+                          .quotientEchelleMillion}
+                  </dd>
+                </div>
+              </dl>
+              <h3>Risque / résilience</h3>
+              <dl className="metriques-compactes">
+                <LigneMontant libelle="Drawdown max" montant={props.fitness.risque.drawdownMax.usdc} />
+                <div>
+                  <dt>Runway min</dt>
+                  <dd>
+                    {props.fitness.risque.runwayMinimumObserve === null
+                      ? "—"
+                      : String(props.fitness.risque.runwayMinimumObserve)}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Cycles S/Co/Cr/D</dt>
+                  <dd>
+                    {String(props.fitness.resilience.nombreCyclesSain)}/
+                    {String(props.fitness.resilience.nombreCyclesContraint)}/
+                    {String(props.fitness.resilience.nombreCyclesCritique)}/
+                    {String(props.fitness.resilience.nombreCyclesDormant)}
+                  </dd>
+                </div>
+              </dl>
+              <h3>Contribution</h3>
+              <dl className="metriques-compactes">
+                <LigneMontant libelle="Loyers" montant={props.fitness.contribution.loyersPayes.usdc} />
+                <LigneMontant
+                  libelle="Redevances"
+                  montant={props.fitness.contribution.redevancesPayees.usdc}
+                />
+                <LigneMontant
+                  libelle="Contribution totale"
+                  montant={props.fitness.contribution.contributionProprietaireTotale.usdc}
+                />
+              </dl>
+            </>
+          )}
+        </div>
+      )}
+
       {props.onglet === "recherche" && (
         <p className="placeholder-honnete">
           Aucune source de données ou recherche connectée

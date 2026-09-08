@@ -12,7 +12,9 @@ Phases livrées :
 - **Xway v0.1** — ressources cognitives (simulées + adaptateur OpenAI opt-in) ;
 - **Identité agent v0.1** — Ed25519, distincte de tout wallet ;
 - **Fournisseur IA réel v0.1** — OpenAI Responses, économie toujours simulée ;
-- **Moteur de décision agent v0.1** — observation → décision → action simulée → noyau.
+- **Moteur de décision agent v0.1** — observation → décision → action simulée → noyau ;
+- **Atomicité cycle économique v0.1** — lot atomique, reprise exactly-once ;
+- **Fitness descriptive v0.1** — mesures multidimensionnelles, aucune sélection.
 
 Aucune transaction réelle, aucun wallet Solana. IA réelle uniquement via opt-in
 explicite (`xway.fournisseur: openai`) + `OPENAI_API_KEY` + commande manuelle
@@ -106,8 +108,10 @@ Bannière Xway : **FOURNISSEUR : SIMULÉ** ou **OPENAI RÉEL**
 ## Hors périmètre actuel
 
 Anthropic / Gemini / multi-provider ; wallets Solana ; Jupiter ; reproduction /
-héritage / mutation ; tool calling ; rotation de clés ; HSM / Vault ;
-service réseau Xway indépendant.
+héritage / mutation / sélection ; score de fitness unique ; tool calling ;
+rotation de clés ; HSM / Vault ; service réseau Xway indépendant.
 
 Voir [`FOURNISSEUR_IA_REEL.md`](./FOURNISSEUR_IA_REEL.md) pour l'adaptateur OpenAI v0.1.
 Voir [`MOTEUR_DECISION_AGENT.md`](./MOTEUR_DECISION_AGENT.md) pour la boucle décisionnelle.
+Voir [`ATOMICITE_CYCLE_ECONOMIQUE.md`](./ATOMICITE_CYCLE_ECONOMIQUE.md) pour la reprise exactly-once.
+Voir [`FITNESS_DESCRIPTIVE.md`](./FITNESS_DESCRIPTIVE.md) pour les mesures v0.1.

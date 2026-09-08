@@ -5,6 +5,7 @@ import {
   type ServerResponse,
 } from "node:http";
 import type { AddressInfo } from "node:net";
+import type { FenetreEvaluation } from "@esp/protocole";
 import type { ControleurExperience } from "./controleur.js";
 import { ControleurExperienceErreur } from "./controleur.js";
 import { serialiserJsonApi } from "./serialisation-api.js";
@@ -151,6 +152,20 @@ async function gererRequete(
         return;
       }
 
+      if (segments[1] === "fitness") {
+        const fenetre = parserFenetre(url);
+        const fitness = controleur.projeterFitnessAgent(
+          identifiant,
+          fenetre,
+        );
+        if (fitness === undefined) {
+          repondreJson(reponse, 404, { erreur: "Agent introuvable" });
+          return;
+        }
+        repondreJson(reponse, 200, fitness);
+        return;
+      }
+
       if (segments.length === 1) {
         const agent = controleur.projeterAgent(identifiant);
         if (agent === undefined) {
@@ -182,6 +197,15 @@ async function gererRequete(
 
     if (methode === "GET" && chemin === "/api/activite-decisionnelle") {
       repondreJson(reponse, 200, controleur.projeterActiviteDecisionnelle());
+      return;
+    }
+
+    if (methode === "GET" && chemin === "/api/fitness") {
+      repondreJson(
+        reponse,
+        200,
+        controleur.projeterFitnessPopulation(parserFenetre(url)),
+      );
       return;
     }
 
@@ -244,6 +268,28 @@ async function gererRequete(
     const message = erreur instanceof Error ? erreur.message : String(erreur);
     repondreJson(reponse, 500, { erreur: message });
   }
+}
+
+function parserFenetre(url: URL): FenetreEvaluation | undefined {
+  const debutBrut = url.searchParams.get("cycleDebut");
+  const finBrut = url.searchParams.get("cycleFin");
+  if (debutBrut === null && finBrut === null) {
+    return undefined;
+  }
+  if (
+    debutBrut === null ||
+    finBrut === null ||
+    !/^\d+$/.test(debutBrut) ||
+    !/^\d+$/.test(finBrut)
+  ) {
+    throw new ControleurExperienceErreur(
+      "Fenêtre fitness : cycleDebut et cycleFin entiers requis ensemble",
+    );
+  }
+  return {
+    cycleDebut: Number(debutBrut),
+    cycleFin: Number(finBrut),
+  };
 }
 
 function repondreJson(
