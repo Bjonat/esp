@@ -157,11 +157,9 @@ export function reconstruireEtatRepriseCycleDecision(options: {
     ...(resultatMoteur !== undefined ? { resultatMoteur } : {}),
     ...(resultatAction !== undefined ? { resultatAction } : {}),
     resultatDejaObserve: false,
-    // CYCLE_DEMARRE sans CYCLE_TERMINE : ne pas rejouer la décision ;
-    // le contrôleur réinjecte l'activité si le résultat est déjà observé.
-    cycleEconomiqueDejaExecute: pertinents.some(
-      (e) => e.type === "CYCLE_DEMARRE",
-    ),
+    // Seul CYCLE_TERMINE marque l'exécution économique comme terminée.
+    // CYCLE_DEMARRE seul (ou lot partiel) → le contrôleur complète le manquant.
+    cycleEconomiqueDejaExecute: false,
   };
 }
 

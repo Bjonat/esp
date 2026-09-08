@@ -37,6 +37,45 @@ export class RegistreEvenementsMemoire implements RegistreEvenements {
     return evenement;
   }
 
+  /**
+   * Lot atomique en mémoire : aucune insertion si une seule échoue.
+   */
+  ajouterPlusieurs(entrees: readonly EntreeEvenement[]): readonly Evenement[] {
+    if (entrees.length === 0) {
+      return [];
+    }
+
+    for (const entree of entrees) {
+      if (this.identifiantsConnus.has(entree.identifiant)) {
+        throw new Error(
+          `Événement déjà présent dans le registre : ${entree.identifiant}`,
+        );
+      }
+    }
+
+    const sequencesParExperience = new Map<string, number>();
+    const preparés: Evenement[] = [];
+
+    for (const entree of entrees) {
+      const base =
+        sequencesParExperience.get(entree.identifiantExperience) ??
+        this.consulterProchaineSequence(entree.identifiantExperience);
+      const evenement = normaliserEntreeEvenement(entree, base);
+      preparés.push(evenement);
+      sequencesParExperience.set(entree.identifiantExperience, base + 1);
+    }
+
+    for (const evenement of preparés) {
+      this.evenements.push(evenement);
+      this.identifiantsConnus.add(evenement.identifiant);
+    }
+    for (const [experience, prochaine] of sequencesParExperience) {
+      this.prochainesSequences.set(experience, prochaine);
+    }
+
+    return preparés;
+  }
+
   lister(): readonly Evenement[] {
     return [...this.evenements];
   }

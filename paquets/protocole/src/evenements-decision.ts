@@ -224,6 +224,8 @@ export function creerEntreeResultatActionObserve(options: {
   revenuActiviteMicroUsdc: MicroUsdc;
   perteActiviteMicroUsdc: MicroUsdc;
   fraisExecutionMicroUsdc: MicroUsdc;
+  /** Relie le résultat d'action à l'exécution économique du même cycle. */
+  identifiantExecutionEconomique?: string;
   indiceUnicite: number;
   dateEnregistrement?: string;
 }): EntreeEvenementDecision {
@@ -241,5 +243,11 @@ export function creerEntreeResultatActionObserve(options: {
     fraisExecutionMicroUsdc: ecrireMontantChargeUtile(
       options.fraisExecutionMicroUsdc,
     ),
+    ...(options.identifiantExecutionEconomique !== undefined
+      ? {
+          identifiantExecutionEconomique:
+            options.identifiantExecutionEconomique,
+        }
+      : {}),
   });
 }

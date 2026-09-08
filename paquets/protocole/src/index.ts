@@ -208,6 +208,16 @@ export {
   reglerDette,
 } from "./cycle-economique.js";
 
+export type {
+  AnalyseExecutionEconomique,
+  StatutExecutionEconomique,
+} from "./execution-economique.js";
+export {
+  analyserExecutionEconomique,
+  fabriquerIdentifiantExecutionEconomique,
+  lireIdentifiantExecutionEconomique,
+} from "./execution-economique.js";
+
 export { reconstruireEtatEconomique } from "./reconstruction.js";
 
 export type {
