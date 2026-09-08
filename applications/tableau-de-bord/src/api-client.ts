@@ -248,6 +248,107 @@ export interface ProjectionActiviteDecisionnelle {
   };
 }
 
+/** EV / regret exact (rationnel) + approximation affichage. */
+export interface ValeurAttendueExacteApi {
+  readonly numerateurMicroUsdcBps: string;
+  readonly denominateurBps: number;
+  readonly microUsdcArrondiAffichage: MontantApi;
+}
+
+export interface ProjectionFitnessAgent {
+  readonly versionMesuresFitness: string;
+  readonly identifiantAgent: string;
+  readonly avertissement: string;
+  readonly economie: {
+    readonly venDebut: MontantApi;
+    readonly venFin: MontantApi;
+    readonly variationVen: MontantApi;
+    readonly capitalLiquideFin: MontantApi;
+    readonly obligationsFin: MontantApi;
+    readonly capitalisationExogene: MontantApi;
+    readonly variationVenNeutraliseeExogenes: MontantApi;
+    readonly resultatActiviteBrut: MontantApi;
+    readonly resultatOperationnelAvantContrat: MontantApi;
+    readonly resultatApresContrat: MontantApi;
+    readonly depensesCompute: MontantApi;
+    readonly loyersPayes: MontantApi;
+    readonly redevancesProprietairePayees: MontantApi;
+  };
+  readonly decision: {
+    readonly nombreDecisions: number;
+    readonly nombreDecisionsAvecInference: number;
+    readonly nombreDecisionsSansInference: number;
+    readonly nombreActionsAgir: number;
+    readonly nombreActionsAttendre: number;
+    readonly nombreDecisionsOptimalesExAnte: number;
+    readonly tauxDecisionsOptimalesExAnteBps: number | null;
+    readonly regretExAnteCumule: ValeurAttendueExacteApi;
+    readonly nombreSuccesRealises: number;
+    readonly nombreEchecsRealises: number;
+    readonly resultatActiviteRealise: MontantApi;
+    readonly tauxOptimalesAvecInferenceBps: number | null;
+    readonly tauxOptimalesSansInferenceBps: number | null;
+  };
+  readonly cognition: {
+    readonly nombreDemandesInference: number;
+    readonly nombreInferencesExecutees: number;
+    readonly nombreRefusXway: number;
+    readonly coutCognitifTotal: MontantApi;
+    readonly ratioResultatOperationnelSurCoutCognitif: {
+      readonly numerateur: MontantApi;
+      readonly denominateur: MontantApi;
+      readonly quotientEchelleMillion: string | null;
+      readonly note: string;
+    } | null;
+  };
+  readonly risque: {
+    readonly picVen: MontantApi;
+    readonly drawdownMax: MontantApi;
+    readonly drawdownMaxBps: number | null;
+    readonly cycleDuDrawdownMax: number | null;
+    readonly runwayMinimumObserve: number | null;
+  };
+  readonly survie: {
+    readonly cycleNaissance: number;
+    readonly cyclesVecus: number;
+    readonly etatCourant: string;
+    readonly cycleMort: number | null;
+    readonly causeMort: string | null;
+  };
+  readonly resilience: {
+    readonly nombreCyclesSain: number;
+    readonly nombreCyclesContraint: number;
+    readonly nombreCyclesCritique: number;
+    readonly nombreCyclesDormant: number;
+    readonly nombreTransitionsEtat: number;
+    readonly nombrePassagesCritiqueVersSain: number;
+  };
+  readonly contribution: {
+    readonly loyersPayes: MontantApi;
+    readonly redevancesPayees: MontantApi;
+    readonly contributionProprietaireTotale: MontantApi;
+  };
+}
+
+export interface ProjectionLigneFitnessPopulation {
+  readonly identifiantAgent: string;
+  readonly etatSurvie: string;
+  readonly venFin: MontantApi;
+  readonly resultatApresContrat: MontantApi;
+  readonly depensesCompute: MontantApi;
+  readonly tauxDecisionsOptimalesExAnteBps: number | null;
+  readonly regretExAnteCumule: ValeurAttendueExacteApi;
+  readonly drawdownMax: MontantApi;
+  readonly runwayMinimumObserve: number | null;
+  readonly contributionProprietaire: MontantApi;
+}
+
+export interface ProjectionFitnessPopulation {
+  readonly versionMesuresFitness: string;
+  readonly avertissement: string;
+  readonly agents: readonly ProjectionLigneFitnessPopulation[];
+}
+
 export interface InstantaneEsp {
   readonly experience: ProjectionExperience;
   readonly population: ProjectionPopulation;
@@ -364,4 +465,16 @@ export async function chargerDecisionsAgent(
     decisions: ProjectionDecisionAgent[];
   }>(`/api/agents/${encodeURIComponent(identifiant)}/decisions`);
   return corps.decisions;
+}
+
+export async function chargerFitnessAgent(
+  identifiant: string,
+): Promise<ProjectionFitnessAgent> {
+  return lireJson<ProjectionFitnessAgent>(
+    `/api/agents/${encodeURIComponent(identifiant)}/fitness`,
+  );
+}
+
+export async function chargerFitnessPopulation(): Promise<ProjectionFitnessPopulation> {
+  return lireJson<ProjectionFitnessPopulation>("/api/fitness");
 }

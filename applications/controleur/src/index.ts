@@ -102,6 +102,19 @@ export {
 } from "./serialisation-api.js";
 
 export type {
+  ProjectionRatioFitness,
+  ProjectionFitnessAgent,
+  ProjectionFitnessPopulation,
+  ProjectionLigneFitnessPopulation,
+  ProjectionValeurAttendueExacte,
+} from "./projections-fitness.js";
+export {
+  calculerEtProjeterFitnessAgent,
+  projeterFitnessPopulation,
+  projeterMesuresFitnessAgent,
+} from "./projections-fitness.js";
+
+export type {
   ApercuInferenceTest,
   AuditRegistreInferenceTest,
   DiagnosticExecutionInferenceTest,

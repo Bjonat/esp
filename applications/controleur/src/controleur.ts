@@ -128,6 +128,15 @@ import {
   projeterResumeDecisionAgent as calculerResumeDecisionAgent,
 } from "./projections-decision.js";
 import type {
+  ProjectionFitnessAgent,
+  ProjectionFitnessPopulation,
+} from "./projections-fitness.js";
+import {
+  calculerEtProjeterFitnessAgent,
+  projeterFitnessPopulation,
+} from "./projections-fitness.js";
+import type { FenetreEvaluation } from "@esp/protocole";
+import type {
   ProjectionXwayAgent,
   ProjectionXwayGlobale,
 } from "./projections-xway.js";
@@ -1092,6 +1101,38 @@ export class ControleurExperience {
     );
     const decisions = projeterDecisionsDepuisRegistre(evenements);
     return calculerActiviteDecisionnelle(decisions, this.numeroCycleCourant);
+  }
+
+  projeterFitnessAgent(
+    identifiant: string,
+    fenetre?: FenetreEvaluation,
+  ): ProjectionFitnessAgent | undefined {
+    if (!this.agents.some((a) => a.identite.identifiant === identifiant)) {
+      return undefined;
+    }
+    const evenements = this.registre.listerParExperience(
+      this.configuration.identifiantExperience,
+    );
+    return calculerEtProjeterFitnessAgent({
+      identifiantAgent: identifiant,
+      evenements,
+      cycleCourant: this.numeroCycleCourant,
+      ...(fenetre !== undefined ? { fenetre } : {}),
+    });
+  }
+
+  projeterFitnessPopulation(
+    fenetre?: FenetreEvaluation,
+  ): ProjectionFitnessPopulation {
+    const evenements = this.registre.listerParExperience(
+      this.configuration.identifiantExperience,
+    );
+    return projeterFitnessPopulation({
+      identifiantsAgents: this.agents.map((a) => a.identite.identifiant),
+      evenements,
+      cycleCourant: this.numeroCycleCourant,
+      ...(fenetre !== undefined ? { fenetre } : {}),
+    });
   }
 
   projeterPopulation(): ProjectionPopulation {

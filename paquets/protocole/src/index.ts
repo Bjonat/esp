@@ -221,6 +221,48 @@ export {
 export { reconstruireEtatEconomique } from "./reconstruction.js";
 
 export type {
+  ActionDecisionExAnte,
+  ParametresValeurAttendueAgir,
+  ValeurAttendueExacte,
+} from "./valeur-attendue-decision.js";
+export {
+  CONVENTION_EGALITE_EX_ANTE,
+  DENOMINATEUR_VALEUR_ATTENDUE_BPS,
+  additionnerValeursAttenduesExactes,
+  arrondirValeurAttendueVersMicroUsdc,
+  calculerRegretExAnte,
+  calculerValeurAttendueAgir,
+  calculerValeurAttendueAttendre,
+  creerValeurAttendueExacte,
+  determinerMeilleureActionExAnte,
+} from "./valeur-attendue-decision.js";
+
+export type {
+  AgregatDimensionFitness,
+  AgregatsFitnessPopulation,
+  EvenementPourFitness,
+  FenetreEvaluation,
+  MesuresCognitionFitness,
+  MesuresContributionFitness,
+  MesuresDecisionFitness,
+  MesuresEconomieFitness,
+  MesuresFitnessAgent,
+  MesuresResilienceFitness,
+  MesuresRisqueFitness,
+  MesuresSurvieFitness,
+  PointHistoriqueFitness,
+  RatioEntierDescriptif,
+} from "./mesures-fitness.js";
+export {
+  VERSION_MESURES_FITNESS,
+  agregaterFitnessPopulation,
+  assertPasDeScoreScalaire,
+  calculerMesuresFitnessAgent,
+  medianeEntiere,
+  medianeNombre,
+} from "./mesures-fitness.js";
+
+export type {
   AttributionDepenseComputeXway,
   AttributionHistoriqueXway,
   ChargeDepenseCompute,

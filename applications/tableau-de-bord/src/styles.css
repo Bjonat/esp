@@ -567,6 +567,67 @@ body {
   color: var(--mort);
 }
 
+.banniere-fitness {
+  margin: 0 0 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--bordure, #3a4555);
+  color: var(--accent, #9ecbff);
+  font-size: 0.85rem;
+  letter-spacing: 0.02em;
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+.table-fitness {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.table-fitness th,
+.table-fitness td {
+  padding: 0.4rem 0.55rem;
+  border-bottom: 1px solid var(--bordure, #2a3340);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.tri-colonne {
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+}
+
+.tri-colonne.actif {
+  color: var(--accent, #9ecbff);
+  text-decoration: underline;
+}
+
+.lien-agent {
+  background: transparent;
+  border: none;
+  color: var(--accent, #9ecbff);
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.fitness-population {
+  grid-column: 1 / -1;
+}
+
+.fitness-agent h3 {
+  margin: 1rem 0 0.4rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
 @keyframes pulse {
   0%,
   100% {
