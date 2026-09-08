@@ -1,0 +1,30 @@
+{
+  "identifiantRetenu": "cal-e3-01",
+  "protocole": "evolution-calibree-v01",
+  "controleNegatifOk": true,
+  "fractionRunsContraintsParGardeFou": 0,
+  "fractionCyclesPopulationMaxAtteinte": 0,
+  "fractionCyclesPlafondNaissancesAtteint": 0,
+  "generationMaximaleMedianeBCD": 3,
+  "fractionRunsDAvecAuMoinsUneMutation": 1,
+  "fractionRunsEteints": 0,
+  "fractionExtinctionImmediate": 0,
+  "naissancesPresentes": true,
+  "dureeMsTotale": 492845,
+  "nombreRuns": 20,
+  "criteresSatisfaits": {
+    "CONTROLE_NEGATIF": true,
+    "FRACTION_RUNS_CONTRAINTS": true,
+    "FRACTION_CYCLES_POPULATION_MAX": true,
+    "FRACTION_CYCLES_PLAFOND_NAISSANCES": true,
+    "GENERATION_MEDIANE_BCD": true,
+    "FRACTION_D_MUTATION": true,
+    "EXTINCTION_IMMEDIATE": true,
+    "EXTINCTION_STRUCTURELLE": true,
+    "SATURATION_PRECOCE": true
+  },
+  "candidatValide": true,
+  "dureeTotaleCalibrationMs": 1661318,
+  "nombreRunsTotauxCalibration": 80,
+  "note": "Vue whitelistée — aucune métrique comparative D−C."
+}

@@ -117,3 +117,72 @@ export {
 } from "./rapports.js";
 
 export { parserArgumentsCli, main } from "./cli.js";
+
+export {
+  VERSION_CRITERES_CALIBRATION,
+  SEUILS_CALIBRATION_V01,
+  IDENTIFIANTS_CRITERES_CALIBRATION,
+  borneHautePremierCyclePopulationMax,
+  estSaturePopulationTot,
+} from "./criteres-calibration.js";
+export type { IdentifiantCritereCalibration } from "./criteres-calibration.js";
+
+export {
+  CRITERES_PAR_ETAPE,
+  extraireVueCalibration,
+  extraireVueCalibrationDepuisCampagne,
+  assertVueCalibrationSansDC,
+} from "./vue-calibration.js";
+export type {
+  EntreeVueCalibration,
+  ResumeCalibrationBatch,
+} from "./vue-calibration.js";
+
+export {
+  clesAutoriseesPourEtape,
+  appliquerSurchargeCalibration,
+  refuserSeedsEvaluationEnCalibration,
+  construireProtocoleCandidatCalibration,
+  chargerProtocoleCalibrationDepuisObjet,
+  CalibrationParametreRefuseErreur,
+} from "./parametres-calibration-autorises.js";
+export type {
+  EtapeCalibration,
+  CleCalibrationAutorisee,
+  SurchargeCalibration,
+} from "./parametres-calibration-autorises.js";
+
+export {
+  fabriquerEntreeJournalCalibration,
+  serialiserEntreeJournalCalibration,
+  appendreJournalCalibration,
+  validateDecisionCalibration,
+  DecisionCalibrationInvalideErreur,
+} from "./journal-calibration.js";
+export type {
+  DecisionCalibration,
+  EntreeJournalCalibration,
+} from "./journal-calibration.js";
+
+export {
+  evaluerCandidatCalibration,
+  evaluerCandidatDepuisCampagne,
+} from "./evaluer-candidat-calibration.js";
+export type {
+  EntreeEvaluationCandidatCalibration,
+  ResultatEvaluationCandidatCalibration,
+} from "./evaluer-candidat-calibration.js";
+
+export {
+  parserArgumentsCliCalibration,
+  mainCalibration,
+} from "./cli-calibration.js";
+export type { ArgumentsCliCalibration } from "./cli-calibration.js";
+
+export {
+  extraireParametresExperimentauxPartages,
+  protocolesPartagentParametresExperimentaux,
+  collecterSeedsExecuteesDansResultats,
+  compterSeedsEvaluationExecutees,
+} from "./audit-calibration.js";
+export type { ParametresExperimentauxPartages } from "./audit-calibration.js";

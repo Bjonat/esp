@@ -1,0 +1,109 @@
+{
+  "_commentaire": [
+    "Protocole calibré v0.1 — zone dynamique informative (calibration).",
+    "Retenu via essais cal-e1-01 → cal-e2-02 → cal-e3-01.",
+    "Ne pas utiliser pour conclure scientifiquement ; freeze évaluation séparé.",
+    "Fournisseur simulé uniquement — aucun OpenAI / Live / Solana."
+  ],
+  "version": "protocole-experience-evolution-v01",
+  "identifiantProtocole": "evolution-calibree-v01",
+  "mode": "calibration",
+  "seedsCalibration": [101, 102, 103, 104, 105],
+  "seedsEvaluation": [1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009, 1010, 1011, 1012, 1013, 1014, 1015, 1016, 1017, 1018, 1019, 1020],
+  "cyclesMaximum": 20,
+  "populationInitiale": 3,
+  "capitalInitialParAgentMicroUsdc": "8000000",
+  "tauxMutationConditionDBps": 1000,
+  "conditions": ["A", "B", "C", "D"],
+  "dateLancementFixe": "2020-01-01T00:00:00.000Z",
+  "fournisseur": {
+    "identifiant": "fournisseur-inference-simule",
+    "version": "0.1.0",
+    "selecteur": "simule"
+  },
+  "repertoireResultatsRelatif": "experiences/resultats",
+  "parametresEconomiques": {
+    "version": "demo-evolution-calibree-v01",
+    "loyerInfrastructureMicroUsdc": "0",
+    "periodeLoyerEnCycles": 100,
+    "tauxRedevanceProprietairePointsDeBase": "0",
+    "coutOperationnelMinimalParCycleMicroUsdc": "20000",
+    "seuilRunwaySainEnCycles": 20,
+    "seuilRunwayContraintEnCycles": 5,
+    "cyclesDormanceAvantMort": 3
+  },
+  "reproduction": {
+    "version": "parametres-reproduction-v01",
+    "active": true,
+    "dotationEnfantMicroUsdc": "800000",
+    "coutReproductionMicroUsdc": "200000",
+    "reserveMinimaleParentMicroUsdc": "400000",
+    "populationMaximale": 24,
+    "nombreMaxReproductionsParCycle": 3,
+    "nombreMaxEnfantsParAgent": 3,
+    "cooldownCycles": 1
+  },
+  "reproductionAutonome": {
+    "version": "politique-reproduction-autonome-v01",
+    "active": true,
+    "etatsSurvieEligibles": ["sain", "contraint"],
+    "nombreMaxNaissancesParCycle": 4
+  },
+  "mutationBase": {
+    "version": "parametres-mutation-v01",
+    "active": true,
+    "tauxMutationParGeneBps": 1000,
+    "versionCatalogueGenes": "genes-mutables-v01"
+  },
+  "politiqueBudgetCognitif": {
+    "identifiant": "politique-budget-cognitif-agent",
+    "version": "0.1.0",
+    "seuilEnjeuPourInferenceMicroUsdc": "100000",
+    "partMaxVenParCycleBps": 50,
+    "plafondCognitifMicroUsdc": "10000",
+    "modeleLogique": "modele_standard",
+    "comportementSansInference": "agir_si_favorable",
+    "refuserSiCritiqueOuDormant": true
+  },
+  "xway": {
+    "active": true,
+    "plafondComputeParCycleMicroUsdc": "50000",
+    "modeles": [
+      {
+        "identifiant": "modele_economique",
+        "libelle": "Modèle économique (pilote)",
+        "coutParMillionJetonsEntreeMicroUsdc": "500000",
+        "coutParMillionJetonsSortieMicroUsdc": "1500000",
+        "nombreMaxJetonsSortie": 256
+      },
+      {
+        "identifiant": "modele_standard",
+        "libelle": "Modèle standard (pilote)",
+        "coutParMillionJetonsEntreeMicroUsdc": "2000000",
+        "coutParMillionJetonsSortieMicroUsdc": "6000000",
+        "nombreMaxJetonsSortie": 512
+      },
+      {
+        "identifiant": "modele_premium",
+        "libelle": "Modèle premium (pilote)",
+        "coutParMillionJetonsEntreeMicroUsdc": "20000000",
+        "coutParMillionJetonsSortieMicroUsdc": "60000000",
+        "nombreMaxJetonsSortie": 1024
+      }
+    ],
+    "politiqueCognitive": {
+      "identifiant": "politique-budget-cognitif-agent",
+      "version": "0.1.0"
+    },
+    "fournisseur": {
+      "identifiant": "fournisseur-inference-simule",
+      "version": "0.1.0"
+    }
+  },
+  "_metaCalibration": {
+    "identifiantRetenu": "cal-e3-01",
+    "empreinteProtocoleFichier": "sha256:bc24e4dc147349fa9b77d26b4c9e399f03eeec4e3a7495fe477f97a0208bcfdd",
+    "empreinteCandidatCalE301DerivePilote": "sha256:b72737610a43701b6a569362423312f7d4aedc1e6ae2618cbf5816e5089ee6ac",
+    "note": "L'empreinte fichier diffère du candidat cal-e3-01 car identifiantProtocole / version param. éco. sont ceux du protocole retenu versionné."
+  }
+}
