@@ -293,20 +293,45 @@ export {
 } from "./evenements-reproduction-autonome.js";
 
 export type {
+  ArretFenetreParentReproductionEconomiqueV03,
   ChargeReproductionEconomiqueV03CyclePlanifiee,
   ChargeReproductionEconomiqueV03CycleTerminee,
   EntreeEvenementReproductionEconomiqueV03,
+  MotifArretFenetreReproductionEconomiqueV03,
+  ObservabiliteParentReproductionEconomiqueV03,
+  ObservabiliteTentativeReproductionEconomiqueV03,
   ParentReproductionEconomiqueV03Planifie,
   TentativeReproductionEconomiqueV03Planifiee,
   TypeEvenementReproductionEconomiqueV03,
 } from "./evenements-reproduction-economique-v03.js";
 export {
+  CLES_OBSERVABILITE_CHARGE_V03,
   TYPES_EVENEMENT_REPRODUCTION_ECONOMIQUE_V03,
   VERSION_SCHEMA_EVENEMENT_REPRODUCTION_ECONOMIQUE_V03,
   creerEntreeReproductionEconomiqueV03CyclePlanifiee,
   creerEntreeReproductionEconomiqueV03CycleTerminee,
   estTypeEvenementReproductionEconomiqueV03,
 } from "./evenements-reproduction-economique-v03.js";
+
+export type {
+  EvenementPourObservabiliteV03,
+  FenetreCyclesObservabiliteV03,
+  ObservabiliteReproductionEconomiqueV03Cycle,
+  RatioEntierObservabiliteV03,
+} from "./observabilite-reproduction-economique-v03.js";
+export {
+  EVENEMENTS_EXCLUS_RESULTAT_HORS_REPRODUCTION_V03,
+  EVENEMENTS_INCLUS_RESULTAT_HORS_REPRODUCTION_V03,
+  VERSION_OBSERVABILITE_REPRODUCTION_ECONOMIQUE_V03,
+  assertAucuneCleAntiFitnessV03,
+  calculerResultatEconomiqueHorsReproductionV03,
+  empreinteTrajectoireCausaleSansObservabiliteV03,
+  estParentEligibleStructurelHorsGardeFousV03,
+  parserCapaciteTheoriqueObservabilite,
+  projeterObservabiliteReproductionEconomiqueV03,
+  resultatEconomiqueHorsReproductionV03,
+  retirerChampsObservabiliteV03,
+} from "./observabilite-reproduction-economique-v03.js";
 
 export type {
   AnalyseReproduction,

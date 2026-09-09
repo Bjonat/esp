@@ -12,6 +12,7 @@ branché au contrôleur via une **voie explicitement activable**.
 | v03-B — événements | `evenements-reproduction-economique-v03.ts` | `…_CYCLE_PLANIFIEE` / `…_CYCLE_TERMINEE` |
 | v03-B — sélection | `mecanisme-reproduction-autonome.ts` | `reproduction-autonome-v01` (défaut) \| `reproduction-economique-v03` |
 | v03-B — contrôleur | `executerPhaseReproductionEconomiqueV03` | orchestration, atomicité, reprise |
+| v03-C — observabilité | `observabilite-reproduction-economique-v03.ts` | projections pures, hors reproduction, anti-fitness |
 
 Les voies historiques v0.1/v0.2 (`planifierReproductionsAutonomes`,
 `REPRODUCTION_AUTONOME_CYCLE_*`) restent bit-for-bit le défaut.
@@ -178,8 +179,32 @@ pas de cascade parent → enfant → petit-enfant intra-cycle.
 Le `numeroEnfant` figé dans le plan est l'autorité après restart — y compris
 lorsqu'un enfant mécanique préexistant occupe déjà `e001`.
 
-## Hors périmètre (v03-C / v03-D)
+## Hors périmètre (v03-D…)
 
-- enrichissement analytique (surplus détaillé, raisons de non-utilisation) ;
 - campagne A/B/C/D, diagnostic, calibration, seeds, H4 ;
-- dashboard complet ; nouveaux gènes / mutations.
+- dashboard analytique complet ; nouveaux gènes / mutations ;
+- seuil final de pression des garde-fous ; valeur numérique de `E`.
+
+## Observabilité v03-C
+
+Mesure pure depuis le registre — voir
+`documentation/OBSERVABILITE_EVOLUTION_V03.md`.
+
+Enrichissements descriptifs (stripables) :
+
+- `PLANIFIEE.observabiliteParents` — capacités brutes / bornées, fenêtre,
+  tentatives planifiées (y compris capacité contrefactuelle si garde-fou) ;
+- `observabiliteTentativeV03` sur `DEMANDEE` / `AUTORISEE` / `REFUSEE` —
+  état avant, autorisation, `modeEvaluation` (`evaluee` |
+  `propagation_monotone`), résultat ;
+- `TERMINEE` — places non utilisées, arrêts de fenêtre, refus évalués vs
+  propagation.
+
+Projections pures :
+
+- `projeterObservabiliteReproductionEconomiqueV03`
+- `calculerResultatEconomiqueHorsReproductionV03`
+
+L'observabilité **ne change pas** l'ouverture de fenêtre, la capacité
+décisionnelle, le round-robin, les autorisations, naissances, héritage,
+mutation ni RNG.
