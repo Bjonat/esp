@@ -4,9 +4,11 @@
  * - Ordre inter-parents = priorité neutre (pas de ranking économique).
  * - Round-robin déterministe entre fenêtres ouvertes.
  * - Plan figé ≠ ressources réservées ≠ naissances garanties.
+ * - Observabilité v03-C : descriptive, jamais entrée de décision.
  */
 
 import type { EtatEconomiqueAgent } from "./etat-economique.js";
+import { ecrireMontantChargeUtile } from "./evenements-economiques.js";
 import {
   fabriquerIdentifiantEnfant,
   fabriquerIdentifiantReproduction,
@@ -21,6 +23,7 @@ import type { ParametresReproductionExperience } from "./parametres-reproduction
 import type { PolitiqueReproductionAutonome } from "./parametres-reproduction-autonome.js";
 import type {
   ChargeReproductionEconomiqueV03CyclePlanifiee,
+  ObservabiliteParentReproductionEconomiqueV03,
   ParentReproductionEconomiqueV03Planifie,
   TentativeReproductionEconomiqueV03Planifiee,
 } from "./evenements-reproduction-economique-v03.js";
@@ -59,6 +62,15 @@ export function bornerCapaciteTheoriqueVersNombreV03(
   return Number(borne);
 }
 
+type BrouillonObservabiliteParent = {
+  readonly identifiantAgent: string;
+  readonly nombreEnfantsParent: number;
+  readonly projection: ReturnType<
+    typeof projeterCapaciteReproductiveEconomiqueV03
+  >;
+  readonly fenetre: ObservabiliteParentReproductionEconomiqueV03["fenetre"];
+};
+
 export function planifierReproductionsEconomiquesV03(options: {
   readonly politique: PolitiqueReproductionAutonome;
   readonly parametresReproduction: ParametresReproductionExperience;
@@ -90,6 +102,7 @@ export function planifierReproductionsEconomiquesV03(options: {
   const eligiblesOuverture: string[] = [];
   const tentativesMaxParParent = new Map<string, number>();
   const numeroEnfantBaseParParent = new Map<string, number>();
+  const brouillonsObservabilite: BrouillonObservabiliteParent[] = [];
 
   for (const candidat of options.candidats) {
     const ouverture = evaluerOuvertureFenetreReproductiveV03({
@@ -108,10 +121,9 @@ export function planifierReproductionsEconomiquesV03(options: {
       nombreMaxReproductionsParCycle:
         parametresReproduction.nombreMaxReproductionsParCycle,
     });
-    if (!ouverture.ouverte) {
-      continue;
-    }
 
+    // Capacité économique contrefactuelle locale — même si la fenêtre est
+    // fermée par un garde-fou. Descriptive uniquement ; n'ouvre jamais la fenêtre.
     const projection = projeterCapaciteReproductiveEconomiqueV03({
       etatParent: candidat.etatParent,
       reserveMinimaleParentMicroUsdc:
@@ -123,20 +135,36 @@ export function planifierReproductionsEconomiquesV03(options: {
       nombreMaxEnfantsParAgent: parametresReproduction.nombreMaxEnfantsParAgent,
     });
 
-    const tentativesMax = bornerCapaciteTheoriqueVersNombreV03(
-      projection.capaciteTheorique,
-      projection.nombreEnfantsRestants,
-    );
-    if (tentativesMax <= 0) {
-      continue;
+    const fenetre: ObservabiliteParentReproductionEconomiqueV03["fenetre"] =
+      ouverture.ouverte
+        ? { ouverte: true }
+        : { ouverte: false, motif: ouverture.motif };
+
+    let tentativesMaxLocales = 0;
+    if (ouverture.ouverte) {
+      tentativesMaxLocales = bornerCapaciteTheoriqueVersNombreV03(
+        projection.capaciteTheorique,
+        projection.nombreEnfantsRestants,
+      );
+      if (tentativesMaxLocales > 0) {
+        eligiblesOuverture.push(candidat.identifiantAgent);
+        tentativesMaxParParent.set(
+          candidat.identifiantAgent,
+          tentativesMaxLocales,
+        );
+        numeroEnfantBaseParParent.set(
+          candidat.identifiantAgent,
+          candidat.nombreEnfantsParent,
+        );
+      }
     }
 
-    eligiblesOuverture.push(candidat.identifiantAgent);
-    tentativesMaxParParent.set(candidat.identifiantAgent, tentativesMax);
-    numeroEnfantBaseParParent.set(
-      candidat.identifiantAgent,
-      candidat.nombreEnfantsParent,
-    );
+    brouillonsObservabilite.push({
+      identifiantAgent: candidat.identifiantAgent,
+      nombreEnfantsParent: candidat.nombreEnfantsParent,
+      projection,
+      fenetre,
+    });
   }
 
   const identifiantsParentsOrdonnes = ordonnerCandidatsParPrioriteNeutre(
@@ -202,6 +230,29 @@ export function planifierReproductionsEconomiquesV03(options: {
       nombreTentativesPlanifiees: emisesParParent.get(identifiantParent) ?? 0,
     }));
 
+  const observabiliteParents: ObservabiliteParentReproductionEconomiqueV03[] =
+    brouillonsObservabilite.map((b) => ({
+      identifiantAgent: b.identifiantAgent,
+      numeroCycle,
+      venMicroUsdc: ecrireMontantChargeUtile(b.projection.venMicroUsdc),
+      reserveMinimaleMicroUsdc: ecrireMontantChargeUtile(
+        b.projection.reserveMinimaleMicroUsdc,
+      ),
+      surplusReproductifMicroUsdc: ecrireMontantChargeUtile(
+        b.projection.surplusReproductifMicroUsdc,
+      ),
+      coutNaissanceMicroUsdc: ecrireMontantChargeUtile(
+        b.projection.coutNaissanceMicroUsdc,
+      ),
+      capaciteTheorique: b.projection.capaciteTheorique.toString(10),
+      nombreEnfantsParent: b.nombreEnfantsParent,
+      nombreEnfantsRestants: b.projection.nombreEnfantsRestants,
+      capaciteBorneeParEnfants:
+        b.projection.capaciteBorneeParEnfants.toString(10),
+      fenetre: b.fenetre,
+      nombreTentativesPlanifiees: emisesParParent.get(b.identifiantAgent) ?? 0,
+    }));
+
   return {
     versionMecanisme: MECANISME_REPRODUCTION_ECONOMIQUE_V03,
     numeroCycle,
@@ -212,6 +263,7 @@ export function planifierReproductionsEconomiquesV03(options: {
     identifiantsParentsOrdonnes,
     parents,
     tentatives,
+    observabiliteParents,
   };
 }
 

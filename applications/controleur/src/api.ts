@@ -166,6 +166,35 @@ async function gererRequete(
         return;
       }
 
+      if (segments[1] === "resultat-economique-hors-reproduction-v03") {
+        const fenetre = parserFenetre(url);
+        if (fenetre === undefined) {
+          repondreJson(reponse, 400, {
+            erreur:
+              "Fenêtre : cycleDebut et cycleFin entiers requis ensemble",
+          });
+          return;
+        }
+        try {
+          const montant =
+            controleur.calculerResultatEconomiqueHorsReproductionV03(
+              identifiant,
+              fenetre,
+            );
+          repondreJson(reponse, 200, {
+            identifiantAgent: identifiant,
+            fenetre,
+            resultatEconomiqueHorsReproductionMicroUsdc: montant.toString(10),
+            conventionPlage: "[cycleDebut, cycleFin] inclusive",
+          });
+        } catch (erreur) {
+          const message =
+            erreur instanceof Error ? erreur.message : String(erreur);
+          repondreJson(reponse, 400, { erreur: message });
+        }
+        return;
+      }
+
       if (segments.length === 1) {
         const agent = controleur.projeterAgent(identifiant);
         if (agent === undefined) {
@@ -232,6 +261,30 @@ async function gererRequete(
         200,
         controleur.projeterFitnessPopulation(parserFenetre(url)),
       );
+      return;
+    }
+
+    if (
+      methode === "GET" &&
+      chemin === "/api/observabilite-reproduction-economique-v03"
+    ) {
+      const cycleBrut = url.searchParams.get("numeroCycle");
+      if (cycleBrut === null || !/^\d+$/.test(cycleBrut)) {
+        repondreJson(reponse, 400, {
+          erreur: "Paramètre numeroCycle entier requis",
+        });
+        return;
+      }
+      const projection = controleur.projeterObservabiliteReproductionEconomiqueV03(
+        Number(cycleBrut),
+      );
+      if (projection === null) {
+        repondreJson(reponse, 404, {
+          erreur: "Aucune planification v0.3 pour ce cycle",
+        });
+        return;
+      }
+      repondreJson(reponse, 200, serialiserObservabiliteV03Api(projection));
       return;
     }
 
@@ -305,6 +358,65 @@ function parserFenetre(url: URL): FenetreEvaluation | undefined {
   return {
     cycleDebut: Number(debutBrut),
     cycleFin: Number(finBrut),
+  };
+}
+
+/**
+ * Sérialise l'agrégat v03-C pour l'API (bigint → chaînes décimales).
+ * Aucun score, rang, ni classement.
+ */
+function serialiserObservabiliteV03Api(
+  projection: NonNullable<
+    ReturnType<ControleurExperience["projeterObservabiliteReproductionEconomiqueV03"]>
+  >,
+): Record<string, unknown> {
+  return {
+    version: projection.version,
+    numeroCycle: projection.numeroCycle,
+    nombreParentsCandidats: projection.nombreParentsCandidats,
+    fenetresOuvertes: projection.fenetresOuvertes,
+    fenetresFermeesParMotif: projection.fenetresFermeesParMotif,
+    capaciteEconomiqueTheoriqueTotale:
+      projection.capaciteEconomiqueTheoriqueTotale.toString(10),
+    capaciteApresLimiteEnfantsTotale:
+      projection.capaciteApresLimiteEnfantsTotale.toString(10),
+    capaciteEconomiqueTheoriqueEligible:
+      projection.capaciteEconomiqueTheoriqueEligible.toString(10),
+    capaciteBloqueeParPlafondParent:
+      projection.capaciteBloqueeParPlafondParent.toString(10),
+    capaciteDisponibleApresPlafondParent:
+      projection.capaciteDisponibleApresPlafondParent.toString(10),
+    capaciteBloqueeParPlafondsGlobaux:
+      projection.capaciteBloqueeParPlafondsGlobaux.toString(10),
+    tentativesPlanifiees: projection.tentativesPlanifiees,
+    tentativesReellementEvaluees: projection.tentativesReellementEvaluees,
+    tentativesAutorisees: projection.tentativesAutorisees,
+    tentativesRefusees: projection.tentativesRefusees,
+    naissancesRealisees: projection.naissancesRealisees,
+    refusParMotif: projection.refusParMotif,
+    refusEvaluesParMotif: projection.refusEvaluesParMotif,
+    refusPropagationParMotif: projection.refusPropagationParMotif,
+    placesGlobalesPlanifiees: projection.placesGlobalesPlanifiees,
+    placesPlanifieesNonUtilisees: projection.placesPlanifieesNonUtilisees,
+    placesGlobalesNonUtilisees: projection.placesGlobalesNonUtilisees,
+    placesNonDemandeesParLePlan: projection.placesNonDemandeesParLePlan,
+    tentativesPlanifieesNonRealisees:
+      projection.tentativesPlanifieesNonRealisees,
+    opportunitesEconomiquementFinancables:
+      projection.opportunitesEconomiquementFinancables.toString(10),
+    opportunitesBloqueesParGardeFous:
+      projection.opportunitesBloqueesParGardeFous.toString(10),
+    fermeturesNombreEnfantsMax: projection.fermeturesNombreEnfantsMax,
+    fermeturesPopulationMaximale: projection.fermeturesPopulationMaximale,
+    fermeturesReproductionsCycleMax:
+      projection.fermeturesReproductionsCycleMax,
+    pressionGardeFous: {
+      numerateur: projection.opportunitesBloqueesParGardeFous.toString(10),
+      denominateur:
+        projection.capaciteEconomiqueTheoriqueEligible.toString(10),
+    },
+    arretsFenetreParParent: projection.arretsFenetreParParent,
+    parents: projection.parents,
   };
 }
 

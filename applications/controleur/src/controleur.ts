@@ -9,8 +9,10 @@ import type {
   EntreeEvenementEsp,
   EtatEconomiqueAgent,
   EvenementEsp,
+  MotifArretFenetreReproductionEconomiqueV03,
   MotifArretTentativesRestantesV03,
   MotifRefusReproduction,
+  ObservabiliteTentativeReproductionEconomiqueV03,
   ObservationOpportunite,
   ParametresMutationExperienceJson,
   ParametresReproductionExperienceJson,
@@ -24,6 +26,7 @@ import {
   analyserReproduction,
   attribuerCapitalInitial,
   assertDemandesXwayNonDejaAttribuees,
+  calculerResultatEconomiqueHorsReproductionV03,
   calculerRunwayEnCycles,
   calculerValeurEconomiqueNette,
   configurationHeritableDepuisPolitiqueBase,
@@ -57,6 +60,7 @@ import {
   planifierReproductionsAutonomes,
   planifierReproductionsEconomiquesV03,
   preparerReproduction,
+  projeterObservabiliteReproductionEconomiqueV03,
   reconstruireStatutExperience,
   resoudrePolitiqueDepuisConfigurationHeritable,
   serialiserConfigurationHeritable,
@@ -1404,8 +1408,41 @@ export class ControleurExperience {
 
       const motifArretDeja = motifArretParParent.get(tentative.identifiantParent);
       if (motifArretDeja !== undefined) {
-        // Persister le refus des tentatives restantes (même motif monotone) —
-        // pas de place « libérée » pour une tentative hors plan.
+        const parentPourObs = this.agents.find(
+          (a) => a.identite.identifiant === tentative.identifiantParent,
+        );
+        const enfantsProp = this.agents.filter(
+          (a) =>
+            a.identite.identifiantParent === tentative.identifiantParent,
+        );
+        const coutNaissance =
+          parametresReproduction.dotationEnfantMicroUsdc +
+          parametresReproduction.coutReproductionMicroUsdc;
+        const venAvant =
+          parentPourObs !== undefined
+            ? calculerValeurEconomiqueNette(parentPourObs.etatEconomique)
+            : 0n;
+        const capitalAvant =
+          parentPourObs?.etatEconomique.capitalLiquide ?? 0n;
+        const observabilite = fabriquerObservabiliteTentativeV03({
+          numeroCycle,
+          tentative,
+          capitalLiquideAvantMicroUsdc: capitalAvant,
+          venAvantMicroUsdc: venAvant,
+          nombreEnfantsCourant: enfantsProp.length,
+          populationCourante: this.agents.length,
+          reproductionsDejaRealiseesCycle: compterReproductionsTermineesCycle(
+            evenements,
+            numeroCycle,
+          ),
+          coutNaissanceMicroUsdc: coutNaissance,
+          modeEvaluation: "propagation_monotone",
+          autorisation: {
+            autorisee: false,
+            motif: motifArretDeja,
+          },
+          resultatFinal: "refusee",
+        });
         await this.executerReproductionPreparee(tentative.identifiantParent, {
           identifiantsPlanifies: {
             numeroEnfant: tentative.numeroEnfant,
@@ -1416,11 +1453,10 @@ export class ControleurExperience {
           autorisationEconomiqueV03: {
             autorisee: false,
             motif: motifArretDeja,
-            coutNaissanceMicroUsdc:
-              parametresReproduction.dotationEnfantMicroUsdc +
-              parametresReproduction.coutReproductionMicroUsdc,
-            venAvantMicroUsdc: 0n,
+            coutNaissanceMicroUsdc: coutNaissance,
+            venAvantMicroUsdc: venAvant,
           },
+          observabiliteTentativeV03: observabilite,
         });
         continue;
       }
@@ -1432,6 +1468,25 @@ export class ControleurExperience {
         motifArretParParent.set(tentative.identifiantParent, "agent_mort");
         const dateRefus =
           this.datesEvenementsFixes ?? new Date().toISOString();
+        const coutNaissance =
+          parametresReproduction.dotationEnfantMicroUsdc +
+          parametresReproduction.coutReproductionMicroUsdc;
+        const observabilite = fabriquerObservabiliteTentativeV03({
+          numeroCycle,
+          tentative,
+          capitalLiquideAvantMicroUsdc: 0n,
+          venAvantMicroUsdc: 0n,
+          nombreEnfantsCourant: 0,
+          populationCourante: this.agents.length,
+          reproductionsDejaRealiseesCycle: compterReproductionsTermineesCycle(
+            evenements,
+            numeroCycle,
+          ),
+          coutNaissanceMicroUsdc: coutNaissance,
+          modeEvaluation: "evaluee",
+          autorisation: { autorisee: false, motif: "agent_mort" },
+          resultatFinal: "refusee",
+        });
         this.enregistrerLotEconomiqueAtomique([
           {
             identifiant: `REPRODUCTION_DEMANDEE-${tentative.identifiantReproduction}`,
@@ -1449,6 +1504,7 @@ export class ControleurExperience {
               coutReproductionMicroUsdc: ecrireMontantChargeUtile(
                 parametresReproduction.coutReproductionMicroUsdc,
               ),
+              observabiliteTentativeV03: observabilite,
             },
             dateEnregistrement: dateRefus,
           },
@@ -1463,6 +1519,7 @@ export class ControleurExperience {
               identifiantReproduction: tentative.identifiantReproduction,
               identifiantParent: tentative.identifiantParent,
               motif: "agent_mort",
+              observabiliteTentativeV03: observabilite,
             },
             dateEnregistrement: dateRefus,
           },
@@ -1475,6 +1532,10 @@ export class ControleurExperience {
       const enfantsParentCourants = this.agents.filter(
         (a) =>
           a.identite.identifiantParent === tentative.identifiantParent,
+      );
+      const reproductionsDeja = compterReproductionsTermineesCycle(
+        evenements,
+        numeroCycle,
       );
       const autorisationCourante = evaluerAutorisationNaissanceEconomiqueV03({
         etatParent: parentCourant.etatEconomique,
@@ -1489,12 +1550,37 @@ export class ControleurExperience {
           parametresReproduction.nombreMaxEnfantsParAgent,
         populationTotale: this.agents.length,
         populationMaximale: parametresReproduction.populationMaximale,
-        reproductionsDejaCeCycle: compterReproductionsTermineesCycle(
-          evenements,
-          numeroCycle,
-        ),
+        reproductionsDejaCeCycle: reproductionsDeja,
         nombreMaxReproductionsParCycle:
           parametresReproduction.nombreMaxReproductionsParCycle,
+      });
+
+      const observabilite = fabriquerObservabiliteTentativeV03({
+        numeroCycle,
+        tentative,
+        capitalLiquideAvantMicroUsdc:
+          parentCourant.etatEconomique.capitalLiquide,
+        venAvantMicroUsdc: autorisationCourante.venAvantMicroUsdc,
+        nombreEnfantsCourant: enfantsParentCourants.length,
+        populationCourante: this.agents.length,
+        reproductionsDejaRealiseesCycle: reproductionsDeja,
+        coutNaissanceMicroUsdc: autorisationCourante.coutNaissanceMicroUsdc,
+        modeEvaluation: "evaluee",
+        autorisation: autorisationCourante.autorisee
+          ? {
+              autorisee: true,
+              venApresProjeteeMicroUsdc:
+                autorisationCourante.venApresMicroUsdc,
+              capitalLiquideApresProjeteMicroUsdc:
+                autorisationCourante.capitalLiquideApresMicroUsdc,
+            }
+          : {
+              autorisee: false,
+              motif: autorisationCourante.motif,
+            },
+        resultatFinal: autorisationCourante.autorisee
+          ? "naissance_realisee"
+          : "refusee",
       });
 
       const resultat = await this.executerReproductionPreparee(
@@ -1511,6 +1597,7 @@ export class ControleurExperience {
           // Si l'autorité v0.3 refuse, la préparation mécanique doit aussi
           // refuser (même motif économique / structurel) — pas de naissance.
           autorisationEconomiqueV03: autorisationCourante,
+          observabiliteTentativeV03: observabilite,
         },
       );
       if (
@@ -1526,21 +1613,83 @@ export class ControleurExperience {
       this.configuration.identifiantExperience,
     );
     if (!phaseReproductionEconomiqueV03Terminee(evenements, numeroCycle)) {
-      // Recount from register for crash-safe totals.
       let nais = 0;
       let exec = 0;
-      for (const tentative of plan.tentatives) {
-        const a = analyserReproduction({
-          identifiantReproduction: tentative.identifiantReproduction,
-          evenements,
-        });
-        if (a.terminee || a.refusee) {
-          exec += 1;
+      const refusEvaluesParMotif: Record<string, number> = {};
+      const refusPropagationParMotif: Record<string, number> = {};
+      const arretsFenetreParParent: {
+        identifiantParent: string;
+        motifArret: MotifArretFenetreReproductionEconomiqueV03;
+      }[] = [];
+
+      for (const parent of plan.parents) {
+        if (parent.nombreTentativesPlanifiees <= 0) {
+          continue;
         }
-        if (a.terminee) {
-          nais += 1;
+        const tentativesParent = plan.tentatives.filter(
+          (t) => t.identifiantParent === parent.identifiantParent,
+        );
+        let motifArret: MotifArretFenetreReproductionEconomiqueV03 =
+          "capacite_planifiee_epuisee";
+        for (const tentative of tentativesParent) {
+          const a = analyserReproduction({
+            identifiantReproduction: tentative.identifiantReproduction,
+            evenements,
+          });
+          if (a.terminee || a.refusee) {
+            exec += 1;
+          }
+          if (a.terminee) {
+            nais += 1;
+          }
+          if (a.refusee && a.motifRefus !== null) {
+            if (
+              a.motifRefus === "capital_insuffisant" ||
+              a.motifRefus === "reserve_minimale" ||
+              a.motifRefus === "nombre_enfants_max" ||
+              a.motifRefus === "population_maximale" ||
+              a.motifRefus === "reproductions_cycle_max" ||
+              a.motifRefus === "agent_mort"
+            ) {
+              motifArret = a.motifRefus;
+            }
+          }
+        }
+        arretsFenetreParParent.push({
+          identifiantParent: parent.identifiantParent,
+          motifArret,
+        });
+      }
+
+      for (const e of evenements) {
+        if (e.numeroCycle !== numeroCycle) {
+          continue;
+        }
+        if (e.type !== "REPRODUCTION_REFUSEE") {
+          continue;
+        }
+        const obs = e.chargeUtile.observabiliteTentativeV03;
+        if (
+          obs === undefined ||
+          typeof obs !== "object" ||
+          Array.isArray(obs)
+        ) {
+          continue;
+        }
+        const o = obs as ObservabiliteTentativeReproductionEconomiqueV03;
+        if (o.autorisation.autorisee) {
+          continue;
+        }
+        const motif = o.autorisation.motif;
+        if (o.modeEvaluation === "propagation_monotone") {
+          refusPropagationParMotif[motif] =
+            (refusPropagationParMotif[motif] ?? 0) + 1;
+        } else {
+          refusEvaluesParMotif[motif] =
+            (refusEvaluesParMotif[motif] ?? 0) + 1;
         }
       }
+
       this.enregistrerEvenements([
         creerEntreeReproductionEconomiqueV03CycleTerminee({
           identifiantExperience: this.configuration.identifiantExperience,
@@ -1551,6 +1700,11 @@ export class ControleurExperience {
             naissancesEffectuees: nais,
             tentativesPlanifiees: plan.tentatives.length,
             tentativesExecutees: exec,
+            placesPlanifieesNonUtilisees:
+              plan.placesGlobalesPlanifiees - nais,
+            arretsFenetreParParent,
+            refusEvaluesParMotif,
+            refusPropagationParMotif,
           },
           ...(this.datesEvenementsFixes !== undefined
             ? { dateEnregistrement: this.datesEvenementsFixes }
@@ -1757,6 +1911,38 @@ export class ControleurExperience {
       evenements,
       cycleCourant: this.numeroCycleCourant,
       ...(fenetre !== undefined ? { fenetre } : {}),
+    });
+  }
+
+  /**
+   * Observabilité reproductive v0.3 — projection pure depuis le registre.
+   * Jamais une entrée de décision / ranking.
+   */
+  projeterObservabiliteReproductionEconomiqueV03(numeroCycle: number) {
+    const evenements = this.registre.listerParExperience(
+      this.configuration.identifiantExperience,
+    );
+    return projeterObservabiliteReproductionEconomiqueV03({
+      evenements,
+      numeroCycle,
+    });
+  }
+
+  /**
+   * Résultat économique hors reproduction (métrique H4 descriptive).
+   * Convention de plage : `[cycleDebut, cycleFin]` inclusive.
+   */
+  calculerResultatEconomiqueHorsReproductionV03(
+    identifiantAgent: string,
+    fenetre: { readonly cycleDebut: number; readonly cycleFin: number },
+  ) {
+    const evenements = this.registre.listerParExperience(
+      this.configuration.identifiantExperience,
+    );
+    return calculerResultatEconomiqueHorsReproductionV03({
+      identifiantAgent,
+      evenements,
+      fenetre,
     });
   }
 
@@ -1992,6 +2178,8 @@ export class ControleurExperience {
        * lot DEMANDEE+REFUSEE uniquement (le plan figé ne garantit rien).
        */
       readonly autorisationEconomiqueV03?: AutorisationNaissanceEconomiqueV03;
+      /** Observabilité v03-C — descriptive, attachée aux charges existantes. */
+      readonly observabiliteTentativeV03?: ObservabiliteTentativeReproductionEconomiqueV03;
     } = {},
   ): Promise<ResultatReproductionApi> {
     const parent = this.agents.find(
@@ -2064,6 +2252,7 @@ export class ControleurExperience {
       const dateRefus =
         this.datesEvenementsFixes ?? new Date().toISOString();
       const motif = options.autorisationEconomiqueV03.motif;
+      const obs = options.observabiliteTentativeV03;
       const lotRefus: EntreeEvenementEsp[] = [
         {
           identifiant: `REPRODUCTION_DEMANDEE-${identifiantReproduction}`,
@@ -2081,6 +2270,7 @@ export class ControleurExperience {
             coutReproductionMicroUsdc: ecrireMontantChargeUtile(
               parametres.coutReproductionMicroUsdc,
             ),
+            ...(obs !== undefined ? { observabiliteTentativeV03: obs } : {}),
           },
           dateEnregistrement: dateRefus,
         },
@@ -2095,6 +2285,7 @@ export class ControleurExperience {
             identifiantReproduction,
             identifiantParent,
             motif,
+            ...(obs !== undefined ? { observabiliteTentativeV03: obs } : {}),
           },
           dateEnregistrement: dateRefus,
         },
@@ -2172,7 +2363,15 @@ export class ControleurExperience {
     }
 
     if (preparation.statut === "refusee") {
-      this.enregistrerLotEconomiqueAtomique(preparation.evenements);
+      this.enregistrerLotEconomiqueAtomique(
+        attacherObservabiliteTentativeAuxEvenements(
+          preparation.evenements,
+          ajusterResultatObservabiliteTentative(
+            options.observabiliteTentativeV03,
+            "refusee",
+          ),
+        ),
+      );
       return {
         statut: "refusee",
         identifiantReproduction,
@@ -2182,7 +2381,13 @@ export class ControleurExperience {
       };
     }
 
-    const lot: EntreeEvenementEsp[] = [...preparation.evenements];
+    const lot: EntreeEvenementEsp[] = attacherObservabiliteTentativeAuxEvenements(
+      preparation.evenements,
+      ajusterResultatObservabiliteTentative(
+        options.observabiliteTentativeV03,
+        "naissance_realisee",
+      ),
+    );
 
     if (
       this.configuration.identite?.active === true &&
@@ -3299,7 +3504,7 @@ function lirePlanReproductionEconomiqueV03(
     ) {
       continue;
     }
-    return {
+    const base: ChargeReproductionEconomiqueV03CyclePlanifiee = {
       versionMecanisme: MECANISME_REPRODUCTION_ECONOMIQUE_V03,
       numeroCycle: charge.numeroCycle,
       versionPolitique: charge.versionPolitique,
@@ -3308,12 +3513,114 @@ function lirePlanReproductionEconomiqueV03(
       placesGlobalesPlanifiees: charge.placesGlobalesPlanifiees,
       identifiantsParentsOrdonnes:
         charge.identifiantsParentsOrdonnes as string[],
-      parents: charge.parents as ChargeReproductionEconomiqueV03CyclePlanifiee["parents"],
+      parents:
+        charge.parents as ChargeReproductionEconomiqueV03CyclePlanifiee["parents"],
       tentatives:
         charge.tentatives as ChargeReproductionEconomiqueV03CyclePlanifiee["tentatives"],
     };
+    if (Array.isArray(charge.observabiliteParents)) {
+      return {
+        ...base,
+        observabiliteParents:
+          charge.observabiliteParents as NonNullable<
+            ChargeReproductionEconomiqueV03CyclePlanifiee["observabiliteParents"]
+          >,
+      };
+    }
+    return base;
   }
   return undefined;
+}
+
+function fabriquerObservabiliteTentativeV03(options: {
+  readonly numeroCycle: number;
+  readonly tentative: ChargeReproductionEconomiqueV03CyclePlanifiee["tentatives"][number];
+  readonly capitalLiquideAvantMicroUsdc: bigint;
+  readonly venAvantMicroUsdc: bigint;
+  readonly nombreEnfantsCourant: number;
+  readonly populationCourante: number;
+  readonly reproductionsDejaRealiseesCycle: number;
+  readonly coutNaissanceMicroUsdc: bigint;
+  readonly modeEvaluation: "evaluee" | "propagation_monotone";
+  readonly autorisation:
+    | {
+        readonly autorisee: true;
+        readonly venApresProjeteeMicroUsdc: bigint;
+        readonly capitalLiquideApresProjeteMicroUsdc: bigint;
+      }
+    | { readonly autorisee: false; readonly motif: string };
+  readonly resultatFinal: "naissance_realisee" | "refusee";
+}): ObservabiliteTentativeReproductionEconomiqueV03 {
+  return {
+    versionObservabilite: "observabilite-reproduction-economique-v03",
+    numeroCycle: options.numeroCycle,
+    identifiantParent: options.tentative.identifiantParent,
+    indexTentativeParent: options.tentative.indexTentativeParent,
+    indexGlobal: options.tentative.indexGlobal,
+    identifiantEnfant: options.tentative.identifiantEnfant,
+    identifiantReproduction: options.tentative.identifiantReproduction,
+    capitalLiquideAvantMicroUsdc: ecrireMontantChargeUtile(
+      options.capitalLiquideAvantMicroUsdc,
+    ),
+    venAvantMicroUsdc: ecrireMontantChargeUtile(options.venAvantMicroUsdc),
+    nombreEnfantsCourant: options.nombreEnfantsCourant,
+    populationCourante: options.populationCourante,
+    reproductionsDejaRealiseesCycle: options.reproductionsDejaRealiseesCycle,
+    coutNaissanceMicroUsdc: ecrireMontantChargeUtile(
+      options.coutNaissanceMicroUsdc,
+    ),
+    modeEvaluation: options.modeEvaluation,
+    autorisation: options.autorisation.autorisee
+      ? {
+          autorisee: true,
+          venApresProjeteeMicroUsdc: ecrireMontantChargeUtile(
+            options.autorisation.venApresProjeteeMicroUsdc,
+          ),
+          capitalLiquideApresProjeteMicroUsdc: ecrireMontantChargeUtile(
+            options.autorisation.capitalLiquideApresProjeteMicroUsdc,
+          ),
+        }
+      : {
+          autorisee: false,
+          motif: options.autorisation.motif,
+        },
+    resultatFinal: options.resultatFinal,
+  };
+}
+
+function attacherObservabiliteTentativeAuxEvenements(
+  evenements: readonly EntreeEvenementEsp[],
+  observabilite: ObservabiliteTentativeReproductionEconomiqueV03 | undefined,
+): EntreeEvenementEsp[] {
+  if (observabilite === undefined) {
+    return [...evenements];
+  }
+  return evenements.map((e) => {
+    if (
+      e.type !== "REPRODUCTION_DEMANDEE" &&
+      e.type !== "REPRODUCTION_AUTORISEE" &&
+      e.type !== "REPRODUCTION_REFUSEE"
+    ) {
+      return e;
+    }
+    return {
+      ...e,
+      chargeUtile: {
+        ...(e.chargeUtile ?? {}),
+        observabiliteTentativeV03: observabilite,
+      },
+    };
+  });
+}
+
+function ajusterResultatObservabiliteTentative(
+  observabilite: ObservabiliteTentativeReproductionEconomiqueV03 | undefined,
+  resultatFinal: "naissance_realisee" | "refusee",
+): ObservabiliteTentativeReproductionEconomiqueV03 | undefined {
+  if (observabilite === undefined) {
+    return undefined;
+  }
+  return { ...observabilite, resultatFinal };
 }
 
 function phaseReproductionEconomiqueV03Terminee(
