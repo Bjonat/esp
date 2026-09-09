@@ -311,6 +311,24 @@ export {
 } from "./politique-reproduction-autonome.js";
 
 export type {
+  AutorisationNaissanceEconomiqueV03,
+  CapaciteReproductiveEconomiqueV03,
+  MotifRefusFenetreReproductiveV03,
+  MotifRefusNaissanceEconomiqueV03,
+  ResultatOuvertureFenetreReproductiveV03,
+} from "./reproduction-economique-v03.js";
+export {
+  VERSION_REPRODUCTION_ECONOMIQUE_V03,
+  ReproductionEconomiqueV03InvalideErreur,
+  calculerCapaciteReproductiveTheoriqueV03,
+  calculerCoutEconomiqueNaissanceV03,
+  calculerSurplusReproductifV03,
+  evaluerAutorisationNaissanceEconomiqueV03,
+  evaluerOuvertureFenetreReproductiveV03,
+  projeterCapaciteReproductiveEconomiqueV03,
+} from "./reproduction-economique-v03.js";
+
+export type {
   CleGeneMutable,
   ComportementSansInferenceGene,
   DefinitionGeneMutable,
