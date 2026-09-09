@@ -1,12 +1,15 @@
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import type {
+  AutorisationNaissanceEconomiqueV03,
   ChargeReproductionAutonomeCyclePlanifiee,
+  ChargeReproductionEconomiqueV03CyclePlanifiee,
   ConfigurationHeritableAgent,
   DecisionAgent,
   EntreeEvenementEsp,
   EtatEconomiqueAgent,
   EvenementEsp,
+  MotifArretTentativesRestantesV03,
   MotifRefusReproduction,
   ObservationOpportunite,
   ParametresMutationExperienceJson,
@@ -33,18 +36,26 @@ import {
   creerEntreeIdentiteAgentEnregistree,
   creerEntreeReproductionAutonomeCyclePlanifiee,
   creerEntreeReproductionAutonomeCycleTerminee,
+  creerEntreeReproductionEconomiqueV03CyclePlanifiee,
+  creerEntreeReproductionEconomiqueV03CycleTerminee,
   creerParametresReproductionInactifs,
   creerTresorerieProprietaire,
+  ecrireMontantChargeUtile,
+  estMotifArretTentativesRestantesV03,
+  evaluerAutorisationNaissanceEconomiqueV03,
   executerCycleEconomique,
   fabriquerIdentifiantEnfant,
   fabriquerIdentifiantExecutionEconomique,
   fabriquerIdentifiantReproduction,
   filtrerEvenementsEconomiques,
+  MECANISME_REPRODUCTION_AUTONOME_DEFAUT,
+  MECANISME_REPRODUCTION_ECONOMIQUE_V03,
   parserParametresMutation,
   parserParametresReproduction,
   parserPolitiqueReproductionAutonome,
   parserSnapshotCreationExperience,
   planifierReproductionsAutonomes,
+  planifierReproductionsEconomiquesV03,
   preparerReproduction,
   reconstruireStatutExperience,
   resoudrePolitiqueDepuisConfigurationHeritable,
@@ -54,6 +65,7 @@ import {
   serialiserParametresReproduction,
   serialiserPolitiqueReproductionAutonome,
   trouverAttributionsPourDemande,
+  VERSION_SCHEMA_EVENEMENT,
 } from "@esp/protocole";
 import type { RegistreEvenements } from "@esp/registre-evenements";
 import {
@@ -897,6 +909,9 @@ export class ControleurExperience {
       reproductionAutonomeActive:
         this.configuration.reproductionAutonome?.active === true &&
         this.configuration.reproduction?.active === true,
+      mecanismeReproductionAutonome:
+        this.configuration.reproductionAutonome?.mecanisme ??
+        MECANISME_REPRODUCTION_AUTONOME_DEFAUT,
     });
     const repriseCycleIncomplet = cycleAReprendre !== undefined;
     const numeroCycle = repriseCycleIncomplet
@@ -1147,6 +1162,8 @@ export class ControleurExperience {
   /**
    * Phase post-économie : planification + exécution des naissances retenues.
    * Idempotente à la reprise (PLANIFIEE / DEMANDEE / TERMINEE).
+   * Branche historique (v01) ou économique multi-naissances (v03) selon
+   * `politique.mecanisme` (défaut historique).
    */
   private async executerPhaseReproductionAutonome(
     numeroCycle: number,
@@ -1159,6 +1176,13 @@ export class ControleurExperience {
       parametresReproduction === undefined ||
       !parametresReproduction.active
     ) {
+      return;
+    }
+
+    const mecanisme =
+      politique.mecanisme ?? MECANISME_REPRODUCTION_AUTONOME_DEFAUT;
+    if (mecanisme === MECANISME_REPRODUCTION_ECONOMIQUE_V03) {
+      await this.executerPhaseReproductionEconomiqueV03(numeroCycle);
       return;
     }
 
@@ -1277,6 +1301,264 @@ export class ControleurExperience {
     }
   }
 
+  /**
+   * Phase v0.3 — multi-naissances économiques, round-robin, plan figé.
+   * plan figé ≠ ressources réservées ; fenêtre ouverte ≠ naissances garanties.
+   */
+  private async executerPhaseReproductionEconomiqueV03(
+    numeroCycle: number,
+  ): Promise<void> {
+    const politique = this.configuration.reproductionAutonome;
+    const parametresReproduction = this.configuration.reproduction;
+    if (politique === undefined || parametresReproduction === undefined) {
+      return;
+    }
+
+    let evenements = this.registre.listerParExperience(
+      this.configuration.identifiantExperience,
+    );
+    if (phaseReproductionEconomiqueV03Terminee(evenements, numeroCycle)) {
+      return;
+    }
+
+    let plan = lirePlanReproductionEconomiqueV03(evenements, numeroCycle);
+    if (plan === undefined) {
+      const candidats = this.agents
+        .filter(
+          (agent) =>
+            agent.etatEconomique.etatSurvie !== "mort" &&
+            agent.identite.cycleNaissance !== numeroCycle,
+        )
+        .map((agent) => {
+          const enfantsParent = this.agents.filter(
+            (a) => a.identite.identifiantParent === agent.identite.identifiant,
+          );
+          return {
+            identifiantAgent: agent.identite.identifiant,
+            etatParent: agent.etatEconomique,
+            nombreEnfantsParent: enfantsParent.length,
+            cycleDerniereNaissanceParent:
+              enfantsParent.length === 0
+                ? null
+                : Math.max(
+                    ...enfantsParent.map((e) => e.identite.cycleNaissance),
+                  ),
+            cycleNaissanceAgent: agent.identite.cycleNaissance,
+          };
+        });
+
+      const planCalcule = planifierReproductionsEconomiquesV03({
+        politique,
+        parametresReproduction,
+        identifiantExperience: this.configuration.identifiantExperience,
+        graineExperience: this.configuration.graineSimulation,
+        numeroCycle,
+        populationAuSnapshot: this.agents.length,
+        reproductionsDejaAuSnapshot: compterReproductionsTermineesCycle(
+          evenements,
+          numeroCycle,
+        ),
+        candidats,
+      });
+
+      this.enregistrerEvenements([
+        creerEntreeReproductionEconomiqueV03CyclePlanifiee({
+          identifiantExperience: this.configuration.identifiantExperience,
+          numeroCycle,
+          charge: planCalcule,
+          ...(this.datesEvenementsFixes !== undefined
+            ? { dateEnregistrement: this.datesEvenementsFixes }
+            : {}),
+        }),
+      ]);
+      plan = planCalcule;
+    }
+
+    /** Motif d'arrêt monotone par parent — les tentatives restantes sont refusées
+     *  et persistées (idempotence restart), sans inventer de nouvelles tentatives. */
+    const motifArretParParent = new Map<string, MotifArretTentativesRestantesV03>();
+
+    for (const tentative of plan.tentatives) {
+      evenements = this.registre.listerParExperience(
+        this.configuration.identifiantExperience,
+      );
+      const analyse = analyserReproduction({
+        identifiantReproduction: tentative.identifiantReproduction,
+        evenements,
+      });
+      if (analyse.terminee) {
+        continue;
+      }
+      if (analyse.refusee) {
+        if (
+          analyse.motifRefus !== null &&
+          estMotifArretTentativesRestantesV03(analyse.motifRefus)
+        ) {
+          motifArretParParent.set(
+            tentative.identifiantParent,
+            analyse.motifRefus,
+          );
+        }
+        continue;
+      }
+
+      const motifArretDeja = motifArretParParent.get(tentative.identifiantParent);
+      if (motifArretDeja !== undefined) {
+        // Persister le refus des tentatives restantes (même motif monotone) —
+        // pas de place « libérée » pour une tentative hors plan.
+        await this.executerReproductionPreparee(tentative.identifiantParent, {
+          identifiantsPlanifies: {
+            numeroEnfant: tentative.numeroEnfant,
+            identifiantEnfant: tentative.identifiantEnfant,
+            identifiantReproduction: tentative.identifiantReproduction,
+          },
+          ignorerCooldownIntraFenetreV03: true,
+          autorisationEconomiqueV03: {
+            autorisee: false,
+            motif: motifArretDeja,
+            coutNaissanceMicroUsdc:
+              parametresReproduction.dotationEnfantMicroUsdc +
+              parametresReproduction.coutReproductionMicroUsdc,
+            venAvantMicroUsdc: 0n,
+          },
+        });
+        continue;
+      }
+
+      const parentCourant = this.agents.find(
+        (a) => a.identite.identifiant === tentative.identifiantParent,
+      );
+      if (parentCourant === undefined) {
+        motifArretParParent.set(tentative.identifiantParent, "agent_mort");
+        const dateRefus =
+          this.datesEvenementsFixes ?? new Date().toISOString();
+        this.enregistrerLotEconomiqueAtomique([
+          {
+            identifiant: `REPRODUCTION_DEMANDEE-${tentative.identifiantReproduction}`,
+            versionSchema: VERSION_SCHEMA_EVENEMENT,
+            type: "REPRODUCTION_DEMANDEE",
+            identifiantExperience: this.configuration.identifiantExperience,
+            identifiantAgent: tentative.identifiantParent,
+            numeroCycle,
+            chargeUtile: {
+              identifiantReproduction: tentative.identifiantReproduction,
+              identifiantParent: tentative.identifiantParent,
+              dotationEnfantMicroUsdc: ecrireMontantChargeUtile(
+                parametresReproduction.dotationEnfantMicroUsdc,
+              ),
+              coutReproductionMicroUsdc: ecrireMontantChargeUtile(
+                parametresReproduction.coutReproductionMicroUsdc,
+              ),
+            },
+            dateEnregistrement: dateRefus,
+          },
+          {
+            identifiant: `REPRODUCTION_REFUSEE-${tentative.identifiantReproduction}`,
+            versionSchema: VERSION_SCHEMA_EVENEMENT,
+            type: "REPRODUCTION_REFUSEE",
+            identifiantExperience: this.configuration.identifiantExperience,
+            identifiantAgent: tentative.identifiantParent,
+            numeroCycle,
+            chargeUtile: {
+              identifiantReproduction: tentative.identifiantReproduction,
+              identifiantParent: tentative.identifiantParent,
+              motif: "agent_mort",
+            },
+            dateEnregistrement: dateRefus,
+          },
+        ]);
+        continue;
+      }
+
+      // Autorité économique courante (réévaluée) — distincte du plan figé.
+      // Le cooldown n'entre pas ici (déjà tranché à l'ouverture de fenêtre).
+      const enfantsParentCourants = this.agents.filter(
+        (a) =>
+          a.identite.identifiantParent === tentative.identifiantParent,
+      );
+      const autorisationCourante = evaluerAutorisationNaissanceEconomiqueV03({
+        etatParent: parentCourant.etatEconomique,
+        dotationEnfantMicroUsdc:
+          parametresReproduction.dotationEnfantMicroUsdc,
+        coutReproductionMicroUsdc:
+          parametresReproduction.coutReproductionMicroUsdc,
+        reserveMinimaleParentMicroUsdc:
+          parametresReproduction.reserveMinimaleParentMicroUsdc,
+        nombreEnfantsParent: enfantsParentCourants.length,
+        nombreMaxEnfantsParAgent:
+          parametresReproduction.nombreMaxEnfantsParAgent,
+        populationTotale: this.agents.length,
+        populationMaximale: parametresReproduction.populationMaximale,
+        reproductionsDejaCeCycle: compterReproductionsTermineesCycle(
+          evenements,
+          numeroCycle,
+        ),
+        nombreMaxReproductionsParCycle:
+          parametresReproduction.nombreMaxReproductionsParCycle,
+      });
+
+      const resultat = await this.executerReproductionPreparee(
+        tentative.identifiantParent,
+        {
+          identifiantsPlanifies: {
+            numeroEnfant: tentative.numeroEnfant,
+            identifiantEnfant: tentative.identifiantEnfant,
+            identifiantReproduction: tentative.identifiantReproduction,
+          },
+          // Cooldown déjà tranché à l'ouverture de fenêtre — ne pas le
+          // réévaluer entre tentatives de la même fenêtre.
+          ignorerCooldownIntraFenetreV03: true,
+          // Si l'autorité v0.3 refuse, la préparation mécanique doit aussi
+          // refuser (même motif économique / structurel) — pas de naissance.
+          autorisationEconomiqueV03: autorisationCourante,
+        },
+      );
+      if (
+        resultat.statut === "refusee" &&
+        resultat.motif !== null &&
+        estMotifArretTentativesRestantesV03(resultat.motif)
+      ) {
+        motifArretParParent.set(tentative.identifiantParent, resultat.motif);
+      }
+    }
+
+    evenements = this.registre.listerParExperience(
+      this.configuration.identifiantExperience,
+    );
+    if (!phaseReproductionEconomiqueV03Terminee(evenements, numeroCycle)) {
+      // Recount from register for crash-safe totals.
+      let nais = 0;
+      let exec = 0;
+      for (const tentative of plan.tentatives) {
+        const a = analyserReproduction({
+          identifiantReproduction: tentative.identifiantReproduction,
+          evenements,
+        });
+        if (a.terminee || a.refusee) {
+          exec += 1;
+        }
+        if (a.terminee) {
+          nais += 1;
+        }
+      }
+      this.enregistrerEvenements([
+        creerEntreeReproductionEconomiqueV03CycleTerminee({
+          identifiantExperience: this.configuration.identifiantExperience,
+          numeroCycle,
+          charge: {
+            versionMecanisme: MECANISME_REPRODUCTION_ECONOMIQUE_V03,
+            numeroCycle,
+            naissancesEffectuees: nais,
+            tentativesPlanifiees: plan.tentatives.length,
+            tentativesExecutees: exec,
+          },
+          ...(this.datesEvenementsFixes !== undefined
+            ? { dateEnregistrement: this.datesEvenementsFixes }
+            : {}),
+        }),
+      ]);
+    }
+  }
   reconstruireDepuisRegistre(): void {
     const evenements = this.registre.listerParExperience(
       this.configuration.identifiantExperience,
@@ -1697,6 +1979,20 @@ export class ControleurExperience {
    */
   private async executerReproductionPreparee(
     identifiantParent: string,
+    options: {
+      readonly identifiantsPlanifies?: {
+        readonly numeroEnfant: number;
+        readonly identifiantEnfant: string;
+        readonly identifiantReproduction: string;
+      };
+      /** Fenêtre v0.3 déjà ouverte : ne pas réappliquer le cooldown unitaire. */
+      readonly ignorerCooldownIntraFenetreV03?: boolean;
+      /**
+       * Autorité économique v0.3 déjà évaluée. Si refusée, aucune naissance —
+       * lot DEMANDEE+REFUSEE uniquement (le plan figé ne garantit rien).
+       */
+      readonly autorisationEconomiqueV03?: AutorisationNaissanceEconomiqueV03;
+    } = {},
   ): Promise<ResultatReproductionApi> {
     const parent = this.agents.find(
       (a) => a.identite.identifiant === identifiantParent,
@@ -1707,26 +2003,36 @@ export class ControleurExperience {
       );
     }
 
-    const parametres =
+    const parametresBase =
       this.configuration.reproduction ?? creerParametresReproductionInactifs();
+    const parametres =
+      options.ignorerCooldownIntraFenetreV03 === true
+        ? { ...parametresBase, cooldownCycles: 0 }
+        : parametresBase;
 
     const evenements = this.registre.listerParExperience(
       this.configuration.identifiantExperience,
     );
-    const numeroEnfant = calculerProchainNumeroEnfant(
-      identifiantParent,
-      this.agents,
-      evenements,
-    );
-    const identifiantEnfant = fabriquerIdentifiantEnfant({
-      identifiantParent,
-      numeroEnfant,
-    });
-    const identifiantReproduction = fabriquerIdentifiantReproduction({
-      identifiantExperience: this.configuration.identifiantExperience,
-      identifiantParent,
-      numeroEnfant,
-    });
+    const numeroEnfant =
+      options.identifiantsPlanifies?.numeroEnfant ??
+      calculerProchainNumeroEnfant(
+        identifiantParent,
+        this.agents,
+        evenements,
+      );
+    const identifiantEnfant =
+      options.identifiantsPlanifies?.identifiantEnfant ??
+      fabriquerIdentifiantEnfant({
+        identifiantParent,
+        numeroEnfant,
+      });
+    const identifiantReproduction =
+      options.identifiantsPlanifies?.identifiantReproduction ??
+      fabriquerIdentifiantReproduction({
+        identifiantExperience: this.configuration.identifiantExperience,
+        identifiantParent,
+        numeroEnfant,
+      });
 
     const analyseExistante = analyserReproduction({
       identifiantReproduction,
@@ -1748,6 +2054,58 @@ export class ControleurExperience {
         identifiantParent,
         identifiantEnfant: analyseExistante.identifiantEnfant,
         motif: analyseExistante.motifRefus ?? "reproduction_desactivee",
+      };
+    }
+
+    if (
+      options.autorisationEconomiqueV03 !== undefined &&
+      !options.autorisationEconomiqueV03.autorisee
+    ) {
+      const dateRefus =
+        this.datesEvenementsFixes ?? new Date().toISOString();
+      const motif = options.autorisationEconomiqueV03.motif;
+      const lotRefus: EntreeEvenementEsp[] = [
+        {
+          identifiant: `REPRODUCTION_DEMANDEE-${identifiantReproduction}`,
+          versionSchema: VERSION_SCHEMA_EVENEMENT,
+          type: "REPRODUCTION_DEMANDEE",
+          identifiantExperience: this.configuration.identifiantExperience,
+          identifiantAgent: identifiantParent,
+          numeroCycle: this.numeroCycleCourant,
+          chargeUtile: {
+            identifiantReproduction,
+            identifiantParent,
+            dotationEnfantMicroUsdc: ecrireMontantChargeUtile(
+              parametres.dotationEnfantMicroUsdc,
+            ),
+            coutReproductionMicroUsdc: ecrireMontantChargeUtile(
+              parametres.coutReproductionMicroUsdc,
+            ),
+          },
+          dateEnregistrement: dateRefus,
+        },
+        {
+          identifiant: `REPRODUCTION_REFUSEE-${identifiantReproduction}`,
+          versionSchema: VERSION_SCHEMA_EVENEMENT,
+          type: "REPRODUCTION_REFUSEE",
+          identifiantExperience: this.configuration.identifiantExperience,
+          identifiantAgent: identifiantParent,
+          numeroCycle: this.numeroCycleCourant,
+          chargeUtile: {
+            identifiantReproduction,
+            identifiantParent,
+            motif,
+          },
+          dateEnregistrement: dateRefus,
+        },
+      ];
+      this.enregistrerLotEconomiqueAtomique(lotRefus);
+      return {
+        statut: "refusee",
+        identifiantReproduction,
+        identifiantParent,
+        identifiantEnfant: null,
+        motif,
       };
     }
 
@@ -1789,7 +2147,10 @@ export class ControleurExperience {
       populationTotale: this.agents.length,
       nombreEnfantsParent: enfantsParent.length,
       reproductionsDejaCeCycle,
-      cycleDerniereNaissanceParent,
+      cycleDerniereNaissanceParent:
+        options.ignorerCooldownIntraFenetreV03 === true
+          ? null
+          : cycleDerniereNaissanceParent,
       evenementsExistants: evenements,
       ...(this.configuration.mutation !== undefined
         ? { parametresMutation: this.configuration.mutation }
@@ -2799,6 +3160,7 @@ function detecterCycleExperienceIncomplet(options: {
   readonly identifiantExperience: string;
   readonly agents: readonly AgentExperience[];
   readonly reproductionAutonomeActive: boolean;
+  readonly mecanismeReproductionAutonome: string;
 }): number | undefined {
   let maxAvance = 0;
   for (const evenement of options.evenements) {
@@ -2832,12 +3194,28 @@ function detecterCycleExperienceIncomplet(options: {
   }
 
   if (options.reproductionAutonomeActive) {
-    const plan = lirePlanReproductionAutonome(options.evenements, maxAvance);
-    if (plan === undefined) {
-      return maxAvance;
-    }
-    if (!phaseReproductionAutonomeTerminee(options.evenements, maxAvance)) {
-      return maxAvance;
+    const mecanisme = options.mecanismeReproductionAutonome;
+    if (mecanisme === MECANISME_REPRODUCTION_ECONOMIQUE_V03) {
+      const planV03 = lirePlanReproductionEconomiqueV03(
+        options.evenements,
+        maxAvance,
+      );
+      if (planV03 === undefined) {
+        return maxAvance;
+      }
+      if (
+        !phaseReproductionEconomiqueV03Terminee(options.evenements, maxAvance)
+      ) {
+        return maxAvance;
+      }
+    } else {
+      const plan = lirePlanReproductionAutonome(options.evenements, maxAvance);
+      if (plan === undefined) {
+        return maxAvance;
+      }
+      if (!phaseReproductionAutonomeTerminee(options.evenements, maxAvance)) {
+        return maxAvance;
+      }
     }
   }
 
@@ -2892,6 +3270,59 @@ function phaseReproductionAutonomeTerminee(
   return evenements.some(
     (evenement) =>
       evenement.type === "REPRODUCTION_AUTONOME_CYCLE_TERMINEE" &&
+      evenement.numeroCycle === numeroCycle,
+  );
+}
+
+function lirePlanReproductionEconomiqueV03(
+  evenements: readonly EvenementEsp[],
+  numeroCycle: number,
+): ChargeReproductionEconomiqueV03CyclePlanifiee | undefined {
+  for (const evenement of evenements) {
+    if (
+      evenement.type !== "REPRODUCTION_ECONOMIQUE_V03_CYCLE_PLANIFIEE" ||
+      evenement.numeroCycle !== numeroCycle
+    ) {
+      continue;
+    }
+    const charge = evenement.chargeUtile;
+    if (
+      charge.versionMecanisme !== MECANISME_REPRODUCTION_ECONOMIQUE_V03 ||
+      typeof charge.numeroCycle !== "number" ||
+      typeof charge.versionPolitique !== "string" ||
+      typeof charge.populationAuSnapshot !== "number" ||
+      typeof charge.reproductionsDejaAuSnapshot !== "number" ||
+      typeof charge.placesGlobalesPlanifiees !== "number" ||
+      !Array.isArray(charge.identifiantsParentsOrdonnes) ||
+      !Array.isArray(charge.parents) ||
+      !Array.isArray(charge.tentatives)
+    ) {
+      continue;
+    }
+    return {
+      versionMecanisme: MECANISME_REPRODUCTION_ECONOMIQUE_V03,
+      numeroCycle: charge.numeroCycle,
+      versionPolitique: charge.versionPolitique,
+      populationAuSnapshot: charge.populationAuSnapshot,
+      reproductionsDejaAuSnapshot: charge.reproductionsDejaAuSnapshot,
+      placesGlobalesPlanifiees: charge.placesGlobalesPlanifiees,
+      identifiantsParentsOrdonnes:
+        charge.identifiantsParentsOrdonnes as string[],
+      parents: charge.parents as ChargeReproductionEconomiqueV03CyclePlanifiee["parents"],
+      tentatives:
+        charge.tentatives as ChargeReproductionEconomiqueV03CyclePlanifiee["tentatives"],
+    };
+  }
+  return undefined;
+}
+
+function phaseReproductionEconomiqueV03Terminee(
+  evenements: readonly EvenementEsp[],
+  numeroCycle: number,
+): boolean {
+  return evenements.some(
+    (evenement) =>
+      evenement.type === "REPRODUCTION_ECONOMIQUE_V03_CYCLE_TERMINEE" &&
       evenement.numeroCycle === numeroCycle,
   );
 }

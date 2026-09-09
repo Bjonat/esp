@@ -865,6 +865,11 @@ Exigences :
 10. arrêt explicite avec raison
 ```
 
+**Politique d'arbitrage v03-B (implémentée)** : round-robin déterministe
+entre parents dans l'ordre neutre (`A1, B1, C1, A2, …`), afin qu'un plafond
+global ne soit pas monopolisé par le premier hash. Détail :
+`documentation/REPRODUCTION_ECONOMIQUE_V03.md`.
+
 Règles d'idempotence :
 
 - chaque naissance a un `identifiantReproduction` déterministe distinct ;

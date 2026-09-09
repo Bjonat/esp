@@ -1,9 +1,19 @@
 /**
  * Politique expérimentale versionnée — reproduction autonome v0.1.
  * Aucune sélection par fitness ; opt-in via EXPERIENCE_CREEE.
+ *
+ * Champ `mecanisme` (opt-in) :
+ * - absent / `reproduction-autonome-v01` → voie historique (défaut) ;
+ * - `reproduction-economique-v03` → multi-naissances économiques ;
+ * - valeur inconnue → fail closed.
  */
 
 import { ETATS_SURVIE, type EtatSurvie } from "./etat-survie.js";
+import {
+  MECANISME_REPRODUCTION_AUTONOME_DEFAUT,
+  estMecanismeReproductionAutonome,
+  type MecanismeReproductionAutonome,
+} from "./mecanisme-reproduction-autonome.js";
 
 export const VERSION_POLITIQUE_REPRODUCTION_AUTONOME =
   "politique-reproduction-autonome-v01" as const;
@@ -15,6 +25,11 @@ export type PolitiqueReproductionAutonome = {
   readonly etatsSurvieEligibles: readonly EtatSurvie[];
   /** Garde-fou cycle : nombre max de naissances retenues (>= 0). */
   readonly nombreMaxNaissancesParCycle: number;
+  /**
+   * Mécanisme d'orchestration. Défaut historique si absent à la lecture JSON.
+   * Jamais de bascule silencieuse vers v0.3.
+   */
+  readonly mecanisme: MecanismeReproductionAutonome;
 };
 
 export type PolitiqueReproductionAutonomeJson = {
@@ -22,6 +37,7 @@ export type PolitiqueReproductionAutonomeJson = {
   readonly active: boolean;
   readonly etatsSurvieEligibles: readonly string[];
   readonly nombreMaxNaissancesParCycle: number;
+  readonly mecanisme?: string;
 };
 
 export class PolitiqueReproductionAutonomeInvalideErreur extends Error {
@@ -44,6 +60,7 @@ export function creerPolitiqueReproductionAutonomeInactive(): PolitiqueReproduct
     active: false,
     etatsSurvieEligibles: ["sain", "contraint"],
     nombreMaxNaissancesParCycle: 0,
+    mecanisme: MECANISME_REPRODUCTION_AUTONOME_DEFAUT,
   };
 }
 
@@ -94,11 +111,26 @@ export function parserPolitiqueReproductionAutonome(
     );
   }
 
+  let mecanisme: MecanismeReproductionAutonome =
+    MECANISME_REPRODUCTION_AUTONOME_DEFAUT;
+  if (brut.mecanisme !== undefined) {
+    if (
+      typeof brut.mecanisme !== "string" ||
+      !estMecanismeReproductionAutonome(brut.mecanisme)
+    ) {
+      throw new PolitiqueReproductionAutonomeInvalideErreur(
+        `mecanisme reproduction autonome inconnu : ${String(brut.mecanisme)}`,
+      );
+    }
+    mecanisme = brut.mecanisme;
+  }
+
   return {
     version: VERSION_POLITIQUE_REPRODUCTION_AUTONOME,
     active: brut.active,
     etatsSurvieEligibles,
     nombreMaxNaissancesParCycle: brut.nombreMaxNaissancesParCycle,
+    mecanisme,
   };
 }
 
@@ -110,5 +142,9 @@ export function serialiserPolitiqueReproductionAutonome(
     active: politique.active,
     etatsSurvieEligibles: [...politique.etatsSurvieEligibles],
     nombreMaxNaissancesParCycle: politique.nombreMaxNaissancesParCycle,
+    // N'écrire le champ que pour l'opt-in v0.3 — snapshots historiques inchangés.
+    ...(politique.mecanisme !== MECANISME_REPRODUCTION_AUTONOME_DEFAUT
+      ? { mecanisme: politique.mecanisme }
+      : {}),
   };
 }

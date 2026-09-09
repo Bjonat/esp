@@ -269,6 +269,15 @@ export {
   serialiserPolitiqueReproductionAutonome,
 } from "./parametres-reproduction-autonome.js";
 
+export type { MecanismeReproductionAutonome } from "./mecanisme-reproduction-autonome.js";
+export {
+  MECANISME_REPRODUCTION_AUTONOME_DEFAUT,
+  MECANISME_REPRODUCTION_AUTONOME_V01,
+  MECANISME_REPRODUCTION_ECONOMIQUE_V03,
+  MECANISMES_REPRODUCTION_AUTONOME,
+  estMecanismeReproductionAutonome,
+} from "./mecanisme-reproduction-autonome.js";
+
 export type {
   ChargeReproductionAutonomeCyclePlanifiee,
   ChargeReproductionAutonomeCycleTerminee,
@@ -282,6 +291,22 @@ export {
   creerEntreeReproductionAutonomeCycleTerminee,
   estTypeEvenementReproductionAutonome,
 } from "./evenements-reproduction-autonome.js";
+
+export type {
+  ChargeReproductionEconomiqueV03CyclePlanifiee,
+  ChargeReproductionEconomiqueV03CycleTerminee,
+  EntreeEvenementReproductionEconomiqueV03,
+  ParentReproductionEconomiqueV03Planifie,
+  TentativeReproductionEconomiqueV03Planifiee,
+  TypeEvenementReproductionEconomiqueV03,
+} from "./evenements-reproduction-economique-v03.js";
+export {
+  TYPES_EVENEMENT_REPRODUCTION_ECONOMIQUE_V03,
+  VERSION_SCHEMA_EVENEMENT_REPRODUCTION_ECONOMIQUE_V03,
+  creerEntreeReproductionEconomiqueV03CyclePlanifiee,
+  creerEntreeReproductionEconomiqueV03CycleTerminee,
+  estTypeEvenementReproductionEconomiqueV03,
+} from "./evenements-reproduction-economique-v03.js";
 
 export type {
   AnalyseReproduction,
@@ -309,6 +334,17 @@ export {
   ordonnerCandidatsParPrioriteNeutre,
   planifierReproductionsAutonomes,
 } from "./politique-reproduction-autonome.js";
+
+export type {
+  CandidatReproductionEconomiqueV03,
+  MotifArretTentativesRestantesV03,
+} from "./planifier-reproduction-economique-v03.js";
+export {
+  MOTIFS_ARRET_TENTATIVES_RESTANTES_V03,
+  bornerCapaciteTheoriqueVersNombreV03,
+  estMotifArretTentativesRestantesV03,
+  planifierReproductionsEconomiquesV03,
+} from "./planifier-reproduction-economique-v03.js";
 
 export type {
   AutorisationNaissanceEconomiqueV03,

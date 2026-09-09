@@ -35,6 +35,11 @@ import type {
 } from "./evenements-reproduction-autonome.js";
 import { estTypeEvenementReproductionAutonome } from "./evenements-reproduction-autonome.js";
 import type {
+  EntreeEvenementReproductionEconomiqueV03,
+  TypeEvenementReproductionEconomiqueV03,
+} from "./evenements-reproduction-economique-v03.js";
+import { estTypeEvenementReproductionEconomiqueV03 } from "./evenements-reproduction-economique-v03.js";
+import type {
   EntreeEvenementXway,
   TypeEvenementXway,
 } from "./evenements-xway.js";
@@ -51,6 +56,7 @@ export type TypeEvenementEsp =
   | TypeEvenementDecision
   | TypeEvenementReproduction
   | TypeEvenementReproductionAutonome
+  | TypeEvenementReproductionEconomiqueV03
   | TypeEvenementMutation;
 
 export type EntreeEvenementEsp =
@@ -61,6 +67,7 @@ export type EntreeEvenementEsp =
   | EntreeEvenementDecision
   | EntreeEvenementReproduction
   | EntreeEvenementReproductionAutonome
+  | EntreeEvenementReproductionEconomiqueV03
   | EntreeEvenementMutation;
 
 export type EvenementEsp = Omit<EvenementEconomique, "type"> & {
@@ -78,6 +85,7 @@ export function estTypeEvenementEsp(
     estTypeEvenementDecision(valeur) ||
     estTypeEvenementReproduction(valeur) ||
     estTypeEvenementReproductionAutonome(valeur) ||
+    estTypeEvenementReproductionEconomiqueV03(valeur) ||
     estTypeEvenementMutation(valeur)
   );
 }
