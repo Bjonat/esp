@@ -25,17 +25,30 @@ import {
 } from "./manifeste-batch.js";
 import type { FournisseurMetaCode, MetaCode } from "./meta-code.js";
 import { FournisseurMetaCodeIndisponible } from "./meta-code.js";
-import type { ProtocoleExperienceEvolutionV01 } from "./protocole-evolution.js";
 import {
   ProtocoleEvolutionInvalideErreur,
-  empreinteProtocole,
 } from "./protocole-evolution.js";
+import {
+  empreinteProtocoleCampagne,
+  preparerCampagneEvolution,
+  type ProtocoleCampagneEvolution,
+} from "./protocole-versionne.js";
 import { chargerTrajectoireFichier, ecrireRapportsBatch } from "./rapports.js";
 import type { ResumeRunEvolution } from "./resume-run.js";
 import type { PointTrajectoireEvolution } from "./trajectoire.js";
+import {
+  genererDiagnosticExpositionPhenotypique,
+  peutGenererDiagnosticExposition,
+} from "./diagnostic-exposition-phenotypique-v02.js";
+import {
+  ecrireArtefactsCalibrationV02,
+  estProtocoleCalibrationV02,
+  evaluerCandidatCalibrationV02,
+  extraireIdentifiantCandidatCalibration,
+} from "./evaluer-candidat-calibration-v02.js";
 
 export type OptionsRunnerCampagne = {
-  readonly protocole: ProtocoleExperienceEvolutionV01;
+  readonly protocole: ProtocoleCampagneEvolution;
   readonly repertoireResultats?: string;
   readonly concurrence?: number;
   readonly fournisseurMetaCode?: FournisseurMetaCode;
@@ -151,6 +164,7 @@ export async function executerCampagneEvolution(
   options: OptionsRunnerCampagne,
 ): Promise<ResultatCampagneEvolution> {
   const protocole = options.protocole;
+  preparerCampagneEvolution(protocole);
   const concurrence = options.concurrence ?? 1;
   if (!Number.isInteger(concurrence) || concurrence < 1) {
     throw new ProtocoleEvolutionInvalideErreur(
@@ -196,7 +210,7 @@ export async function executerCampagneEvolution(
     JSON.stringify(
       {
         ...protocole,
-        empreinteProtocole: empreinteProtocole(protocole),
+        empreinteProtocole: empreinteProtocoleCampagne(protocole),
       },
       null,
       2,
@@ -213,7 +227,7 @@ export async function executerCampagneEvolution(
       identifiantBatch,
     });
 
-  if (manifeste.empreinteProtocole !== empreinteProtocole(protocole)) {
+  if (manifeste.empreinteProtocole !== empreinteProtocoleCampagne(protocole)) {
     throw new ProtocoleEvolutionInvalideErreur(
       "empreinteProtocole du manifeste incompatible avec le protocole chargé",
     );
@@ -343,6 +357,32 @@ export async function executerCampagneEvolution(
     trajectoires,
     controleNegatifOk: controle.ok,
   });
+
+  if (peutGenererDiagnosticExposition(protocole)) {
+    genererDiagnosticExpositionPhenotypique({
+      repertoireBatch,
+      manifeste,
+      resumes,
+      controleNegatifBcIdentique: controle.ok,
+    });
+  }
+
+  if (estProtocoleCalibrationV02(protocole.identifiantProtocole)) {
+    const resumeCalibration = evaluerCandidatCalibrationV02({
+      identifiantCandidat: extraireIdentifiantCandidatCalibration(
+        protocole.identifiantProtocole,
+      ),
+      manifeste,
+      resumes,
+      repertoireBatch,
+      trajectoires,
+      controleNegatifBcIdentique: controle.ok,
+    });
+    ecrireArtefactsCalibrationV02({
+      repertoireBatch,
+      resume: resumeCalibration,
+    });
+  }
 
   return { manifeste, repertoireBatch, resumes };
 }

@@ -9,10 +9,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { FournisseurMetaCodeGit } from "./meta-code.js";
-import {
-  chargerProtocoleEvolutionDepuisObjet,
-  type ProtocoleExperienceEvolutionV01Json,
-} from "./protocole-evolution.js";
+import { chargerProtocoleCampagneEvolutionDepuisObjet } from "./protocole-versionne.js";
 import { executerCampagneEvolution } from "./runner-campagne.js";
 
 export type ArgumentsCliEvolution = {
@@ -62,8 +59,8 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
   const args = parserArgumentsCli(argv);
   const brut = JSON.parse(
     readFileSync(resolve(args.cheminProtocole), "utf8"),
-  ) as ProtocoleExperienceEvolutionV01Json;
-  const protocole = chargerProtocoleEvolutionDepuisObjet(brut);
+  ) as unknown;
+  const protocole = chargerProtocoleCampagneEvolutionDepuisObjet(brut);
 
   const resultat = await executerCampagneEvolution({
     protocole,
@@ -81,6 +78,7 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
         repertoireBatch: resultat.repertoireBatch,
         marqueurs: resultat.manifeste.marqueurs,
         nombreRuns: resultat.resumes.length,
+        versionProtocole: protocole.version,
       },
       null,
       2,

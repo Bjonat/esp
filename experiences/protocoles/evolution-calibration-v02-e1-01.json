@@ -1,0 +1,138 @@
+{
+  "_commentaire": [
+    "Calibration évolution v0.2 — candidat e1-01.",
+    "Environnement d'exposition : environnement-exposition-v02-e2 (gelé pour calibration).",
+    "Seeds calibration : 301–305 (seedsCalibrationV02). Jamais 1001–1020.",
+    "NE CONSTITUE PAS une évaluation. Ne cherche PAS D > C.",
+    "Paramètres opératoires hérités sans modification (premier candidat).",
+    "Fournisseur simulé uniquement — aucun OpenAI / Live / Solana.",
+    "Critères : documentation/CALIBRATION_EVOLUTION_V02.md"
+  ],
+  "version": "protocole-experience-evolution-v02",
+  "identifiantProtocole": "evolution-calibration-v02-e1-01",
+  "mode": "calibration",
+  "seedsCalibration": [
+    301,
+    302,
+    303,
+    304,
+    305
+  ],
+  "seedsEvaluation": [],
+  "cyclesMaximum": 20,
+  "populationInitiale": 3,
+  "capitalInitialParAgentMicroUsdc": "8000000",
+  "tauxMutationConditionDBps": 1000,
+  "conditions": [
+    "A",
+    "B",
+    "C",
+    "D"
+  ],
+  "dateLancementFixe": "2020-01-01T00:00:00.000Z",
+  "exigerArbrePropre": false,
+  "fournisseur": {
+    "identifiant": "fournisseur-inference-simule",
+    "version": "0.1.0",
+    "selecteur": "simule"
+  },
+  "repertoireResultatsRelatif": "experiences/resultats",
+  "parametresEconomiques": {
+    "version": "demo-evolution-calibration-v02-e1-01",
+    "loyerInfrastructureMicroUsdc": "0",
+    "periodeLoyerEnCycles": 100,
+    "tauxRedevanceProprietairePointsDeBase": "0",
+    "coutOperationnelMinimalParCycleMicroUsdc": "20000",
+    "seuilRunwaySainEnCycles": 20,
+    "seuilRunwayContraintEnCycles": 5,
+    "cyclesDormanceAvantMort": 3
+  },
+  "reproduction": {
+    "version": "parametres-reproduction-v01",
+    "active": true,
+    "dotationEnfantMicroUsdc": "800000",
+    "coutReproductionMicroUsdc": "200000",
+    "reserveMinimaleParentMicroUsdc": "400000",
+    "populationMaximale": 24,
+    "nombreMaxReproductionsParCycle": 3,
+    "nombreMaxEnfantsParAgent": 3,
+    "cooldownCycles": 1
+  },
+  "reproductionAutonome": {
+    "version": "politique-reproduction-autonome-v01",
+    "active": true,
+    "etatsSurvieEligibles": [
+      "sain",
+      "contraint"
+    ],
+    "nombreMaxNaissancesParCycle": 4
+  },
+  "mutationBase": {
+    "version": "parametres-mutation-v01",
+    "active": true,
+    "tauxMutationParGeneBps": 1000,
+    "versionCatalogueGenes": "genes-mutables-v01"
+  },
+  "environnementDecision": {
+    "identifiant": "environnement-opportunites-simulees",
+    "version": "0.1.0",
+    "probabiliteSuccesBaseBps": 6000,
+    "amplitudeProbabiliteBps": 2000,
+    "gainSiSuccesMicroUsdc": "800000",
+    "perteSiEchecMicroUsdc": "400000",
+    "fraisActionMicroUsdc": "20000",
+    "fraisAttendreMicroUsdc": "0",
+    "enjeuxPossiblesMicroUsdc": [
+      "50000",
+      "75000",
+      "125000",
+      "175000",
+      "250000"
+    ]
+  },
+  "politiqueBudgetCognitif": {
+    "identifiant": "politique-budget-cognitif-agent",
+    "version": "0.1.0",
+    "seuilEnjeuPourInferenceMicroUsdc": "100000",
+    "partMaxVenParCycleBps": 50,
+    "plafondCognitifMicroUsdc": "10000",
+    "modeleLogique": "modele_standard",
+    "comportementSansInference": "agir_si_favorable",
+    "refuserSiCritiqueOuDormant": true
+  },
+  "xway": {
+    "active": true,
+    "plafondComputeParCycleMicroUsdc": "50000",
+    "modeles": [
+      {
+        "identifiant": "modele_economique",
+        "libelle": "Modèle économique (diagnostic v0.2)",
+        "coutParMillionJetonsEntreeMicroUsdc": "500000",
+        "coutParMillionJetonsSortieMicroUsdc": "1500000",
+        "nombreMaxJetonsSortie": 256
+      },
+      {
+        "identifiant": "modele_standard",
+        "libelle": "Modèle standard (diagnostic v0.2)",
+        "coutParMillionJetonsEntreeMicroUsdc": "2000000",
+        "coutParMillionJetonsSortieMicroUsdc": "6000000",
+        "nombreMaxJetonsSortie": 512
+      },
+      {
+        "identifiant": "modele_premium",
+        "libelle": "Modèle premium (diagnostic v0.2)",
+        "coutParMillionJetonsEntreeMicroUsdc": "20000000",
+        "coutParMillionJetonsSortieMicroUsdc": "60000000",
+        "nombreMaxJetonsSortie": 1024
+      }
+    ],
+    "politiqueCognitive": {
+      "identifiant": "politique-budget-cognitif-agent",
+      "version": "0.1.0"
+    },
+    "fournisseur": {
+      "identifiant": "fournisseur-inference-simule",
+      "version": "0.1.0"
+    }
+  }
+}

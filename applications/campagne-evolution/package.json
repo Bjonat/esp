@@ -11,13 +11,17 @@
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
     "@esp/controleur": "workspace:*",
+    "@esp/environnement": "workspace:*",
+    "@esp/moteur-agent": "workspace:*",
     "@esp/protocole": "workspace:*",
     "@esp/registre-evenements": "workspace:*"
   },

@@ -10,11 +10,11 @@ import {
   type FormatsEmpreintesCampagne,
 } from "./empreinte.js";
 import type { MetaCode } from "./meta-code.js";
-import type {
-  ConditionEvolution,
-  ProtocoleExperienceEvolutionV01,
-} from "./protocole-evolution.js";
-import { empreinteProtocole } from "./protocole-evolution.js";
+import type { ConditionEvolution } from "./protocole-evolution.js";
+import {
+  empreinteProtocoleCampagne,
+  type ProtocoleCampagneEvolution,
+} from "./protocole-versionne.js";
 
 export type StatutRunManifeste =
   | "planifie"
@@ -54,10 +54,10 @@ export type ManifesteBatchEvolution = {
 };
 
 export function fabriquerIdentifiantBatch(
-  protocole: ProtocoleExperienceEvolutionV01,
+  protocole: ProtocoleCampagneEvolution,
   options?: { readonly horodatage?: string },
 ): string {
-  const emp = empreinteProtocole(protocole);
+  const emp = empreinteProtocoleCampagne(protocole);
   const hex = emp.startsWith("sha256:") ? emp.slice("sha256:".length) : emp;
   const date =
     protocole.dateLancementFixe ??
@@ -67,12 +67,12 @@ export function fabriquerIdentifiantBatch(
 }
 
 export function construireManifesteBatch(options: {
-  readonly protocole: ProtocoleExperienceEvolutionV01;
+  readonly protocole: ProtocoleCampagneEvolution;
   readonly metaCode: MetaCode;
   readonly dateLancement: string;
   readonly identifiantBatch?: string;
 }): ManifesteBatchEvolution {
-  const emp = empreinteProtocole(options.protocole);
+  const emp = empreinteProtocoleCampagne(options.protocole);
   const identifiantBatch =
     options.identifiantBatch ??
     fabriquerIdentifiantBatch(options.protocole, {

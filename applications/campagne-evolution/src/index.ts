@@ -1,5 +1,5 @@
 /**
- * @esp/campagne-evolution — protocole expérimental multi-génération v0.1.
+ * @esp/campagne-evolution — protocole expérimental multi-génération v0.1 / v0.2.
  */
 
 export {
@@ -20,12 +20,118 @@ export type {
 } from "./protocole-evolution.js";
 
 export {
+  VERSION_PROTOCOLE_EXPERIENCE_EVOLUTION_V02,
+  CONDITIONS_EVOLUTION_V02,
+  parserProtocoleEvolutionV02,
+  chargerProtocoleEvolutionV02DepuisObjet,
+  empreinteProtocoleV02,
+} from "./protocole-evolution-v02.js";
+export type {
+  ProtocoleExperienceEvolutionV02,
+  ProtocoleExperienceEvolutionV02Json,
+} from "./protocole-evolution-v02.js";
+
+export {
+  chargerProtocoleCampagneEvolutionDepuisObjet,
+  empreinteProtocoleCampagne,
+  fabriquerConfigurationRunCampagne,
+  preparerCampagneEvolution,
+  estProtocoleEvolutionV01,
+  estProtocoleEvolutionV02,
+} from "./protocole-versionne.js";
+export type { ProtocoleCampagneEvolution } from "./protocole-versionne.js";
+
+export {
   DATE_EVENEMENTS_FIXES_EVOLUTION,
   fabriquerConfigurationRun,
   identifiantRun,
   identifiantExperienceRun,
   listerRunsPlanifies,
 } from "./conditions.js";
+
+export {
+  fabriquerConfigurationRunV02,
+  identifiantExperienceRunV02,
+  listerRunsPlanifiesV02,
+} from "./conditions-v02.js";
+
+export {
+  PreflightEvolutionV02Erreur,
+  validerPreflightCampagneEvolutionV02,
+  assertPreflightEvolutionV02OuEchouer,
+} from "./preflight-evolution-v02.js";
+
+export {
+  classifierBornesCognitives,
+} from "./diagnostic-bornes-cognitives.js";
+export type {
+  ClassificationBornesCognitives,
+  IdentifiantBorneCognitive,
+} from "./diagnostic-bornes-cognitives.js";
+
+export {
+  evaluerChoixSec,
+  evaluerOccasionExpression,
+  executerContrefactuelUnGene,
+  voisinsUnPasGene,
+} from "./diagnostic-contrefactuel-un-gene.js";
+export type {
+  NiveauExpressionPhenotypique,
+  ResultatChoixSec,
+  ResultatContrefactuelUnGene,
+  VoisinGene,
+} from "./diagnostic-contrefactuel-un-gene.js";
+
+export {
+  CLES_GENES_DIAGNOSTIC,
+  CRITERES_COUVERTURE_DIAGNOSTIC_V02,
+  analyserRunPourDiagnostic,
+  genererDiagnosticExpositionPhenotypique,
+  peutGenererDiagnosticExposition,
+} from "./diagnostic-exposition-phenotypique-v02.js";
+export type {
+  LigneTraceDiagnostic,
+  MetriquesGeneDiagnostic,
+  ResumeDiagnosticExposition,
+} from "./diagnostic-exposition-phenotypique-v02.js";
+
+export {
+  VERSION_CRITERES_CALIBRATION_V02,
+  SEUILS_CALIBRATION_V02,
+  IDENTIFIANTS_CRITERES_CALIBRATION_V02,
+  descendanceDifferentiellePresente,
+} from "./criteres-calibration-v02.js";
+export type {
+  IdentifiantCritereCalibrationV02,
+  VerdictCritereCalibration,
+} from "./criteres-calibration-v02.js";
+
+export {
+  evaluerCandidatCalibrationV02,
+  ecrireArtefactsCalibrationV02,
+  rendreRapportCalibrationV02,
+  estProtocoleCalibrationV02,
+  extraireIdentifiantCandidatCalibration,
+} from "./evaluer-candidat-calibration-v02.js";
+export type { ResumeCalibrationV02 } from "./evaluer-candidat-calibration-v02.js";
+
+export {
+  ControleSensibilitePhenotypiqueErreur,
+  executerControleAComportementSansInference,
+  executerControleBSeuilInference,
+  executerControleCPlafondCognitif,
+  executerControleDPartMaxVen,
+  executerControleSensibilitePhenotypiqueV02,
+} from "./controle-sensibilite-phenotypique-v02.js";
+export type { ResultatControleSensibilite } from "./controle-sensibilite-phenotypique-v02.js";
+
+export { executerControleCampagneExpressionPhenotypiqueV02 } from "./controle-campagne-expression-v02.js";
+
+export {
+  extraireTracePhenotypiqueCycle,
+  tracesPhenotypiquesDivergent,
+} from "./trace-phenotypique.js";
+export type { TracePhenotypiqueCycle } from "./trace-phenotypique.js";
 
 export {
   FournisseurMetaCodeIndisponible,
@@ -214,3 +320,52 @@ export type {
   MotifEchecTechnique,
   FreezeEvolutionEvaluationV01Json,
 } from "./freeze-evaluation.js";
+
+export {
+  SEEDS_DIAGNOSTIC_EXPRESSION_V02,
+  SEEDS_CALIBRATION_EVOLUTION_V02,
+  SEEDS_EVALUATION_FIGEES_V02,
+  NOMBRE_SEEDS_EVALUATION_V02,
+  ENJEUX_ENVIRONNEMENT_EXPOSITION_V02_E2,
+  IDENTIFIANT_ENVIRONNEMENT_EXPOSITION_V02_E2,
+  intersectionSeeds,
+  assertSeedsEvaluationV02SansCollision,
+} from "./seeds-evolution-v02.js";
+
+export {
+  extraireParametresScientifiquesV02,
+  protocolesPartagentParametresScientifiquesV02,
+} from "./audit-parametres-scientifiques-v02.js";
+export type { ParametresScientifiquesV02 } from "./audit-parametres-scientifiques-v02.js";
+
+export {
+  IDENTIFIANT_PROTOCOLE_EVALUATION_V02,
+  CHEMIN_PROTOCOLE_CALIBRATION_E1_01,
+  CHEMIN_PROTOCOLE_EVALUATION_V02,
+  deriverProtocoleEvaluationV02DepuisCalibration,
+  deriverProtocoleEvaluationV02DepuisObjetCalibration,
+} from "./deriver-protocole-evaluation-v02.js";
+
+export {
+  VERSION_FREEZE_EVOLUTION_EVALUATION_V02,
+  GIT_REF_FREEZE_CANONIQUE_V02,
+  HYPOTHESES_EVALUATION_V02,
+  MOTIFS_ECHEC_TECHNIQUE_V02,
+  MOTIFS_RESULTAT_SCIENTIFIQUE_DEFAVORABLE_V02,
+  EMPREINTE_RESULTAT_INCLUT_DIAGNOSTIC_EXPRESSION_V02,
+  estEchecTechniqueV02,
+  estResultatScientifiqueDefavorableV02,
+  autoriserRetryMemeSeedMemeProtocoleV02,
+  assertProtocoleEvaluationV02InchangeDepuisFreeze,
+  parserFreezeEvolutionEvaluationV02,
+  chargerFreezeEvolutionEvaluationV02DepuisFichier,
+  validerFreezeContreProtocolesV02,
+  auditerAucuneSeedEvaluationV02Executee,
+  auditerAucunBatchEvaluationV02,
+} from "./freeze-evaluation-v02.js";
+export type {
+  IdentifiantHypotheseEvaluationV02,
+  MotifEchecTechniqueV02,
+  ResultatSuiteTestsFreezeV02,
+  FreezeEvolutionEvaluationV02Json,
+} from "./freeze-evaluation-v02.js";

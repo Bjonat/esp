@@ -166,6 +166,12 @@ importers:
       '@esp/controleur':
         specifier: workspace:*
         version: link:../controleur
+      '@esp/environnement':
+        specifier: workspace:*
+        version: link:../../paquets/environnement
+      '@esp/moteur-agent':
+        specifier: workspace:*
+        version: link:../../paquets/moteur-agent
       '@esp/protocole':
         specifier: workspace:*
         version: link:../../paquets/protocole
