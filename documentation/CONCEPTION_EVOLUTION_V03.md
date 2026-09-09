@@ -947,8 +947,8 @@ campagne → diagnostics → freeze) :
 
 | PR | Contenu | Hors périmètre |
 |----|---------|----------------|
-| **v03-0** (cette PR) | Conception documentaire | code métier |
-| **v03-A** | Contrat protocole : fenêtre vs naissance, capacité théorique, types/plan enrichis, tests unitaires purs | contrôleur |
+| **v03-0** | Conception documentaire | code métier |
+| **v03-A** | Contrat protocole : fenêtre vs naissance, capacité théorique, types/plan enrichis, tests unitaires purs — primitives dans `reproduction-economique-v03.ts` | contrôleur |
 | **v03-B** | Intégration `executerPhaseReproductionAutonome` : tentatives successives, atomicité, reprise | campagne |
 | **v03-C** | Observabilité : charges, motifs d'arrêt, `resultatEconomiqueHorsReproduction`, projections sans score | évaluation |
 | **v03-D** | Package campagne : `protocole-experience-evolution-v03`, matrice A/B/C/D, empreintes, contrôle B≡C | exécution seeds eval |
