@@ -1,0 +1,115 @@
+{
+  "_commentaire": [
+    "EXEMPLE protocole évolution v0.2 — couplage génotype → phénotype.",
+    "NON CANONIQUE — seeds artificielles de démonstration (pas d'évaluation).",
+    "NE PAS utiliser seeds 1001–1020 (réservées évaluation v0.1).",
+    "Mode expérience forcé : decision_simulee via fabriquerConfigurationRunV02.",
+    "Fournisseur simulé uniquement — aucun OpenAI / Live / Solana."
+  ],
+  "version": "protocole-experience-evolution-v02",
+  "identifiantProtocole": "evolution-couplage-v02-exemple",
+  "mode": "calibration",
+  "seedsCalibration": [9001, 9002],
+  "seedsEvaluation": [],
+  "cyclesMaximum": 5,
+  "populationInitiale": 2,
+  "capitalInitialParAgentMicroUsdc": "8000000",
+  "tauxMutationConditionDBps": 1000,
+  "conditions": ["A", "B", "C", "D"],
+  "dateLancementFixe": "2020-01-01T00:00:00.000Z",
+  "exigerArbrePropre": false,
+  "fournisseur": {
+    "identifiant": "fournisseur-inference-simule",
+    "version": "0.1.0",
+    "selecteur": "simule"
+  },
+  "repertoireResultatsRelatif": "experiences/resultats",
+  "parametresEconomiques": {
+    "version": "demo-evolution-couplage-v02",
+    "loyerInfrastructureMicroUsdc": "0",
+    "periodeLoyerEnCycles": 100,
+    "tauxRedevanceProprietairePointsDeBase": "0",
+    "coutOperationnelMinimalParCycleMicroUsdc": "20000",
+    "seuilRunwaySainEnCycles": 20,
+    "seuilRunwayContraintEnCycles": 5,
+    "cyclesDormanceAvantMort": 3
+  },
+  "reproduction": {
+    "version": "parametres-reproduction-v01",
+    "active": true,
+    "dotationEnfantMicroUsdc": "800000",
+    "coutReproductionMicroUsdc": "200000",
+    "reserveMinimaleParentMicroUsdc": "400000",
+    "populationMaximale": 24,
+    "nombreMaxReproductionsParCycle": 3,
+    "nombreMaxEnfantsParAgent": 3,
+    "cooldownCycles": 1
+  },
+  "reproductionAutonome": {
+    "version": "politique-reproduction-autonome-v01",
+    "active": true,
+    "etatsSurvieEligibles": ["sain", "contraint"],
+    "nombreMaxNaissancesParCycle": 4
+  },
+  "mutationBase": {
+    "version": "parametres-mutation-v01",
+    "active": true,
+    "tauxMutationParGeneBps": 1000,
+    "versionCatalogueGenes": "genes-mutables-v01"
+  },
+  "environnementDecision": {
+    "identifiant": "environnement-opportunites-simulees",
+    "version": "0.1.0",
+    "probabiliteSuccesBaseBps": 6000,
+    "amplitudeProbabiliteBps": 2000,
+    "gainSiSuccesMicroUsdc": "800000",
+    "perteSiEchecMicroUsdc": "400000",
+    "fraisActionMicroUsdc": "20000",
+    "fraisAttendreMicroUsdc": "0"
+  },
+  "politiqueBudgetCognitif": {
+    "identifiant": "politique-budget-cognitif-agent",
+    "version": "0.1.0",
+    "seuilEnjeuPourInferenceMicroUsdc": "100000",
+    "partMaxVenParCycleBps": 50,
+    "plafondCognitifMicroUsdc": "10000",
+    "modeleLogique": "modele_standard",
+    "comportementSansInference": "agir_si_favorable",
+    "refuserSiCritiqueOuDormant": true
+  },
+  "xway": {
+    "active": true,
+    "plafondComputeParCycleMicroUsdc": "50000",
+    "modeles": [
+      {
+        "identifiant": "modele_economique",
+        "libelle": "Modèle économique (couplage v0.2)",
+        "coutParMillionJetonsEntreeMicroUsdc": "500000",
+        "coutParMillionJetonsSortieMicroUsdc": "1500000",
+        "nombreMaxJetonsSortie": 256
+      },
+      {
+        "identifiant": "modele_standard",
+        "libelle": "Modèle standard (couplage v0.2)",
+        "coutParMillionJetonsEntreeMicroUsdc": "2000000",
+        "coutParMillionJetonsSortieMicroUsdc": "6000000",
+        "nombreMaxJetonsSortie": 512
+      },
+      {
+        "identifiant": "modele_premium",
+        "libelle": "Modèle premium (couplage v0.2)",
+        "coutParMillionJetonsEntreeMicroUsdc": "20000000",
+        "coutParMillionJetonsSortieMicroUsdc": "60000000",
+        "nombreMaxJetonsSortie": 1024
+      }
+    ],
+    "politiqueCognitive": {
+      "identifiant": "politique-budget-cognitif-agent",
+      "version": "0.1.0"
+    },
+    "fournisseur": {
+      "identifiant": "fournisseur-inference-simule",
+      "version": "0.1.0"
+    }
+  }
+}

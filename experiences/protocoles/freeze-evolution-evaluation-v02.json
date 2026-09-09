@@ -1,0 +1,48 @@
+{
+  "version": "freeze-evolution-evaluation-v02",
+  "identifiantFreeze": "freeze-evolution-evaluation-v02",
+  "etat": "gele_non_execute",
+  "versionProtocole": "protocole-experience-evolution-v02",
+  "identifiantProtocole": "evolution-evaluation-v02",
+  "protocoleEvaluation": "experiences/protocoles/evolution-evaluation-v02.json",
+  "protocoleCalibrationSource": "experiences/protocoles/evolution-calibration-v02-e1-01.json",
+  "referenceEnvironnementE2": "environnement-exposition-v02-e2",
+  "empreinteProtocole": "sha256:a141e3893895c5cecc6454b9c5cd92bc85d48a7d0a8bb0e8df7661cb6cad9187",
+  "gitShaPreparation": "43e45af98fe2c40ce5a4658d113cc31eaca793bc",
+  "gitRefFreezeCanonique": "esp-evolution-evaluation-v02-freeze",
+  "nombreSeedsEvaluation": 20,
+  "nombreSeedsEvaluationExecutees": 0,
+  "seedsEvaluation": [
+    2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
+    2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020
+  ],
+  "resultatSuiteTests": {
+    "commande": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "statut": "vert",
+    "nombreTestsEchoues": 0,
+    "note": "Validation locale freeze : 437 passed, 1 skipped, 0 failed."
+  },
+  "comparaisonPrimaire": "D-C",
+  "comparaisonsSecondaires": ["B-A", "C-B", "D-B"],
+  "hypotheses": ["H1", "H2", "H3", "H4"],
+  "regles": {
+    "extinctionsJamaisExclues": true,
+    "gardeFousJamaisExclus": true,
+    "controleNegatifBCBloquant": true,
+    "interdictionArretAnticipeSelonResultats": true,
+    "interdictionModifierProtocoleApresVisionResultats": true,
+    "retryUniquementMemeSeedMemeEmpreinteProtocole": true,
+    "interdictionScoreRankingFitnessGlobale": true,
+    "runsPrevus": 80
+  },
+  "empreinteResultatScientifiqueInclutDiagnosticExpression": false,
+  "documentPreenregistrement": "documentation/PREENREGISTREMENT_EVOLUTION_V02.md",
+  "_commentaire": [
+    "Freeze méthodologique v0.2 — AUCUNE seed d'évaluation exécutée.",
+    "Paramètres scientifiques = evolution-calibration-v02-e1-01.",
+    "Environnement = environnement-exposition-v02-e2.",
+    "Choix empreinte : diagnostic-exposition/ exclu de empreinteResultatScientifique.",
+    "gitShaPreparation = HEAD observé à la préparation — NON canonique.",
+    "SHA code canonique = commit pointé par le tag esp-evolution-evaluation-v02-freeze après merge."
+  ]
+}

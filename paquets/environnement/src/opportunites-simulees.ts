@@ -33,6 +33,13 @@ export type ConfigurationEnvironnementOpportunites = {
    * VALEUR DE DÉMONSTRATION si non nulle.
    */
   readonly fraisAttendreMicroUsdc: MicroUsdc;
+  /**
+   * Profils d'enjeu optionnels (v0.2 E2+).
+   * Si présents, chaque observation redimensionne gain/perte/frais pour que
+   * max(gain, perte) = profil sélectionné déterministement.
+   * Indépendant de la condition A/B/C/D, du génotype et de la VEN.
+   */
+  readonly enjeuxPossiblesMicroUsdc?: readonly MicroUsdc[];
 };
 
 export type ConfigurationEnvironnementOpportunitesJson = {
@@ -44,7 +51,10 @@ export type ConfigurationEnvironnementOpportunitesJson = {
   readonly perteSiEchecMicroUsdc: string;
   readonly fraisActionMicroUsdc: string;
   readonly fraisAttendreMicroUsdc?: string;
+  readonly enjeuxPossiblesMicroUsdc?: readonly string[];
 };
+
+export const SEL_PROFIL_ENJEU_V02 = "profil-enjeu-v02" as const;
 
 export type IssueActionEnvironnement = "succes" | "echec" | "aucune";
 
@@ -104,6 +114,76 @@ function bornerBps(valeur: number): number {
   return valeur;
 }
 
+/**
+ * Sélection déterministe d'un profil d'enjeu.
+ * Entrées autorisées : graineSimulation, identifiantAgent, numeroCycle, sel fixe.
+ * Interdit : condition, génotype, fitness, VEN, historique économique.
+ */
+export function selectionnerProfilEnjeuV02(options: {
+  readonly graineSimulation: number;
+  readonly identifiantAgent: string;
+  readonly numeroCycle: number;
+  readonly enjeuxPossiblesMicroUsdc: readonly MicroUsdc[];
+}): MicroUsdc {
+  if (options.enjeuxPossiblesMicroUsdc.length === 0) {
+    throw new Error("enjeuxPossiblesMicroUsdc ne peut pas être vide");
+  }
+  const graine = melangerGraine(
+    options.graineSimulation,
+    options.identifiantAgent,
+    options.numeroCycle,
+    SEL_PROFIL_ENJEU_V02,
+  );
+  const index = graine % options.enjeuxPossiblesMicroUsdc.length;
+  return options.enjeuxPossiblesMicroUsdc[index]!;
+}
+
+/**
+ * Redimensionne gain/perte/frais pour que max(gain, perte) = enjeuCible.
+ * Arithmétique entière uniquement ; le montant dominant devient exact.
+ */
+export function redimensionnerMontantsPourEnjeu(options: {
+  readonly gainSiSuccesMicroUsdc: MicroUsdc;
+  readonly perteSiEchecMicroUsdc: MicroUsdc;
+  readonly fraisActionMicroUsdc: MicroUsdc;
+  readonly enjeuCibleMicroUsdc: MicroUsdc;
+}): {
+  readonly gainSiSuccesMicroUsdc: MicroUsdc;
+  readonly perteSiEchecMicroUsdc: MicroUsdc;
+  readonly fraisActionMicroUsdc: MicroUsdc;
+  readonly enjeuEffectifMicroUsdc: MicroUsdc;
+} {
+  const gain = options.gainSiSuccesMicroUsdc;
+  const perte = options.perteSiEchecMicroUsdc;
+  const frais = options.fraisActionMicroUsdc;
+  const cible = options.enjeuCibleMicroUsdc;
+  const enjeuBase = gain > perte ? gain : perte;
+
+  if (enjeuBase <= 0n) {
+    return {
+      gainSiSuccesMicroUsdc: cible,
+      perteSiEchecMicroUsdc: 0n,
+      fraisActionMicroUsdc: frais,
+      enjeuEffectifMicroUsdc: cible,
+    };
+  }
+
+  if (gain >= perte) {
+    return {
+      gainSiSuccesMicroUsdc: cible,
+      perteSiEchecMicroUsdc: (perte * cible) / enjeuBase,
+      fraisActionMicroUsdc: (frais * cible) / enjeuBase,
+      enjeuEffectifMicroUsdc: cible,
+    };
+  }
+  return {
+    gainSiSuccesMicroUsdc: (gain * cible) / enjeuBase,
+    perteSiEchecMicroUsdc: cible,
+    fraisActionMicroUsdc: (frais * cible) / enjeuBase,
+    enjeuEffectifMicroUsdc: cible,
+  };
+}
+
 export class EnvironnementOpportunitesSimulees implements EnvironnementEconomique {
   readonly nom = IDENTIFIANT_ENVIRONNEMENT_OPPORTUNITES_SIMULEES;
   readonly mode = "replay" as const;
@@ -146,15 +226,37 @@ export class EnvironnementOpportunitesSimulees implements EnvironnementEconomiqu
       this.configuration.probabiliteSuccesBaseBps + delta,
     );
 
+    let gain = this.configuration.gainSiSuccesMicroUsdc;
+    let perte = this.configuration.perteSiEchecMicroUsdc;
+    let frais = this.configuration.fraisActionMicroUsdc;
+    const enjeux = this.configuration.enjeuxPossiblesMicroUsdc;
+    if (enjeux !== undefined && enjeux.length > 0) {
+      const enjeuCible = selectionnerProfilEnjeuV02({
+        graineSimulation: this.graineExperience,
+        identifiantAgent: options.identifiantAgent,
+        numeroCycle: options.numeroCycle,
+        enjeuxPossiblesMicroUsdc: enjeux,
+      });
+      const redim = redimensionnerMontantsPourEnjeu({
+        gainSiSuccesMicroUsdc: gain,
+        perteSiEchecMicroUsdc: perte,
+        fraisActionMicroUsdc: frais,
+        enjeuCibleMicroUsdc: enjeuCible,
+      });
+      gain = redim.gainSiSuccesMicroUsdc;
+      perte = redim.perteSiEchecMicroUsdc;
+      frais = redim.fraisActionMicroUsdc;
+    }
+
     return {
       identifiantObservation,
       identifiantAgent: options.identifiantAgent,
       numeroCycle: options.numeroCycle,
       typeObservation: "opportunite_simulee",
       probabiliteSuccesBps,
-      gainSiSuccesMicroUsdc: this.configuration.gainSiSuccesMicroUsdc,
-      perteSiEchecMicroUsdc: this.configuration.perteSiEchecMicroUsdc,
-      fraisActionMicroUsdc: this.configuration.fraisActionMicroUsdc,
+      gainSiSuccesMicroUsdc: gain,
+      perteSiEchecMicroUsdc: perte,
+      fraisActionMicroUsdc: frais,
       description: `Opportunité simulée cycle ${String(options.numeroCycle)} — p=${String(probabiliteSuccesBps)} bps`,
       actionsAutorisees: ["attendre", "agir"],
     };
@@ -254,6 +356,18 @@ export function parserConfigurationEnvironnementOpportunites(
   ) {
     throw new Error("amplitudeProbabiliteBps invalide");
   }
+  let enjeuxPossiblesMicroUsdc: MicroUsdc[] | undefined;
+  if (brut.enjeuxPossiblesMicroUsdc !== undefined) {
+    if (
+      !Array.isArray(brut.enjeuxPossiblesMicroUsdc) ||
+      brut.enjeuxPossiblesMicroUsdc.length === 0
+    ) {
+      throw new Error("enjeuxPossiblesMicroUsdc doit être un tableau non vide");
+    }
+    enjeuxPossiblesMicroUsdc = brut.enjeuxPossiblesMicroUsdc.map((texte) =>
+      parserMontant(texte),
+    );
+  }
   return {
     identifiant: brut.identifiant,
     version: brut.version,
@@ -263,6 +377,9 @@ export function parserConfigurationEnvironnementOpportunites(
     perteSiEchecMicroUsdc: parserMontant(brut.perteSiEchecMicroUsdc),
     fraisActionMicroUsdc: parserMontant(brut.fraisActionMicroUsdc),
     fraisAttendreMicroUsdc: parserMontant(brut.fraisAttendreMicroUsdc ?? "0"),
+    ...(enjeuxPossiblesMicroUsdc !== undefined
+      ? { enjeuxPossiblesMicroUsdc }
+      : {}),
   };
 }
 
@@ -278,6 +395,13 @@ export function serialiserConfigurationEnvironnementOpportunites(
     perteSiEchecMicroUsdc: configuration.perteSiEchecMicroUsdc.toString(10),
     fraisActionMicroUsdc: configuration.fraisActionMicroUsdc.toString(10),
     fraisAttendreMicroUsdc: configuration.fraisAttendreMicroUsdc.toString(10),
+    ...(configuration.enjeuxPossiblesMicroUsdc !== undefined
+      ? {
+          enjeuxPossiblesMicroUsdc: configuration.enjeuxPossiblesMicroUsdc.map(
+            (v) => v.toString(10),
+          ),
+        }
+      : {}),
   };
 }
 

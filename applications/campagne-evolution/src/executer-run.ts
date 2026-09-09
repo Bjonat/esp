@@ -19,7 +19,6 @@ import {
 import type { EvenementEsp } from "@esp/protocole";
 import {
   DATE_EVENEMENTS_FIXES_EVOLUTION,
-  fabriquerConfigurationRun,
   identifiantRun,
 } from "./conditions.js";
 import {
@@ -27,11 +26,12 @@ import {
   calculerEmpreinteResultatScientifiqueDepuisRun,
 } from "./empreinte.js";
 import type { MetaCode } from "./meta-code.js";
-import type {
-  ConditionEvolution,
-  ProtocoleExperienceEvolutionV01,
-} from "./protocole-evolution.js";
-import { empreinteProtocole } from "./protocole-evolution.js";
+import type { ConditionEvolution } from "./protocole-evolution.js";
+import {
+  empreinteProtocoleCampagne,
+  fabriquerConfigurationRunCampagne,
+  type ProtocoleCampagneEvolution,
+} from "./protocole-versionne.js";
 import {
   fabriquerResumeDepuisTrajectoire,
   type ResumeRunEvolution,
@@ -43,7 +43,7 @@ import type {
 } from "./trajectoire.js";
 
 export type OptionsExecuterRun = {
-  readonly protocole: ProtocoleExperienceEvolutionV01;
+  readonly protocole: ProtocoleCampagneEvolution;
   readonly condition: ConditionEvolution;
   readonly seed: number;
   readonly repertoireRun: string;
@@ -282,7 +282,11 @@ export async function executerRun(
   const debut = Date.now();
   const { protocole, condition, seed, repertoireRun } = options;
   const idRun = identifiantRun(condition, seed);
-  const confJson = fabriquerConfigurationRun(protocole, condition, seed);
+  const confJson = fabriquerConfigurationRunCampagne(
+    protocole,
+    condition,
+    seed,
+  );
   const conf = parserConfigurationExperience(confJson);
 
   mkdirSync(repertoireRun, { recursive: true });
@@ -392,7 +396,7 @@ export async function executerRun(
     relecture.fermer();
   }
 
-  const empProtocole = empreinteProtocole(protocole);
+  const empProtocole = empreinteProtocoleCampagne(protocole);
   const empreinteExecutionRun = calculerEmpreinteExecutionRun({
     empreinteProtocole: empProtocole,
     condition,

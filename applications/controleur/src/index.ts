@@ -60,6 +60,7 @@ export {
   projeterPopulation,
   projeterTresorerie,
   reconstruireConfigurationsHeritablesDepuisEvenements,
+  reconstruireIdentitesDepuisEvenements,
   reconstruirePopulationDepuisEvenements,
   reconstruireTresorerieProprietaire,
 } from "./projections.js";

@@ -113,5 +113,8 @@ pas de causalité universelle.
 - `experiences/protocoles/freeze-evolution-evaluation-v01.json` — freeze méthodologique (`gele_non_execute`)
 - `documentation/PREENREGISTREMENT_EVOLUTION_V01.md` — H1/H2/H3, comparaisons, règles
 - `documentation/CALIBRATION_EVOLUTION_V01.md` — rapport de calibration
+- `documentation/POSTMORTEM_EVOLUTION_V01.md` — défaut de couplage génotype → phénotype
+- `documentation/COUPLAGE_GENOTYPE_PHENOTYPE_V02.md` — socle causal v0.2 (`decision_simulee`)
+- `experiences/protocoles/evolution-couplage-v02.exemple.json` — exemple protocole v0.2
 - `experiences/calibration/evolution-v01/` — journal + vue whitelistée
 - Résultats bruts : `experiences/resultats/` (gitignored)

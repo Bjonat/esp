@@ -175,7 +175,10 @@ export function fabriquerConfigurationRun(
 }
 
 export function listerRunsPlanifies(
-  protocole: ProtocoleExperienceEvolutionV01,
+  protocole: {
+    readonly seedsActives: readonly number[];
+    readonly conditions: readonly ConditionEvolution[];
+  },
 ): readonly { condition: ConditionEvolution; seed: number; identifiantRun: string }[] {
   const runs: { condition: ConditionEvolution; seed: number; identifiantRun: string }[] =
     [];
