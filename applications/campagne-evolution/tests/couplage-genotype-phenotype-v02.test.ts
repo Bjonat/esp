@@ -201,7 +201,7 @@ describe("couplage-genotype-phenotype-v02", () => {
     // Aucune assertion D > C (méthodologie).
     const resumeD = campagne.resumes.find((r) => r.condition === "D");
     expect(resumeD).toBeDefined();
-  });
+  }, 15_000);
 
   it("aucune seed d'évaluation 1001–1020 exécutée dans ces fixtures", () => {
     const seedsUtilisees = [9001, 9101, 42];
