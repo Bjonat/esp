@@ -11,7 +11,8 @@ figés, ni les pré-enregistrements, ni les documents de résultats.
 |----------|--------|
 | `evolution-evaluation-v01` | clôturée — défaut causal génotype → phénotype (voir `POSTMORTEM_EVOLUTION_V01.md`) |
 | `evolution-evaluation-v02` | **clôturée scientifiquement** — voir `RESULTATS_EVOLUTION_V02.md` |
-| `protocole-experience-evolution-v03` | **prochaine étape** — conception uniquement |
+| Conception `protocole-experience-evolution-v03` | **décisions tranchées** — voir `CONCEPTION_EVOLUTION_V03.md` §13 |
+| Implémentation / diagnostic / calibration / évaluation v0.3 | **non démarrée** |
 
 ---
 
@@ -27,13 +28,34 @@ figés, ni les pré-enregistrements, ni les documents de résultats.
 - Adaptation économique par sélection positive **non démontrée** (H4 non
   soutenue).
 
-### Prochaine étape — conception uniquement
+### Diagnostic de limitation (conception)
 
-Concevoir `protocole-experience-evolution-v03` pour tester explicitement :
+La reproduction autonome v0.2 transforme surtout les ressources en
+**éligibilité discrète** (seuil binaire + au plus une naissance retenue par
+parent et par cycle + cooldown + plafonds). Des agents économiquement
+différents peuvent donc obtenir la même descendance.
+
+Détail et proposition mécanique : `documentation/CONCEPTION_EVOLUTION_V03.md`.
+
+### Prochaine étape après conception
+
+Implémentation hors de cette feuille de route documentaire, selon
+`documentation/CONCEPTION_EVOLUTION_V03.md` (décisions tranchées §13) :
 
 ```text
-avantage économique → capacité reproductive
+performance économique
+  → ressources disponibles
+  → capacité à financer la reproduction
+  → enfants directs
 ```
+
+Choix de référence :
+
+- Option B : autorisations successives + plan déterministe figé ;
+- cooldown = accès à la **fenêtre reproductive**, pas frein intra-plan ;
+- H4 = chaîne causale locale répliquée (`R = 5`), pas `D > C` global ;
+- métrique éco H4 : `resultatEconomiqueHorsReproduction` ;
+- contrôle positif mécaniste : diagnostic uniquement.
 
 sans :
 
@@ -43,22 +65,25 @@ sans :
 - préférence codée pour un gène ;
 - récompense directe d'un génotype.
 
-La sélection doit continuer à émerger du coût économique réel de la
-reproduction.
+Séquence de PR prévue : v03-A … v03-H (voir conception §12).
 
 ### Interdits de transition
 
 - Ne pas modifier les artefacts ou protocoles gelés v0.1 / v0.2.
 - Ne pas modifier le tag `esp-evolution-evaluation-v02-freeze`.
-- Ne pas relancer les seeds d'évaluation v0.2 (`2001..2020`).
+- Ne pas relancer les seeds d'évaluation v0.1 / v0.2.
 - Ne pas traiter les signaux exploratoires v0.2 comme hypothèses
   pré-enregistrées v0.3 tant qu'un nouveau pré-enregistrement n'est pas figé.
+- Ne pas coder de mécanisme v0.3 dans une PR de conception pure.
 
 ### Documents de référence
 
 | Document | Rôle |
 |----------|------|
 | `documentation/RESULTATS_EVOLUTION_V02.md` | clôture scientifique v0.2 |
+| `documentation/CONCEPTION_EVOLUTION_V03.md` | conception du couplage économique → capacité reproductive |
 | `documentation/PREENREGISTREMENT_EVOLUTION_V02.md` | hypothèses pré-enregistrées v0.2 |
 | `documentation/POSTMORTEM_EVOLUTION_V01.md` | défaut causal v0.1 |
 | `documentation/COUPLAGE_GENOTYPE_PHENOTYPE_V02.md` | socle causal v0.2 |
+| `documentation/REPRODUCTION_AUTONOME.md` | politique autonome v0.1/v0.2 |
+| `documentation/REPRODUCTION.md` | reproduction mécanique |
