@@ -1546,7 +1546,17 @@ describe("Reproduction autonome v0.1 — A–AH", () => {
     expect(
       Object.keys(c.configuration.reproductionAutonome!).sort(),
     ).toEqual(
-      ["active", "etatsSurvieEligibles", "nombreMaxNaissancesParCycle", "version"].sort(),
+      [
+        "active",
+        "etatsSurvieEligibles",
+        "mecanisme",
+        "nombreMaxNaissancesParCycle",
+        "version",
+      ].sort(),
+    );
+    // Sélecteur de version (défaut historique) — pas un mécanisme de diversité.
+    expect(c.configuration.reproductionAutonome!.mecanisme).toBe(
+      "reproduction-autonome-v01",
     );
     // La diversité reste une mesure descriptive uniquement.
     const dyn = c.projeterPopulation().dynamiqueEvolutive;

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   VERSION_POLITIQUE_REPRODUCTION_AUTONOME,
   VERSION_PARAMETRES_REPRODUCTION,
+  MECANISME_REPRODUCTION_AUTONOME_DEFAUT,
   calculerPrioriteReproductionNeutre,
   creerEtatEconomiqueInitial,
   creerPolitiqueReproductionAutonomeInactive,
@@ -39,6 +40,7 @@ function politiqueActive(
     active: true,
     etatsSurvieEligibles: ["sain", "contraint"],
     nombreMaxNaissancesParCycle: 10,
+    mecanisme: MECANISME_REPRODUCTION_AUTONOME_DEFAUT,
     ...surcharges,
   };
 }

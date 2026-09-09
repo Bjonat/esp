@@ -12,8 +12,9 @@ figés, ni les pré-enregistrements, ni les documents de résultats.
 | `evolution-evaluation-v01` | clôturée — défaut causal génotype → phénotype (voir `POSTMORTEM_EVOLUTION_V01.md`) |
 | `evolution-evaluation-v02` | **clôturée scientifiquement** — voir `RESULTATS_EVOLUTION_V02.md` |
 | Conception `protocole-experience-evolution-v03` | **décisions tranchées** — voir `CONCEPTION_EVOLUTION_V03.md` §13 |
-| Primitives pures `reproduction-economique-v03` (v03-A) | **en cours sur branche** — voir `REPRODUCTION_ECONOMIQUE_V03.md` |
-| Implémentation contrôleur / campagne / évaluation v0.3 | **non démarrée** (v03-B…) |
+| Primitives pures `reproduction-economique-v03` (v03-A) | **fait** — voir `REPRODUCTION_ECONOMIQUE_V03.md` |
+| Intégration contrôleur multi-naissances (v03-B) | **en cours sur branche** — voie opt-in `reproduction-economique-v03` |
+| Observabilité / campagne / évaluation v0.3 | **non démarrée** (v03-C…) |
 
 ---
 
@@ -83,7 +84,7 @@ Séquence de PR prévue : v03-A … v03-H (voir conception §12).
 |----------|------|
 | `documentation/RESULTATS_EVOLUTION_V02.md` | clôture scientifique v0.2 |
 | `documentation/CONCEPTION_EVOLUTION_V03.md` | conception du couplage économique → capacité reproductive |
-| `documentation/REPRODUCTION_ECONOMIQUE_V03.md` | primitives pures v03-A (`reproduction-economique-v03`) |
+| `documentation/REPRODUCTION_ECONOMIQUE_V03.md` | contrat v0.3 (primitives + planification + contrôleur v03-B) |
 | `documentation/PREENREGISTREMENT_EVOLUTION_V02.md` | hypothèses pré-enregistrées v0.2 |
 | `documentation/POSTMORTEM_EVOLUTION_V01.md` | défaut causal v0.1 |
 | `documentation/COUPLAGE_GENOTYPE_PHENOTYPE_V02.md` | socle causal v0.2 |
