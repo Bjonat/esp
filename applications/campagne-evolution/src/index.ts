@@ -1,5 +1,5 @@
 /**
- * @esp/campagne-evolution — protocole expérimental multi-génération v0.1 / v0.2.
+ * @esp/campagne-evolution — protocole expérimental multi-génération v0.1 / v0.2 / v0.3.
  */
 
 export {
@@ -32,12 +32,27 @@ export type {
 } from "./protocole-evolution-v02.js";
 
 export {
+  VERSION_PROTOCOLE_EXPERIENCE_EVOLUTION_V03,
+  CONDITIONS_EVOLUTION_V03,
+  parserProtocoleEvolutionV03,
+  chargerProtocoleEvolutionV03DepuisObjet,
+  empreinteProtocoleV03,
+} from "./protocole-evolution-v03.js";
+export type {
+  ProtocoleExperienceEvolutionV03,
+  ProtocoleExperienceEvolutionV03Json,
+  EnvironnementExpositionV03Json,
+  ModeCampagneEvolutionV03,
+} from "./protocole-evolution-v03.js";
+
+export {
   chargerProtocoleCampagneEvolutionDepuisObjet,
   empreinteProtocoleCampagne,
   fabriquerConfigurationRunCampagne,
   preparerCampagneEvolution,
   estProtocoleEvolutionV01,
   estProtocoleEvolutionV02,
+  estProtocoleEvolutionV03,
 } from "./protocole-versionne.js";
 export type { ProtocoleCampagneEvolution } from "./protocole-versionne.js";
 
@@ -56,10 +71,83 @@ export {
 } from "./conditions-v02.js";
 
 export {
+  fabriquerConfigurationRunV03,
+  identifiantExperienceRunV03,
+  listerRunsPlanifiesV03,
+  construireSocleCommunConfigurationV03,
+  comparerStructureAB_V03,
+  comparerStructureBC_V03,
+  comparerStructureCD_V03,
+  memeEnvironnementExogeneV03,
+  projeterStructureHorsTraitementV03,
+} from "./conditions-v03.js";
+export type {
+  DifferenceStructurelleAutoriseeV03,
+  ResultatComparaisonStructurelleV03,
+} from "./conditions-v03.js";
+
+export {
   PreflightEvolutionV02Erreur,
   validerPreflightCampagneEvolutionV02,
   assertPreflightEvolutionV02OuEchouer,
 } from "./preflight-evolution-v02.js";
+
+export {
+  PreflightEvolutionV03Erreur,
+  validerPreflightCampagneEvolutionV03,
+  assertPreflightEvolutionV03OuEchouer,
+} from "./preflight-evolution-v03.js";
+
+export {
+  PLAGES_SEEDS_CANDIDATES_V03,
+  SEEDS_FIXTURE_NON_SCIENTIFIQUES_V03,
+  assertSeedsDisjointesV03,
+  assertUsageSeedsEvaluationV03,
+  seedsPourUsageV03,
+} from "./seeds-evolution-v03.js";
+export type { UsageSeedsEvolutionV03 } from "./seeds-evolution-v03.js";
+
+export {
+  HYPOTHESES_EVOLUTION_V03,
+  AVERTISSEMENT_H4_PAS_D_SUPERIEUR_C,
+  COMPARAISON_PRIMAIRE_V03,
+  COMPARAISONS_SECONDAIRES_V03,
+  VERSION_HYPOTHESES_EVOLUTION_V03,
+} from "./hypotheses-evolution-v03.js";
+export type {
+  IdentifiantHypotheseEvolutionV03,
+  DeclarationHypotheseEvolutionV03,
+} from "./hypotheses-evolution-v03.js";
+
+export {
+  FORMAT_EMPREINTE_RESULTAT_SCIENTIFIQUE_V03,
+  construireChargeResultatScientifiqueV03,
+  calculerEmpreinteResultatScientifiqueV03,
+  calculerEmpreinteResultatScientifiqueV03DepuisRun,
+} from "./empreinte-v03.js";
+export type {
+  AgregatsObservabiliteReproductionV03Resume,
+  ChargeResultatScientifiqueV03,
+} from "./empreinte-v03.js";
+
+export {
+  agregerObservabiliteReproductionEconomiqueV03,
+  calculerResultatsHorsReproductionParAgentV03,
+  sommerResultatsHorsReproductionV03,
+  calculerResultatEconomiqueHorsReproductionV03,
+} from "./observabilite-campagne-v03.js";
+
+export {
+  extraireClesAppariementH4V03,
+  extraireEntreesMatchingH4V03,
+} from "./cles-appariement-h4-v03.js";
+export type {
+  CleAppariementH4AgentV03,
+  EntreeMatchingH4AgentV03,
+} from "./cles-appariement-h4-v03.js";
+
+export type { ResumeRunEvolutionV03 } from "./resume-run-v03.js";
+export { estResumeRunEvolutionV03 } from "./resume-run-v03.js";
 
 export {
   classifierBornesCognitives,
@@ -214,6 +302,11 @@ export type {
 export {
   comparerControleNegatifBC,
   evaluerControleNegatifBatch,
+  ControlegeNegatifBcEchoueErreur,
+} from "./controle-negatif.js";
+export type {
+  ResultatControleNegatifSeed,
+  ResultatControleNegatifBatch,
 } from "./controle-negatif.js";
 
 export {

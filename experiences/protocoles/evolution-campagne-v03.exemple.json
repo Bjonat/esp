@@ -1,0 +1,94 @@
+{
+  "_commentaire": [
+    "EXEMPLE protocole évolution v0.3 — NON SCIENTIFIQUE.",
+    "statutArtefact = exemple_non_scientifique.",
+    "VALEURS NON CALIBRÉES — ne pas utiliser pour évaluation officielle.",
+    "SEEDS NON OFFICIELLES (91001–91002) — hors plages candidates.",
+    "AUCUNE EMPREINTE DE FREEZE — aucun tag — aucun pré-enregistrement.",
+    "Le runner PEUT l'exécuter techniquement ; le résultat n'est PAS une évaluation v0.3.",
+    "Signaux exploratoires v0.2 (ex. seuilEnjeu 100000→150000) NE SONT PAS utilisés pour optimiser.",
+    "Configuration fondatrice = référence neutre historique, pas une direction favorisée.",
+    "Mécanisme B/C/D : reproduction-economique-v03 ; mode decision_simulee ; provider simulé."
+  ],
+  "statutArtefact": "exemple_non_scientifique",
+  "version": "protocole-experience-evolution-v03",
+  "identifiantProtocole": "evolution-campagne-v03-exemple",
+  "mode": "calibration",
+  "seedsDiagnostic": [],
+  "seedsCalibration": [91001, 91002],
+  "seedsEvaluation": [],
+  "cyclesMaximum": 4,
+  "populationInitiale": 2,
+  "capitalInitialParAgentMicroUsdc": "8000000",
+  "tauxMutationConditionDBps": 2000,
+  "conditions": ["A", "B", "C", "D"],
+  "dateLancementFixe": "2020-01-01T00:00:00.000Z",
+  "exigerArbrePropre": false,
+  "fournisseur": {
+    "identifiant": "fournisseur-inference-simule",
+    "version": "0.1.0",
+    "selecteur": "simule"
+  },
+  "repertoireResultatsRelatif": "experiences/resultats",
+  "parametresEconomiques": {
+    "version": "demo-evolution-campagne-v03",
+    "loyerInfrastructureMicroUsdc": "0",
+    "periodeLoyerEnCycles": 100,
+    "tauxRedevanceProprietairePointsDeBase": "0",
+    "coutOperationnelMinimalParCycleMicroUsdc": "20000",
+    "seuilRunwaySainEnCycles": 20,
+    "seuilRunwayContraintEnCycles": 5,
+    "cyclesDormanceAvantMort": 3
+  },
+  "reproduction": {
+    "version": "parametres-reproduction-v01",
+    "active": true,
+    "dotationEnfantMicroUsdc": "800000",
+    "coutReproductionMicroUsdc": "200000",
+    "reserveMinimaleParentMicroUsdc": "400000",
+    "populationMaximale": 24,
+    "nombreMaxReproductionsParCycle": 6,
+    "nombreMaxEnfantsParAgent": 8,
+    "cooldownCycles": 1
+  },
+  "reproductionAutonome": {
+    "version": "politique-reproduction-autonome-v01",
+    "active": true,
+    "etatsSurvieEligibles": ["sain", "contraint"],
+    "nombreMaxNaissancesParCycle": 8,
+    "mecanisme": "reproduction-economique-v03"
+  },
+  "mutationBase": {
+    "version": "parametres-mutation-v01",
+    "active": true,
+    "tauxMutationParGeneBps": 2000,
+    "versionCatalogueGenes": "genes-mutables-v01"
+  },
+  "environnementExposition": {
+    "identifiant": "environnement-exposition-v03-fixture",
+    "version": "0.3.0-fixture",
+    "domaineRng": "graineSimulation=seed ; observation=hash(graine,agent,cycle,obs) ; mutation=hash domaines séparés ; reproduction=priorité neutre séparée — aucun PRNG global partagé",
+    "enjeuxPossiblesMicroUsdc": ["50000", "75000", "125000", "175000", "250000"],
+    "environnementDecision": {
+      "identifiant": "environnement-opportunites-simulees",
+      "version": "0.1.0",
+      "probabiliteSuccesBaseBps": 6000,
+      "amplitudeProbabiliteBps": 2000,
+      "gainSiSuccesMicroUsdc": "800000",
+      "perteSiEchecMicroUsdc": "400000",
+      "fraisActionMicroUsdc": "20000",
+      "fraisAttendreMicroUsdc": "0",
+      "enjeuxPossiblesMicroUsdc": ["50000", "75000", "125000", "175000", "250000"]
+    }
+  },
+  "politiqueBudgetCognitif": {
+    "identifiant": "politique-budget-cognitif-agent",
+    "version": "0.1.0",
+    "seuilEnjeuPourInferenceMicroUsdc": "100000",
+    "partMaxVenParCycleBps": 50,
+    "plafondCognitifMicroUsdc": "10000",
+    "modeleLogique": "modele_standard",
+    "comportementSansInference": "agir_si_favorable",
+    "refuserSiCritiqueOuDormant": true
+  }
+}

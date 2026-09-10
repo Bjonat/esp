@@ -11,7 +11,10 @@ import {
 } from "node:fs";
 import { join, resolve } from "node:path";
 import { identifiantRun } from "./conditions.js";
-import { evaluerControleNegatifBatch } from "./controle-negatif.js";
+import {
+  ControlegeNegatifBcEchoueErreur,
+  evaluerControleNegatifBatch,
+} from "./controle-negatif.js";
 import { executerRun, nettoyerRunPartiel } from "./executer-run.js";
 import {
   ajouterMarqueur,
@@ -30,6 +33,7 @@ import {
 } from "./protocole-evolution.js";
 import {
   empreinteProtocoleCampagne,
+  estProtocoleEvolutionV03,
   preparerCampagneEvolution,
   type ProtocoleCampagneEvolution,
 } from "./protocole-versionne.js";
@@ -54,6 +58,11 @@ export type OptionsRunnerCampagne = {
   readonly fournisseurMetaCode?: FournisseurMetaCode;
   readonly dateLancement?: string;
   readonly identifiantBatch?: string;
+  /**
+   * TEST UNIQUEMENT — force l'échec du contrôle B≡C après exécution
+   * pour démontrer le fail-closed v0.3. Ne jamais utiliser en production.
+   */
+  readonly forcerControleNegatifEchouePourTest?: boolean;
 };
 
 export type ResultatCampagneEvolution = {
@@ -332,21 +341,65 @@ export async function executerCampagneEvolution(
     trajectoires.set(r.resume.identifiantRun, r.points);
   }
 
-  // Contrôle négatif B vs C
-  const controle = evaluerControleNegatifBatch({ resumes, trajectoires });
+  // Contrôle négatif B vs C — invariant scientifique
+  let controle = evaluerControleNegatifBatch({ resumes, trajectoires });
+  if (options.forcerControleNegatifEchouePourTest === true) {
+    controle = {
+      ok: false,
+      paires: controle.paires.map((p) =>
+        p.identique
+          ? {
+              ...p,
+              identique: false,
+              motif: "divergence injectée pour test fail-closed",
+            }
+          : p,
+      ),
+    };
+  }
+
+  writeFileSync(
+    join(repertoireBatch, "controle-negatif.json"),
+    JSON.stringify(controle, null, 2),
+    "utf8",
+  );
+
   if (!controle.ok) {
     manifeste = ajouterMarqueur(manifeste, "CONTROLE_NEGATIF_ECHOUE");
     writeFileSync(
-      join(repertoireBatch, "controle-negatif.json"),
-      JSON.stringify(controle, null, 2),
+      join(repertoireBatch, "CAMPAGNE_INVALIDE.json"),
+      JSON.stringify(
+        {
+          statut: "invalide",
+          motif: "CONTROLE_NEGATIF_BC_ECHOUE",
+          message:
+            "empreinteScientifique(B, seed) !== empreinteScientifique(C, seed) — campagne non exploitable scientifiquement",
+          controle,
+          avertissement:
+            "Artefacts diagnostiques conservés pour inspection. Aucun verdict scientifique valide.",
+        },
+        null,
+        2,
+      ),
       "utf8",
     );
-  } else {
-    writeFileSync(
-      join(repertoireBatch, "controle-negatif.json"),
-      JSON.stringify(controle, null, 2),
-      "utf8",
-    );
+    ecrireManifeste(repertoireBatch, manifeste);
+    // Rapports diagnostiques uniquement — marqués par controleNegatifOk: false
+    ecrireRapportsBatch({
+      repertoireBatch,
+      manifeste,
+      resumes,
+      trajectoires,
+      controleNegatifOk: false,
+    });
+
+    // v0.3 : fail-closed obligatoire (throw). v0.1/v0.2 : marquage historique.
+    if (estProtocoleEvolutionV03(protocole)) {
+      throw new ControlegeNegatifBcEchoueErreur({
+        controle,
+        repertoireBatch,
+      });
+    }
   }
 
   ecrireManifeste(repertoireBatch, manifeste);

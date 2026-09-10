@@ -24,6 +24,29 @@ export type ResultatControleNegatifBatch = {
   readonly paires: readonly ResultatControleNegatifSeed[];
 };
 
+/**
+ * Échec bloquant du contrôle négatif B≡C (campagne v0.3).
+ * Les artefacts diagnostiques peuvent déjà être écrits ; la campagne
+ * n'est pas scientifiquement exploitable.
+ */
+export class ControlegeNegatifBcEchoueErreur extends Error {
+  readonly controle: ResultatControleNegatifBatch;
+  readonly repertoireBatch: string;
+
+  constructor(options: {
+    readonly controle: ResultatControleNegatifBatch;
+    readonly repertoireBatch: string;
+  }) {
+    const pairesEchouees = options.controle.paires.filter((p) => !p.identique);
+    super(
+      `contrôle négatif B≡C échoué — campagne INVALIDE (${String(pairesEchouees.length)} paire(s) divergente(s)) ; artefacts diagnostiques dans ${options.repertoireBatch}`,
+    );
+    this.name = "ControlegeNegatifBcEchoueErreur";
+    this.controle = options.controle;
+    this.repertoireBatch = options.repertoireBatch;
+  }
+}
+
 const CHAMPS_RESUME: readonly (keyof ResumeRunEvolution)[] = [
   "venPopulationFinaleMicroUsdc",
   "resultatActiviteBrutCumuleMicroUsdc",
