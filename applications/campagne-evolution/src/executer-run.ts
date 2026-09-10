@@ -25,10 +25,20 @@ import {
   calculerEmpreinteExecutionRun,
   calculerEmpreinteResultatScientifiqueDepuisRun,
 } from "./empreinte.js";
+import { calculerEmpreinteResultatScientifiqueV03DepuisRun } from "./empreinte-v03.js";
 import type { MetaCode } from "./meta-code.js";
+import { extraireClesAppariementH4V03 } from "./cles-appariement-h4-v03.js";
+import {
+  agregerObservabiliteReproductionEconomiqueV03,
+  calculerResultatsHorsReproductionParAgentV03,
+  sommerResultatsHorsReproductionV03,
+  type EvenementPourCampagneV03,
+} from "./observabilite-campagne-v03.js";
+import { AVERTISSEMENT_H4_PAS_D_SUPERIEUR_C } from "./hypotheses-evolution-v03.js";
 import type { ConditionEvolution } from "./protocole-evolution.js";
 import {
   empreinteProtocoleCampagne,
+  estProtocoleEvolutionV03,
   fabriquerConfigurationRunCampagne,
   type ProtocoleCampagneEvolution,
 } from "./protocole-versionne.js";
@@ -36,11 +46,16 @@ import {
   fabriquerResumeDepuisTrajectoire,
   type ResumeRunEvolution,
 } from "./resume-run.js";
+import type { ResumeRunEvolutionV03 } from "./resume-run-v03.js";
 import type {
   InstantaneFrequenceGenotype,
   InstantaneLignee,
   PointTrajectoireEvolution,
 } from "./trajectoire.js";
+import {
+  empreinteConfigurationAgent,
+  configurationHeritableEffective,
+} from "@esp/controleur";
 
 export type OptionsExecuterRun = {
   readonly protocole: ProtocoleCampagneEvolution;
@@ -388,10 +403,14 @@ export async function executerRun(
     datesEvenementsFixes: DATE_EVENEMENTS_FIXES_EVOLUTION,
   });
   let evenementsListe: EvenementEsp[];
+  let agentsProjection: ReturnType<ControleurExperience["projeterAgents"]> = [];
   try {
     evenementsListe = [
       ...relecture.registre.listerParExperience(conf.identifiantExperience),
     ];
+    if (estProtocoleEvolutionV03(protocole)) {
+      agentsProjection = relecture.projeterAgents();
+    }
   } finally {
     relecture.fermer();
   }
@@ -441,6 +460,122 @@ export async function executerRun(
     };
   }
 
+  let resumeFinal: ResumeRunEvolution = resume;
+
+  if (estProtocoleEvolutionV03(protocole)) {
+    const evenementsObs: EvenementPourCampagneV03[] = evenementsListe.map(
+      (e): EvenementPourCampagneV03 => {
+        const base: EvenementPourCampagneV03 = {
+          type: e.type,
+          identifiant: e.identifiant,
+          numeroCycle: e.numeroCycle,
+          sequence: e.sequence,
+        };
+        return {
+          ...base,
+          ...(e.identifiantAgent !== undefined
+            ? { identifiantAgent: e.identifiantAgent }
+            : {}),
+          ...(e.chargeUtile !== undefined
+            ? { chargeUtile: e.chargeUtile as Record<string, unknown> }
+            : {}),
+        };
+      },
+    );
+
+    const { agregat } = agregerObservabiliteReproductionEconomiqueV03({
+      evenements: evenementsObs,
+      cyclesMaximum: protocole.cyclesMaximum,
+    });
+
+    const identifiantsAgents = agentsProjection.map((a) => a.identifiant);
+    const cycleFin = Math.max(0, points.length);
+    const resultatsHorsRepro = calculerResultatsHorsReproductionParAgentV03({
+      evenements: evenementsObs,
+      identifiantsAgents,
+      cycleDebut: 0,
+      cycleFin,
+    });
+    const totalHorsRepro = sommerResultatsHorsReproductionV03(resultatsHorsRepro);
+
+    const matchingH4 = extraireClesAppariementH4V03({
+      seed,
+      evenements: evenementsListe,
+      agents: agentsProjection.map((a) => {
+        const empreinte =
+          a.configurationHeritable !== undefined
+            ? empreinteConfigurationAgent({
+                configurationHeritable: a.configurationHeritable,
+                ...(conf.politiqueBudgetCognitif !== undefined
+                  ? { politiqueBase: conf.politiqueBudgetCognitif }
+                  : {}),
+              })
+            : conf.politiqueBudgetCognitif !== undefined
+              ? empreinteConfigurationAgent({
+                  configurationHeritable: configurationHeritableEffective({
+                    politiqueBase: conf.politiqueBudgetCognitif,
+                  }),
+                  politiqueBase: conf.politiqueBudgetCognitif,
+                })
+              : null;
+        return {
+          identifiant: a.identifiant,
+          identifiantParent: a.identifiantParent,
+          cycleNaissance: a.cycleNaissance,
+          generation: a.generation,
+          empreinteConfiguration: empreinte,
+          identifiantsEnfants: a.identifiantsEnfants,
+        };
+      }),
+    });
+
+    const brouillonV03 = {
+      ...resume,
+      versionResume: "resume-run-evolution-v03" as const,
+      identifiantEnvironnementExposition:
+        protocole.environnementExposition.identifiant,
+      versionEnvironnementExposition:
+        protocole.environnementExposition.version,
+      etatRun:
+        points.length >= protocole.cyclesMaximum
+          ? ("complet" as const)
+          : ("incomplet" as const),
+      activiteEconomiqueHorsReproductionPopulationMicroUsdc: totalHorsRepro,
+      resultatsEconomiquesHorsReproductionParAgent: resultatsHorsRepro,
+      observabiliteReproductionEconomique: agregat,
+      matchingH4,
+      avertissementH4: AVERTISSEMENT_H4_PAS_D_SUPERIEUR_C,
+    };
+
+    const empreinteResultatScientifiqueV03 =
+      calculerEmpreinteResultatScientifiqueV03DepuisRun({
+        empreinteProtocole: empProtocole,
+        seed,
+        points: points as unknown as readonly Readonly<Record<string, unknown>>[],
+        resume: brouillonV03 as unknown as Readonly<Record<string, unknown>>,
+        observabiliteReproductionEconomique: agregat,
+        resultatEconomiqueHorsReproductionPopulationMicroUsdc: totalHorsRepro,
+      });
+
+    const resumeV03: ResumeRunEvolutionV03 = {
+      ...brouillonV03,
+      empreinteResultatScientifique: empreinteResultatScientifiqueV03,
+      empreinteResultatScientifiqueV03,
+    };
+    resumeFinal = resumeV03;
+
+    writeFileSync(
+      join(repertoireRun, "cles-appariement-h4.json"),
+      JSON.stringify(matchingH4, null, 2),
+      "utf8",
+    );
+    writeFileSync(
+      join(repertoireRun, "observabilite-reproduction-economique-v03.json"),
+      JSON.stringify(agregat, null, 2),
+      "utf8",
+    );
+  }
+
   writeFileSync(
     join(repertoireRun, "trajectoire.jsonl"),
     points.map((p) => JSON.stringify(p)).join("\n") +
@@ -449,7 +584,7 @@ export async function executerRun(
   );
   writeFileSync(
     join(repertoireRun, "resume.json"),
-    JSON.stringify(resume, null, 2),
+    JSON.stringify(resumeFinal, null, 2),
     "utf8",
   );
   writeFileSync(
@@ -457,9 +592,9 @@ export async function executerRun(
     JSON.stringify(
       {
         statut: "termine",
-        empreinteExecutionRun: resume.empreinteExecutionRun,
-        empreinteResultatScientifique: resume.empreinteResultatScientifique,
-        empreinteRun: resume.empreinteExecutionRun,
+        empreinteExecutionRun: resumeFinal.empreinteExecutionRun,
+        empreinteResultatScientifique: resumeFinal.empreinteResultatScientifique,
+        empreinteRun: resumeFinal.empreinteExecutionRun,
       },
       null,
       2,
@@ -468,10 +603,10 @@ export async function executerRun(
   );
 
   return {
-    resume,
-    empreinteExecutionRun: resume.empreinteExecutionRun,
-    empreinteResultatScientifique: resume.empreinteResultatScientifique,
-    empreinteRun: resume.empreinteExecutionRun,
+    resume: resumeFinal,
+    empreinteExecutionRun: resumeFinal.empreinteExecutionRun,
+    empreinteResultatScientifique: resumeFinal.empreinteResultatScientifique,
+    empreinteRun: resumeFinal.empreinteExecutionRun,
     points,
   };
 }

@@ -46,7 +46,7 @@ export type ManifesteBatchEvolution = {
   readonly identifiantProtocole: string;
   readonly empreinteProtocole: string;
   readonly formatsEmpreintes: FormatsEmpreintesCampagne;
-  readonly mode: "calibration" | "evaluation";
+  readonly mode: "diagnostic" | "calibration" | "evaluation";
   readonly dateLancement: string;
   readonly metaCode: MetaCode;
   readonly marqueurs: MarqueurBatch[];

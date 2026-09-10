@@ -3,7 +3,7 @@
  *
  * Usage :
  *   pnpm experience:evolution -- --protocole experiences/protocoles/evolution-pilote-v01.json
- *   pnpm experience:evolution -- --protocole ... --concurrency 2 --repertoire-resultats /tmp/out
+ *   pnpm experience:evolution -- --protocole experiences/protocoles/evolution-campagne-v03.exemple.json
  */
 
 import { readFileSync } from "node:fs";
