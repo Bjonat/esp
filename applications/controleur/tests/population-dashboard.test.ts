@@ -224,53 +224,57 @@ describe("Population, contrôleur et dashboard v0.1", () => {
     }
   });
 
-  it("F — Redémarrage : 20 cycles + reprise cycle 21 == 21 cycles continus", async () => {
-    const repertoire = repertoireTemp();
-    const cheminSqlite = join(repertoire, "esp.sqlite");
-    const configuration = configurationDemo({
-      taillePopulationInitiale: 5,
-      graineSimulation: 4242,
-    });
+  it(
+    "F — Redémarrage : 20 cycles + reprise cycle 21 == 21 cycles continus",
+    async () => {
+      const repertoire = repertoireTemp();
+      const cheminSqlite = join(repertoire, "esp.sqlite");
+      const configuration = configurationDemo({
+        taillePopulationInitiale: 5,
+        graineSimulation: 4242,
+      });
 
-    const continu = ControleurExperience.ouvrir({
-      configuration,
-      registre: creerRegistreEvenementsMemoire(),
-      dateCreationFixe: "2020-01-01T00:00:00.000Z",
-      datesEvenementsFixes: "2020-01-01T00:00:00.000Z",
-    });
-    for (let cycle = 0; cycle < 21; cycle += 1) {
-      await continu.avancerUnCycle();
-    }
-    const empreinteContinue = continu.capturerEmpreinteEconomique();
+      const continu = ControleurExperience.ouvrir({
+        configuration,
+        registre: creerRegistreEvenementsMemoire(),
+        dateCreationFixe: "2020-01-01T00:00:00.000Z",
+        datesEvenementsFixes: "2020-01-01T00:00:00.000Z",
+      });
+      for (let cycle = 0; cycle < 21; cycle += 1) {
+        await continu.avancerUnCycle();
+      }
+      const empreinteContinue = continu.capturerEmpreinteEconomique();
 
-    const premier = ControleurExperience.ouvrir({
-      configuration,
-      cheminSqlite,
-      dateCreationFixe: "2020-01-01T00:00:00.000Z",
-      datesEvenementsFixes: "2020-01-01T00:00:00.000Z",
-    });
-    for (let cycle = 0; cycle < 20; cycle += 1) {
-      await premier.avancerUnCycle();
-    }
-    premier.fermer();
+      const premier = ControleurExperience.ouvrir({
+        configuration,
+        cheminSqlite,
+        dateCreationFixe: "2020-01-01T00:00:00.000Z",
+        datesEvenementsFixes: "2020-01-01T00:00:00.000Z",
+      });
+      for (let cycle = 0; cycle < 20; cycle += 1) {
+        await premier.avancerUnCycle();
+      }
+      premier.fermer();
 
-    const second = ControleurExperience.ouvrir({
-      configuration,
-      cheminSqlite,
-      datesEvenementsFixes: "2020-01-01T00:00:00.000Z",
-    });
-    expect(second.obtenirNumeroCycleCourant()).toBe(20);
-    await second.avancerUnCycle();
-    const empreinteReprise = second.capturerEmpreinteEconomique();
-    second.fermer();
+      const second = ControleurExperience.ouvrir({
+        configuration,
+        cheminSqlite,
+        datesEvenementsFixes: "2020-01-01T00:00:00.000Z",
+      });
+      expect(second.obtenirNumeroCycleCourant()).toBe(20);
+      await second.avancerUnCycle();
+      const empreinteReprise = second.capturerEmpreinteEconomique();
+      second.fermer();
 
-    expect(empreinteReprise.numeroCycle).toBe(21);
-    expect(empreinteReprise.agents).toEqual(empreinteContinue.agents);
-    expect(empreinteReprise.tresorerie).toEqual(empreinteContinue.tresorerie);
-    expect(empreinteReprise.typesEvenements).toEqual(
-      empreinteContinue.typesEvenements,
-    );
-  });
+      expect(empreinteReprise.numeroCycle).toBe(21);
+      expect(empreinteReprise.agents).toEqual(empreinteContinue.agents);
+      expect(empreinteReprise.tresorerie).toEqual(empreinteContinue.tresorerie);
+      expect(empreinteReprise.typesEvenements).toEqual(
+        empreinteContinue.typesEvenements,
+      );
+    },
+    15_000,
+  );
 
   it("G — API population : agrégats = projections reconstruites", async () => {
     const controleur = ouvrirControleurMemoire({

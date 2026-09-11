@@ -108,6 +108,87 @@ export {
 export type { UsageSeedsEvolutionV03 } from "./seeds-evolution-v03.js";
 
 export {
+  SEEDS_DIAGNOSTIC_EXPOSITION_V03,
+  assertSeedsDiagnosticExpositionV03Libres,
+  assertPasDeReutilisationSeedsDiagnosticV03,
+} from "./seeds-diagnostic-exposition-v03.js";
+
+export {
+  VERSION_CANDIDATS_EXPOSITION_V03,
+  CANDIDAT_EXPOSITION_E0,
+  CANDIDAT_EXPOSITION_E1,
+  CANDIDAT_EXPOSITION_E2,
+  SEQUENCE_CANDIDATS_EXPOSITION_V03,
+  candidatExpositionParIdentifiant,
+} from "./candidats-exposition-v03.js";
+export type {
+  IdentifiantCandidatExpositionV03,
+  DefinitionCandidatExpositionV03,
+} from "./candidats-exposition-v03.js";
+
+export {
+  VERSION_SENSIBILITE_GENE_V03,
+  GENES_DIAGNOSTIC_EXPOSITION_V03,
+  POLITIQUE_FONDATRICE_DIAGNOSTIC_V03,
+  premierVoisinCanoniqueGeneV03,
+  voisinsCanoniquesFondateurV03,
+  estContexteSensibleV03,
+  evaluerContexteSensibiliteGeneV03,
+  evaluerSensibiliteCandidatExpositionV03,
+  agregerSensibiliteGeneV03,
+} from "./diagnostic-sensibilite-gene-v03.js";
+export type {
+  NiveauxSensibiliteV03,
+  ContexteSensibiliteGeneV03,
+  AgregatSensibiliteGeneV03,
+} from "./diagnostic-sensibilite-gene-v03.js";
+
+export {
+  VERSION_CONTROLE_POSITIF_REPRODUCTION_V03,
+  PARAMETRES_DIAGNOSTIC_REPRODUCTION_V03,
+  REFERENCES_INTEGRATION_REPRODUCTION_V03_B,
+  executerControlePositifReproductionV03,
+} from "./controle-positif-reproduction-v03.js";
+export type {
+  PointControleCapaciteV03,
+  ResultatControlePositifReproductionV03,
+} from "./controle-positif-reproduction-v03.js";
+
+export {
+  VERSION_RAPPORT_DIAGNOSTIC_EXPOSITION_V03,
+  CRITERES_EXPOSITION_SUFFISANTE_V03,
+  CLES_INTERDITES_SELECTION_EXPOSITION_V03,
+  AUDIT_SILENCE_ECONOMIQUE_GENES_NUMERIQUES_V03,
+  evaluerCriteresExpositionV03,
+  appliquerRegleArretPremierSatisfaisantV03,
+  assertEntreeSelectionSansPerformanceDC,
+  construireRapportDiagnosticExpositionV03,
+  resumeSensibiliteParGenePourRapport,
+  niveauxExpositionDepuisAgregats,
+} from "./rapport-diagnostic-exposition-v03.js";
+export type {
+  EvaluationCriteresExpositionV03,
+  EntreeSelectionCandidatExpositionV03,
+  RapportDiagnosticExpositionV03,
+  VerdictExpositionCandidatV03,
+  NiveauxExpositionGeneRapportV03,
+} from "./rapport-diagnostic-exposition-v03.js";
+
+export {
+  VERSION_DIAGNOSTIC_EXPOSITION_V03,
+  executerDiagnosticExpositionV03,
+  ecrireArtefactDiagnosticExpositionV03,
+  verifierInvariantBcPourDiagnosticV03,
+  observerPressionGardeFousDiagnosticV03,
+} from "./diagnostic-exposition-v03.js";
+export type { OptionsDiagnosticExpositionV03 } from "./diagnostic-exposition-v03.js";
+
+export {
+  parserArgumentsCliDiagnosticExpositionV03,
+  mainDiagnosticExpositionV03,
+} from "./cli-diagnostic-exposition-v03.js";
+
+export {
   HYPOTHESES_EVOLUTION_V03,
   AVERTISSEMENT_H4_PAS_D_SUPERIEUR_C,
   COMPARAISON_PRIMAIRE_V03,

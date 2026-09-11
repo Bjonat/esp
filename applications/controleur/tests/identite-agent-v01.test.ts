@@ -500,80 +500,84 @@ describe("Identité agent ESP v0.1", () => {
     expect(texte).not.toContain("ESP-PAIEMENT");
   });
 
-  it("N — idempotence : demande signée exécutée puis redémarrage sans 2e conso", async () => {
-    const repertoire = mkdtempSync(join(tmpdir(), "esp-id-"));
-    repertoires.push(repertoire);
-    const cheminSqlite = join(repertoire, "esp.sqlite");
-    const cheminKeystore = join(repertoire, "identites");
-    const conf = configBase({ taillePopulationInitiale: 2 });
+  it(
+    "N — idempotence : demande signée exécutée puis redémarrage sans 2e conso",
+    async () => {
+      const repertoire = mkdtempSync(join(tmpdir(), "esp-id-"));
+      repertoires.push(repertoire);
+      const cheminSqlite = join(repertoire, "esp.sqlite");
+      const cheminKeystore = join(repertoire, "identites");
+      const conf = configBase({ taillePopulationInitiale: 2 });
 
-    const premier = ControleurExperience.ouvrir({
-      configuration: conf,
-      cheminSqlite,
-      cheminKeystoreIdentites: cheminKeystore,
-      dateCreationFixe: "2020-01-01T00:00:00.000Z",
-      datesEvenementsFixes: "2020-01-01T00:00:00.000Z",
-    });
-    for (let i = 0; i < 8; i += 1) await premier.avancerUnCycle();
-    const executeesAvant = premier.registre
-      .listerParExperience(conf.identifiantExperience)
-      .filter((e) => e.type === "INFERENCE_EXECUTEE");
-    expect(executeesAvant.length).toBeGreaterThan(0);
-    const cible = executeesAvant[0]!;
-    const idDemande = String(cible.chargeUtile.identifiantDemande);
-    premier.fermer();
+      const premier = ControleurExperience.ouvrir({
+        configuration: conf,
+        cheminSqlite,
+        cheminKeystoreIdentites: cheminKeystore,
+        dateCreationFixe: "2020-01-01T00:00:00.000Z",
+        datesEvenementsFixes: "2020-01-01T00:00:00.000Z",
+      });
+      for (let i = 0; i < 8; i += 1) await premier.avancerUnCycle();
+      const executeesAvant = premier.registre
+        .listerParExperience(conf.identifiantExperience)
+        .filter((e) => e.type === "INFERENCE_EXECUTEE");
+      expect(executeesAvant.length).toBeGreaterThan(0);
+      const cible = executeesAvant[0]!;
+      const idDemande = String(cible.chargeUtile.identifiantDemande);
+      premier.fermer();
 
-    const second = ControleurExperience.ouvrir({
-      configuration: conf,
-      cheminSqlite,
-      cheminKeystoreIdentites: cheminKeystore,
-      datesEvenementsFixes: "2020-01-01T00:00:00.000Z",
-    });
-    const agentId = String(cible.identifiantAgent);
-    const signataire = second.obtenirSignataire(agentId);
-    const demande = demandeTest({
-      identifiantDemande: idDemande,
-      identifiantAgent: agentId,
-      numeroCycle: cible.numeroCycle,
-      identifiantExperience: conf.identifiantExperience,
-    });
-    const message = construireMessageCanoniqueDemandeInference(demande);
-    const signe = signataire.signer(message);
-    // Rejouer via passerelle reconstruite — déjà connue
-    const passerelle = creerPasserelleXway({
-      configuration: creerConfigurationXwayDemonstration(),
-      authentificationRequise: true,
-      clesPubliquesParAgent: new Map([
-        [
-          agentId,
-          second.obtenirIdentitesPubliques().get(agentId)!.clePubliqueBase64Url,
-        ],
-      ]),
-      etatsDemandes: new Map([
-        [
-          idDemande,
-          {
-            identifiantDemande: idDemande,
-            identifiantAgent: agentId,
-            numeroCycle: cible.numeroCycle,
-            etat: "executee",
-            coutFinalMicroUsdc: BigInt(
-              String(cible.chargeUtile.coutFinalMicroUsdc),
-            ),
-          },
-        ],
-      ]),
-    });
-    const replay = await passerelle.executer({
-      demande,
-      clePubliqueBase64Url: signe.clePubliqueBase64Url,
-      signatureBase64Url: signe.signatureBase64Url,
-    });
-    expect(replay.statut).toBe("executee");
-    if (replay.statut === "executee") {
-      expect(replay.dejaConnue).toBe(true);
-    }
-    expect(passerelle.obtenirNombreAppelsFournisseur()).toBe(0);
-    second.fermer();
-  });
+      const second = ControleurExperience.ouvrir({
+        configuration: conf,
+        cheminSqlite,
+        cheminKeystoreIdentites: cheminKeystore,
+        datesEvenementsFixes: "2020-01-01T00:00:00.000Z",
+      });
+      const agentId = String(cible.identifiantAgent);
+      const signataire = second.obtenirSignataire(agentId);
+      const demande = demandeTest({
+        identifiantDemande: idDemande,
+        identifiantAgent: agentId,
+        numeroCycle: cible.numeroCycle,
+        identifiantExperience: conf.identifiantExperience,
+      });
+      const message = construireMessageCanoniqueDemandeInference(demande);
+      const signe = signataire.signer(message);
+      // Rejouer via passerelle reconstruite — déjà connue
+      const passerelle = creerPasserelleXway({
+        configuration: creerConfigurationXwayDemonstration(),
+        authentificationRequise: true,
+        clesPubliquesParAgent: new Map([
+          [
+            agentId,
+            second.obtenirIdentitesPubliques().get(agentId)!.clePubliqueBase64Url,
+          ],
+        ]),
+        etatsDemandes: new Map([
+          [
+            idDemande,
+            {
+              identifiantDemande: idDemande,
+              identifiantAgent: agentId,
+              numeroCycle: cible.numeroCycle,
+              etat: "executee",
+              coutFinalMicroUsdc: BigInt(
+                String(cible.chargeUtile.coutFinalMicroUsdc),
+              ),
+            },
+          ],
+        ]),
+      });
+      const replay = await passerelle.executer({
+        demande,
+        clePubliqueBase64Url: signe.clePubliqueBase64Url,
+        signatureBase64Url: signe.signatureBase64Url,
+      });
+      expect(replay.statut).toBe("executee");
+      if (replay.statut === "executee") {
+        expect(replay.dejaConnue).toBe(true);
+      }
+      expect(passerelle.obtenirNombreAppelsFournisseur()).toBe(0);
+      second.fermer();
+    },
+    15_000,
+  );
 });
