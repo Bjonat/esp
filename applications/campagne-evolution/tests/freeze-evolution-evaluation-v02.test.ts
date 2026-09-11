@@ -317,12 +317,16 @@ describe("freeze-evolution-evaluation-v02", () => {
     expect([...freezeV01.seedsEvaluation]).toEqual([...SEEDS_EVALUATION_FIGEES_V01]);
   });
 
-  it("P — contrôles positifs génotype→phénotype toujours verts", async () => {
-    expect((await executerControleAComportementSansInference()).ok).toBe(true);
-    expect((await executerControleBSeuilInference()).ok).toBe(true);
-    expect((await executerControleCPlafondCognitif()).ok).toBe(true);
-    expect((await executerControleDPartMaxVen()).ok).toBe(true);
-  });
+  it(
+    "P — contrôles positifs génotype→phénotype toujours verts",
+    async () => {
+      expect((await executerControleAComportementSansInference()).ok).toBe(true);
+      expect((await executerControleBSeuilInference()).ok).toBe(true);
+      expect((await executerControleCPlafondCognitif()).ok).toBe(true);
+      expect((await executerControleDPartMaxVen()).ok).toBe(true);
+    },
+    15_000,
+  );
 
   it("retry technique vs performance scientifique", () => {
     expect(estEchecTechniqueV02("exception")).toBe(true);

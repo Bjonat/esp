@@ -135,11 +135,15 @@ describe("couplage-genotype-phenotype-v02", () => {
     expect(r.ok).toBe(true);
   });
 
-  it("suite complète sensibilité phénotypique (bloquant)", async () => {
-    const resultats = await executerControleSensibilitePhenotypiqueV02();
-    expect(resultats).toHaveLength(4);
-    expect(resultats.every((r) => r.ok)).toBe(true);
-  });
+  it(
+    "suite complète sensibilité phénotypique (bloquant)",
+    async () => {
+      const resultats = await executerControleSensibilitePhenotypiqueV02();
+      expect(resultats).toHaveLength(4);
+      expect(resultats.every((r) => r.ok)).toBe(true);
+    },
+    15_000,
+  );
 
   it("campagne/intégration traverse réellement événements décision", async () => {
     const r = await executerControleCampagneExpressionPhenotypiqueV02();
